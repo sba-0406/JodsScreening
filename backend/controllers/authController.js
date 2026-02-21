@@ -8,12 +8,12 @@ exports.register = async (req, res) => {
     try {
         const { name, email, password } = req.body;
 
-        // Create user
+        // Create user - Force candidate role for public signups
         const user = await User.create({
             name,
             email,
             password,
-            role: 'employee' // Default for new signups
+            role: 'candidate' // Only candidates can self-register
         });
 
         sendTokenResponse(user, 201, res);

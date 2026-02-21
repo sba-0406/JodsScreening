@@ -22,11 +22,22 @@ const UserSchema = new mongoose.Schema({
     minlength: 6,
     select: false
   },
+  // Role-Based Access Control
   role: {
     type: String,
-    enum: ['employee', 'manager', 'admin'],
-    default: 'employee'
+    enum: ['candidate', 'hr', 'admin', 'employee', 'manager'], // Added new roles, kept old ones for backward compatibility
+    default: 'candidate'
   },
+
+  // For HR/Admin users
+  company: String,
+  department: String,
+
+  // For Candidates
+  phone: String,
+  resume: String, // File path or URL
+
+  // Legacy fields (keep for backward compatibility)
   isActive: {
     type: Boolean,
     default: true
@@ -46,6 +57,13 @@ const UserSchema = new mongoose.Schema({
   isAuthorized: {
     type: Boolean,
     default: true
+  },
+
+  // Account Status
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended'],
+    default: 'active'
   },
   createdAt: {
     type: Date,

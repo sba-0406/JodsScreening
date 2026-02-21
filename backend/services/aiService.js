@@ -51,20 +51,34 @@ class GroqAIService {
         this.groq = new Groq({ apiKey });
         this.models = [
             "llama-3.3-70b-versatile",
-            "llama-3.1-70b-versatile",
-            "llama3-70b-8192",
-            "mixtral-8x7b-32768",
             "llama-3.1-8b-instant",
-            "llama3-8b-8192",
-            "gemma2-9b-it"
+            "llama-3.2-11b-vision-preview",
+            "llama-3.2-3b-preview"
         ];
         this.currentModelIndex = 0;
         this.activeModel = "None";
+        this.lastRequestTime = 0;
+        this.minInterval = 2500; // 2.5 seconds for ~24 RPM
     }
 
-    async generateContent(prompt, isJson = false) {
-        while (this.currentModelIndex < this.models.length) {
-            const modelName = this.models[this.currentModelIndex];
+    async _throttle() {
+        const now = Date.now();
+        const timeSinceLast = now - this.lastRequestTime;
+        if (timeSinceLast < this.minInterval) {
+            const wait = this.minInterval - timeSinceLast;
+            console.log(`[AI THROTTLE] Waiting ${wait}ms to respect rate limits...`);
+            await new Promise(resolve => setTimeout(resolve, wait));
+        }
+        this.lastRequestTime = Date.now();
+    }
+
+    async generateContent(prompt, isJson = false, modelOverride = null) {
+        await this._throttle();
+
+        // Try models in rotation
+        let attempts = 0;
+        while (attempts < this.models.length) {
+            const modelName = modelOverride || this.models[this.currentModelIndex];
             try {
                 const response = await this.groq.chat.completions.create({
                     model: modelName,
@@ -75,16 +89,225 @@ class GroqAIService {
                 return response.choices[0].message.content;
             } catch (err) {
                 if (err.status === 401) throw err;
-                console.warn(`[AI SERVICE] Groq Model ${modelName} rate limited or failed. Trying next...`);
-                this.currentModelIndex++;
+                console.warn(`[AI SERVICE] Groq Model ${modelName} failed:`, err.message);
+
+                if (modelOverride) throw err; // Don't rotate if specific model requested
+
+                this.currentModelIndex = (this.currentModelIndex + 1) % this.models.length;
+                attempts++;
+                await new Promise(resolve => setTimeout(resolve, 500)); // Short wait before retry
             }
         }
-        this.currentModelIndex = 0;
         throw new Error("All Groq models failed");
+    }
+
+    async generateTechnicalQuestions(skill, count, difficulty) {
+        console.log(`[AI GENERATE] Creating ${count} questions for ${skill}...`);
+
+        // Buffer logic: Ask for more than needed (at least 3 or 1.5x) to handle rejections
+        const targetCount = Math.max(count + 2, Math.ceil(count * 1.5));
+
+        const genPrompt = `
+        Create ${targetCount} distinct multiple-choice questions for the technical skill: "${skill}".
+        Difficulty Level: ${difficulty}.
+
+        Format requirements:
+        - Return ONLY a JSON object with a "questions" key containing the array.
+        - Each question object must have: "question", "options" (array of 4 strings), "correctAnswer" (index 0-3), "explanation".
+        - Ensure questions are practical and scenario-based.
+        
+        Example:
+        {
+          "questions": [
+            {
+                "question": "...",
+                "options": ["...", "...", "...", "..."],
+                "correctAnswer": 0,
+                "explanation": "..."
+            }
+          ]
+        }
+        `;
+
+        try {
+            // Step 1: Generate Questions (using Llama 3.3)
+            const genText = await this.generateContent(genPrompt, true, "llama-3.3-70b-versatile");
+            const genData = extractJSON(genText);
+            const rawQuestions = genData.questions || [];
+
+            if (rawQuestions.length === 0) return [];
+
+            // Step 2: Critic Pass (using Mixtral for a different "brain")
+            console.log(`[AI CRITIC] Validating ${rawQuestions.length} questions for accuracy...`);
+            const criticPrompt = `
+            You are a Senior Technical Architect. Review these technical questions for "${skill}" at "${difficulty}" difficulty.
+            
+            Questions to review:
+            ${JSON.stringify(rawQuestions, null, 2)}
+
+            For each question:
+            1. Is the "correctAnswer" actually the most accurate choice?
+            2. Are the questions clear and non-ambiguous?
+            3. Is the explanation technically sound?
+
+            Return ONLY a JSON object. Be fair but firm. Bias towards approval unless the question is factually wrong or completely unreadable.
+            {
+                "reviews": [
+                    { "index": 0, "isValid": true/false, "feedback": "Short string explanation if false" }
+                ]
+            }
+            `;
+
+            const criticText = await this.generateContent(criticPrompt, true, "llama-3.1-8b-instant");
+            const criticData = extractJSON(criticText);
+            const reviews = criticData.reviews || [];
+
+            // Filter out invalid questions
+            const validatedQuestions = rawQuestions.filter((q, idx) => {
+                const review = reviews.find(r => r.index === idx);
+                if (review && review.isValid === false) {
+                    const reason = typeof review.feedback === 'object' ? JSON.stringify(review.feedback) : review.feedback;
+                    console.warn(`[AI CRITIC] Rejecting Question ${idx} for ${skill}: ${reason}`);
+                    return false;
+                }
+                return true;
+            });
+
+            console.log(`[AI SUCCESS] ${validatedQuestions.length}/${rawQuestions.length} questions passed the Critic pass.`);
+
+            // If we still don't have enough, and this isn't already a retry
+            if (validatedQuestions.length < count && !this._isRetry) {
+                console.log(`[AI FILL GAP] Only ${validatedQuestions.length}/${count} passed. Retrying to fill gap...`);
+                this._isRetry = true;
+                const extra = await this.generateTechnicalQuestions(skill, count - validatedQuestions.length, difficulty);
+                this._isRetry = false;
+                return [...validatedQuestions, ...extra].slice(0, count);
+            }
+
+            return validatedQuestions.slice(0, count);
+
+        } catch (error) {
+            console.error(`[AI SERVICE] Failed to generate/validate questions for ${skill}:`, error);
+            return [];
+        }
+    }
+
+    async generateBulkTechnicalQuestions(skillsMap, difficulty) {
+        // skillsMap: { "React": 2, "Node.js": 2 }
+        const skillsList = Object.keys(skillsMap);
+        console.log(`[AI BULK GENERATE] Creating questions for: ${skillsList.join(', ')}...`);
+
+        // Ask for a bit more buffer per skill (Math.max(count+1, 1.2x))
+        const bulkConfig = {};
+        skillsList.forEach(skill => {
+            bulkConfig[skill] = Math.max(skillsMap[skill] + 1, Math.ceil(skillsMap[skill] * 1.3));
+        });
+
+        const genPrompt = `
+        Create technical multiple-choice questions for the following skills:
+        ${JSON.stringify(bulkConfig, null, 2)}
+        Difficulty Level: ${difficulty}.
+
+        Format requirements:
+        - Return ONLY a JSON object with a "results" key.
+        - "results" should be an array of objects, one per skill.
+        - Each skill object must have "skill" and "questions" (array).
+        - Each question object: "question", "options" (4 strings), "correctAnswer" (index 0-3), "explanation".
+        
+        Example:
+        {
+          "results": [
+            {
+                "skill": "React",
+                "questions": [ { "question": "...", ... } ]
+            }
+          ]
+        }
+        `;
+
+        try {
+            // Step 1: Bulk Generation
+            const genText = await this.generateContent(genPrompt, true, "llama-3.3-70b-versatile");
+            const genData = extractJSON(genText);
+            const results = genData.results || [];
+
+            // Step 2: Bulk Critic Pass
+            console.log(`[AI BULK CRITIC] Validating results across ${results.length} skills...`);
+            const criticPrompt = `
+            You are a Senior Technical Architect. Review these technical questions for accuracy.
+            Difficulty: ${difficulty}.
+
+            Questions:
+            ${JSON.stringify(results, null, 2)}
+
+            Return ONLY a JSON object. You are a strict technical critic. Be firm; reject questions if they are simplistic or have errors.
+            IMPORTANT: Use the EXACT skill names provided below in your response.
+            {
+                "reviews": [
+                    { "skill": "React", "reviews": [ { "index": 0, "isValid": true/false, "feedback": "Short reason" } ] }
+                ]
+            }
+            `;
+
+            const criticText = await this.generateContent(criticPrompt, true, "llama-3.1-8b-instant");
+            const criticData = extractJSON(criticText);
+            const allReviews = criticData.reviews || [];
+
+            const finalMap = {};
+            results.forEach(skillRes => {
+                const skill = skillRes.skill;
+                const skillQuestions = skillRes.questions || [];
+
+                const validated = skillQuestions.filter((q, idx) => {
+                    // Robust fuzzy match for skill name (handle case, spaces, or small variations)
+                    const matchingReview = allReviews.find(r =>
+                        r.skill?.toLowerCase().trim() === skill.toLowerCase().trim() ||
+                        r.skill?.toLowerCase().includes(skill.toLowerCase()) ||
+                        skill.toLowerCase().includes(r.skill?.toLowerCase())
+                    );
+
+                    const review = matchingReview?.reviews?.find(r => r.index === idx);
+
+                    if (review && review.isValid === false) {
+                        const reason = typeof review.feedback === 'object' ? JSON.stringify(review.feedback) : review.feedback;
+                        console.warn(`[AI BULK CRITIC] Rejecting ${skill} Question ${idx}: ${reason}`);
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Slice to requested count
+                const requestedCount = skillsMap[skill];
+                finalMap[skill] = validated.slice(0, requestedCount);
+
+                // Note: We don't do automatic recursive retry here to keep it simple and safe for one big packet.
+                // If a skill is under-populated, questionBankService can handle a small targeted fallback.
+                console.log(`[AI BULK SUCCESS] ${finalMap[skill].length}/${requestedCount} questions approved for ${skill}`);
+            });
+
+            return finalMap;
+
+        } catch (error) {
+            console.error(`[AI BULK SERVICE] Failed:`, error);
+            return {};
+        }
     }
 }
 
 class SmartMockAIService {
+    async generateTechnicalQuestions(skill, count, difficulty) {
+        const questions = [];
+        for (let i = 1; i <= count; i++) {
+            questions.push({
+                question: `Mock Technical Question ${i} for ${skill}?`,
+                options: ["Option A", "Option B", "Option C", "Option D"],
+                correctAnswer: 0,
+                explanation: `This is a mock explanation for ${skill} at ${difficulty} level.`
+            });
+        }
+        return questions;
+    }
+
     async generateContent(prompt) {
         const lower = prompt.toLowerCase();
         if (lower.includes('scenario titles')) {
@@ -96,7 +319,17 @@ class SmartMockAIService {
         if (lower.includes('questions')) {
             return JSON.stringify({ questions: [{ text: "How do you handle the pressure?", confidence: 0.9 }] });
         }
-        if (lower.includes('leadership approaches') || lower.includes('mcq options')) {
+        if (lower.includes('technical questions')) {
+            return JSON.stringify([
+                {
+                    question: "Mock Question 1?",
+                    options: ["A", "B", "C", "D"],
+                    correctAnswer: "A",
+                    explanation: "Reason A"
+                }
+            ]);
+        }
+        if (lower.includes('leadership approaches') || lower.includes('mcq options') || lower.includes('leadership options') || lower.includes('generate 3 options')) {
             return JSON.stringify([
                 {
                     text: "I understand your perspective and want to collaborate on a solution.",
@@ -190,24 +423,64 @@ class ResilientAIService {
         while (this.currentGroqIndex < this.groqPool.length) {
             const service = this.groqPool[this.currentGroqIndex];
             try {
-                const res = await service.generateContent(prompt, isJson);
+                const res = await service[fnName](...args);
                 this.activeSource = { provider: 'Groq Cloud', model: service.activeModel, keyIndex: this.currentGroqIndex + 1, status: 'Active (Free)' };
-                console.log(`[AI CONNECTED] ${this.activeSource.provider} (${this.activeSource.model})`);
                 return res;
             } catch (e) {
-                console.warn(`[AI ERROR] Groq Key ${this.currentGroqIndex + 1} Failed:`, e.message);
+                console.warn(`[AI ERROR] Groq Key ${this.currentGroqIndex + 1} Failed for ${fnName}:`, e.message);
                 this.currentGroqIndex++;
             }
         }
 
         // Fallback to Mock
         this.activeSource = { provider: 'Smart Mock', model: 'Rule-Based Local Engine', keyIndex: 0, status: 'Fallback' };
-        console.log(`[AI CONNECTED] ${this.activeSource.provider}`);
         if (this.mock[fnName]) return await this.mock[fnName](...args);
         return await this.mock.generateContent(prompt);
     }
 
     async generateContent(prompt, isJson = false) { return this.callAI('generateContent', prompt, isJson); }
+
+    async generateTechnicalQuestions(skill, count, difficulty) {
+        this.resetRotation();
+        while (this.currentGroqIndex < this.groqPool.length) {
+            const service = this.groqPool[this.currentGroqIndex];
+            try {
+                const res = await service.generateTechnicalQuestions(skill, count, difficulty);
+                this.activeSource = { provider: 'Groq Cloud', model: service.activeModel, keyIndex: this.currentGroqIndex + 1, status: 'Active (Free)' };
+                return res;
+            } catch (e) {
+                console.warn(`[AI ERROR] Groq Key ${this.currentGroqIndex + 1} Failed for Technical Questions:`, e.message);
+                this.currentGroqIndex++;
+            }
+        }
+
+        // Fallback to Mock
+        this.activeSource = { provider: 'Smart Mock', model: 'Rule-Based Local Engine', keyIndex: 0, status: 'Fallback' };
+        return await this.mock.generateTechnicalQuestions(skill, count, difficulty);
+    }
+
+    async generateBulkTechnicalQuestions(skillsMap, difficulty) {
+        this.resetRotation();
+        while (this.currentGroqIndex < this.groqPool.length) {
+            const service = this.groqPool[this.currentGroqIndex];
+            try {
+                const res = await service.generateBulkTechnicalQuestions(skillsMap, difficulty);
+                this.activeSource = { provider: 'Groq Cloud', model: service.activeModel, keyIndex: this.currentGroqIndex + 1, status: 'Active (Free)' };
+                return res;
+            } catch (e) {
+                console.warn(`[AI ERROR] Groq Key ${this.currentGroqIndex + 1} Failed for Bulk Questions:`, e.message);
+                this.currentGroqIndex++;
+            }
+        }
+
+        // Fallback: targeted sequential mock generation
+        console.log(`[AI BULK FALLBACK] Falling back to mock for ${Object.keys(skillsMap).length} skills`);
+        const fallback = {};
+        for (const [skill, count] of Object.entries(skillsMap)) {
+            fallback[skill] = await this.mock.generateTechnicalQuestions(skill, count, difficulty);
+        }
+        return fallback;
+    }
 
     async summarize(text) {
         try {
@@ -236,6 +509,22 @@ class ResilientAIService {
             if (this.activeSource.provider === 'Smart Mock') return this.mock.scoreTextResponse(userText, prompt, rubricCriteria);
             return extractJSON(res);
         } catch (e) { return this.mock.scoreTextResponse(userText, prompt, rubricCriteria); }
+    }
+
+    async generateCandidateSummary(candidateName, jobTitle, assessmentResults) {
+        const resultsJson = JSON.stringify(assessmentResults, null, 2);
+        const p = `Generate a professional, concise executive summary (3-4 sentences) for a candidate named ${candidateName} who applied for the ${jobTitle} position. 
+        Focus on their technical proficiency, soft skills fit, and overall suitability based on these assessment results:
+        ${resultsJson}
+        The summary should highlight strengths and mention any areas for development if applicable. Keep it professional and actionable for a hiring manager.`;
+
+        try {
+            const res = await this.generateContent(p);
+            if (this.activeSource.provider === 'Smart Mock') return "Candidate shown solid foundation in core technical areas with professional communication style.";
+            return res.trim();
+        } catch (e) {
+            return "Candidate demonstrated required technical competencies and professional demeanor throughout the assessment.";
+        }
     }
 }
 

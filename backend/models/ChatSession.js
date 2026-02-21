@@ -9,9 +9,20 @@ const ChatSessionSchema = new mongoose.Schema({
   archetype: {
     role: { type: String, required: true }, // e.g. 'Manager'
     type: { type: String, required: true }, // e.g. 'CRISIS'
-    goal: { type: String, required: true }, // e.g. 'De-escalate panic'
+    goal: { type: String }, // Optional for assessment
     intensity: { type: String, default: 'Medium' }
   },
+  // Assessment specific fields
+  application: { type: mongoose.Schema.Types.ObjectId, ref: 'Application' },
+  assessmentPhase: { type: String, enum: ['MCQ', 'SCENARIO'], default: 'MCQ' },
+  currentMCQIndex: { type: Number, default: 0 },
+  mcqAnswers: [{
+    questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+    answerIndex: Number,
+    isCorrect: Boolean,
+    skill: String
+  }],
+
   persona: {
     name: { type: String, required: true }, // e.g. 'Sarah'
     role: { type: String, required: true }, // e.g. 'Senior Developer'

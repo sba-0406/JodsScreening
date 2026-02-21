@@ -18,9 +18,10 @@ console.log(` - PORT: ${process.env.PORT || 4000}`);
 
 // Register Models
 require('./models/User');
-// require('./models/Rubric');
-// require('./models/Scenario');
-// require('./models/SimulationResponse');
+require('./models/Job');
+require('./models/Application');
+require('./models/Assessment');
+require('./models/Question');
 require('./models/ChatSession');
 
 const app = express();
@@ -37,26 +38,35 @@ app.use(cors());
 
 // Set static folder for public assets
 app.use(express.static(path.join(__dirname, '../frontend/public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Set View Engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../frontend/views'));
 
-// Route files
-// const authRoutes = require('./routes/authRoutes');
-// const scenarioRoutes = require('./routes/scenarioRoutes');
-// const simulationRoutes = require('./routes/simulationRoutes');
-// const reportRoutes = require('./routes/reportRoutes');
-// const adminRoutes = require('./routes/adminRoutes');
-// const userRoutes = require('./routes/userRoutes');
-// const aiGenerationRoutes = require('./routes/aiGenerationRoutes');
-// const chatRoutes = require('./routes/chatRoutes');
 const dojoRoutes = require('./routes/dojoRoutes');
 const authRoutes = require('./routes/authRoutes');
+const jobRoutes = require('./routes/jobRoutes');
+const applicationRoutes = require('./routes/applicationRoutes');
+const assessmentRoutes = require('./routes/assessmentRoutes');
+const { loadUser } = require('./middleware/authMiddleware');
+
+// Global middleware for templates
+app.use(loadUser);
+app.use((req, res, next) => {
+    res.locals.currentPath = req.path;
+    res.locals.user = req.user || null;
+    next();
+});
 
 // Mount routers
 app.use('/api/auth', authRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/assessment', assessmentRoutes);
 app.use('/dojo', dojoRoutes);
+app.use('/assessment', assessmentRoutes); // For view routes like /assessment/123
+
 
 // View Routes
 app.get('/', (req, res) => res.redirect('/login'));

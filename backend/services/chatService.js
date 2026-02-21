@@ -215,13 +215,38 @@ exports.generateMCQOptions = async function (history, scenarioDescription, world
     ]`;
 
   try {
+    console.log(`[AI MCQ] Generating options for ${role}...`);
     const response = await aiService.generateContent(prompt);
-    return aiService.extractJSON(response);
+    console.log(`[AI MCQ] Raw Response:`, response);
+    const options = aiService.extractJSON(response);
+
+    if (!Array.isArray(options)) {
+      throw new Error("AI returned object instead of array");
+    }
+
+    console.log(`[AI MCQ] Extracted ${options.length} options.`);
+    return options;
   } catch (e) {
+    console.warn(`[AI MCQ] Generation failed, using local fallback:`, e.message);
     return [
-      { text: "Let's discuss how this affects our team stability.", approach: "Relationship" },
-      { text: "We need to focus on delivering the results by the deadline.", approach: "Results" },
-      { text: "I expect us to maintain professional standards here.", approach: "Boundary" }
+      {
+        text: "I understand the tension here. Let's focus on how we can support the team's needs while moving forward.",
+        approach: "Relationship",
+        satisfies: "Team Trust",
+        violates: "Immediate Efficiency"
+      },
+      {
+        text: "We have to prioritize our deliverables. Let's look at the data and see how we can hit the target.",
+        approach: "Results",
+        satisfies: "Project Velocity",
+        violates: "Team Morale"
+      },
+      {
+        text: "It's important that we stick to our professional standards and established protocols in this situation.",
+        approach: "Boundary",
+        satisfies: "Professional Standards",
+        violates: "Short-term Flexibility"
+      }
     ];
   }
 };

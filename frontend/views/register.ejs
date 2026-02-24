@@ -5,119 +5,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ScenarioSim | Register</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Outfit', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #f8fafc;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-        }
-
-        .auth-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 40px;
-            border-radius: 24px;
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-
-        .auth-card h1 {
-            font-size: 2.2em;
-            margin-bottom: 10px;
-            background: linear-gradient(to right, #6366f1, #a855f7);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .auth-card p {
-            color: #94a3b8;
-            margin-bottom: 30px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.85em;
-            color: #cbd5e1;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 10px 16px;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: white;
-            font-family: inherit;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #6366f1;
-        }
-
-        .auth-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #6366f1, #a855f7);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-
-        .auth-footer {
-            margin-top: 20px;
-            font-size: 0.9em;
-            color: #94a3b8;
-        }
-
-        .auth-footer a {
-            color: #6366f1;
-            text-decoration: none;
-            font-weight: 600;
-        }
-    </style>
+    <link rel="stylesheet" href="/css/style.css?v=10">
 </head>
 
-<body>
+<body class="auth-wrapper">
     <div class="auth-card">
-        <h1>Join ScenarioSim</h1>
-        <p>Create your account to track your leadership journey</p>
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div
+                style="font-weight: 900; color: var(--primary-color); font-size: 1.5rem; letter-spacing: -1px; margin-bottom: 8px;">
+                ScenarioSim</div>
+            <h1>Create Account</h1>
+            <p>Join ScenarioSim and start your journey</p>
+        </div>
 
         <form id="registerForm">
             <div class="form-group">
-                <label for="name">Full Name</label>
+                <label for="name"
+                    style="font-weight: 700; font-size: 0.85rem; color: var(--text-main); text-transform: uppercase;">Full
+                    Name</label>
                 <input type="text" id="name" placeholder="John Doe" required>
             </div>
             <div class="form-group">
-                <label for="email">Email Address</label>
+                <label for="email"
+                    style="font-weight: 700; font-size: 0.85rem; color: var(--text-main); text-transform: uppercase;">Email
+                    Address</label>
                 <input type="email" id="email" placeholder="john@company.com" required>
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label for="password"
+                    style="font-weight: 700; font-size: 0.85rem; color: var(--text-main); text-transform: uppercase;">Password</label>
                 <input type="password" id="password" placeholder="At least 6 characters" required minlength="6">
             </div>
-            <button type="submit" class="auth-btn">Create Account</button>
+            <button type="submit" class="btn"
+                style="width: 100%; padding: 14px; font-weight: 700; font-size: 1rem;">Create Account</button>
         </form>
 
         <div class="auth-footer">
@@ -146,7 +66,7 @@
                 const data = await res.json();
                 if (data.success) {
                     localStorage.setItem('user', JSON.stringify(data.data));
-                    window.location.href = '/dojo/roles';
+                    window.location.href = '/api/applications/my-dashboard';
                 } else {
                     alert(data.error || 'Registration failed');
                     btn.innerText = 'Create Account';

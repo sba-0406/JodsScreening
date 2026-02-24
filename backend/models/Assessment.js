@@ -77,6 +77,19 @@ const AssessmentSchema = new mongoose.Schema({
         of: String // original skill -> mapped skill
     },
 
+    // Simulation Physics (Dynamic Metrics & Effects)
+    simulationConfig: {
+        metrics: [String],
+        metricPolarity: {
+            type: Map,
+            of: String
+        },
+        approachEffects: {
+            type: Map,
+            of: Map // Relationship -> { Metric: Delta }
+        }
+    },
+
     // AI Analysis
     aiAnalysis: {
         reasoning: String,

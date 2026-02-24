@@ -42,6 +42,15 @@ exports.startAssessment = async (req, res) => {
             const assessment = application.job.assessmentId;
             if (!assessment) return res.status(400).send('Assessment configuration missing for this job');
 
+            // Prevent starting if any questions are STILL pending HR approval
+            // We do a live check (not status field) to avoid stale data issues
+            const Assessment = require('../models/Assessment');
+            const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+            const stillPending = fullyPopulated.technicalQuestions.some(q => q.questionId?.status === 'pending_review');
+            if (stillPending) {
+                return res.status(400).send('This assessment is currently undergoing moderation by HR. Please check back later.');
+            }
+
             // Initialize Phase 1: MCQ
             // Note: We'll repurpose ChatSession or create a special field for phase tracking
             session = await ChatSession.create({
@@ -63,12 +72,30 @@ exports.startAssessment = async (req, res) => {
                 scenarioProgress: {
                     currentScenario: 1,
                     totalScenarios: assessment.scenarioTemplates.length,
-                    scenarios: assessment.scenarioTemplates.map((s, i) => ({
-                        scenarioNumber: i + 1,
-                        stakeholder: s.theme,
-                        description: s.prompt,
-                        status: i === 0 ? 'pending' : 'pending' // Will start after MCQ
-                    }))
+                    scenarios: assessment.scenarioTemplates.map((s, i) => {
+                        // Map theme to a realistic stakeholder role
+                        const themeToRole = {
+                            'Leadership': 'Senior Manager',
+                            'Collaboration': 'Cross-Functional Lead',
+                            'Influence': 'Key Stakeholder',
+                            'Communication': 'Client Director',
+                            'Problem-solving': 'Technical Lead',
+                            'Teamwork': 'Team Member',
+                            'Conflict Resolution': 'Concerned Partner',
+                            'Strategic Thinking': 'Executive Sponsor',
+                            'Operations': 'Operations Head',
+                            'Sales': 'Sales Director',
+                            'Customer Success': 'Client Success Manager'
+                        };
+                        const stakeholderRole = themeToRole[s.theme] || `${s.theme} Lead`;
+                        return {
+                            scenarioNumber: i + 1,
+                            stakeholder: stakeholderRole,
+                            theme: s.theme,
+                            description: s.prompt,
+                            status: 'pending'
+                        };
+                    })
                 },
                 worldState: {},
                 skillScores: {}
@@ -115,7 +142,7 @@ exports.getAssessmentSession = async (req, res) => {
         if (session.assessmentPhase === 'MCQ') {
             // Include questions that are active or newly generated (pending_review)
             const availableQuestions = assessment.technicalQuestions.filter(q =>
-                q.questionId && (q.questionId.status === 'active' || q.questionId.status === 'pending_review')
+                q.questionId && q.questionId.status === 'active'
             );
 
             const currentIdx = session.currentMCQIndex;
@@ -197,7 +224,7 @@ exports.submitMCQAnswer = async (req, res) => {
 
         const assessment = session.application.job.assessmentId;
         const availableQuestions = assessment.technicalQuestions.filter(q =>
-            q.questionId && (q.questionId.status === 'active' || q.questionId.status === 'pending_review')
+            q.questionId && q.questionId.status === 'active'
         );
 
         const currentIdx = session.currentMCQIndex;
@@ -209,6 +236,9 @@ exports.submitMCQAnswer = async (req, res) => {
 
         // Grade the answer
         const isCorrect = question.correctAnswer === parseInt(answerIndex);
+
+        // Update question statistics (usageCount, avgScore)
+        await question.recordUsage(isCorrect);
 
         // Save answer with skill
         session.mcqAnswers.push({
@@ -227,37 +257,39 @@ exports.submitMCQAnswer = async (req, res) => {
 
         session.currentMCQIndex += 1;
 
-        // Check if finished MCQ phase
-        const totalMCQs = assessment.technicalQuestions.length;
+        const totalMCQs = availableQuestions.length; // only count questions the candidate can answer
         let phaseComplete = false;
         if (session.currentMCQIndex >= totalMCQs) {
             session.assessmentPhase = 'SCENARIO';
             phaseComplete = true;
 
-            // Initialize first scenario
+            // Initialize first scenario persona with a real stakeholder name
             const firstScenario = session.scenarioProgress.scenarios[0];
             session.persona = {
                 name: firstScenario.stakeholder,
                 role: firstScenario.stakeholder,
-                mood: 'Neutral',
+                mood: 'Professional',
                 briefing: {
                     situation: firstScenario.description,
                     objective: 'Navigate the situation effectively',
                     stakes: 'High'
                 }
             };
-            // Set initial worldState for the first scenario
-            // (In a real app, we'd define metrics per scenario theme)
-            session.worldState = {
-                'Trust': 50,
-                'TeamMorale': 50,
-                'Productivity': 50
-            };
-            session.metricPolarity = {
-                'Trust': 'high',
-                'TeamMorale': 'high',
-                'Productivity': 'high'
-            };
+            // Initialize worldState from simulationConfig.metrics (single source of truth)
+            const config = assessment.simulationConfig;
+            const metrics = (config && config.metrics && config.metrics.length > 0)
+                ? config.metrics
+                : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
+            const polarity = (config && config.metricPolarity)
+                ? Object.fromEntries(config.metricPolarity)
+                : Object.fromEntries(metrics.map(m => [m, 'high']));
+
+            // Set exactly these metrics at 50 — they stay fixed for ALL scenarios
+            const initialState = {};
+            metrics.forEach(m => initialState[m] = 50);
+
+            session.worldState = initialState;
+            session.metricPolarity = polarity;
         }
 
         session.markModified('skillScores');
@@ -286,7 +318,10 @@ exports.respondToScenario = async (req, res) => {
     // but optimized for assessment (uses Groq AI for response)
     try {
         const { sessionId, message, mcqChoice } = req.body;
-        const session = await ChatSession.findById(sessionId);
+        const session = await ChatSession.findById(sessionId).populate({
+            path: 'application',
+            populate: { path: 'job' }
+        });
 
         if (!session || session.assessmentPhase !== 'SCENARIO') {
             return res.status(400).json({ success: false, error: 'Invalid session or phase' });
@@ -324,18 +359,42 @@ exports.respondToScenario = async (req, res) => {
             userMessage = mcqChoice.text;
             approach = mcqChoice.approach || 'Results';
 
-            // Apply effects (Using a simpler rule-based approach for assessments)
-            const effects = {
-                'Results': { 'Productivity': +10, 'TeamMorale': -5 },
-                'Relationship': { 'TeamMorale': +10, 'Trust': +5 },
-                'Boundary': { 'Trust': +5, 'Productivity': -5 },
-                'Growth': { 'Trust': +5, 'TeamMorale': +5 }
+            // Apply effects (Dynamic Simulation Physics)
+            const assessment = await Assessment.findById(session.application.job.assessmentId);
+            const config = assessment?.simulationConfig;
+
+            // Fallback effects use the actual worldState keys (not hardcoded names)
+            const wsKeys = Array.from(session.worldState.keys());
+            const [m0, m1, m2] = wsKeys.length >= 3 ? wsKeys : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
+            const fallbackEffects = {
+                'Results': { [m0]: +10, [m1]: -8, [m2]: +5 },
+                'Relationship': { [m0]: -5, [m1]: +10, [m2]: -8 },
+                'Boundary': { [m0]: +5, [m1]: -5, [m2]: -10 }
             };
 
-            const delta = effects[approach] || {};
+            let delta = {};
+            try {
+                if (config && config.approachEffects) {
+                    // Mongoose Map-of-Maps: convert to plain object safely
+                    const effectsObj = config.approachEffects.toObject ? config.approachEffects.toObject() : Object.fromEntries(config.approachEffects);
+                    const approachEffect = effectsObj[approach];
+                    if (approachEffect && typeof approachEffect === 'object') {
+                        delta = approachEffect instanceof Map ? Object.fromEntries(approachEffect) : approachEffect;
+                        console.log(`[PHYSICS] ✅ DYNAMIC effects for "${approach}":`, delta);
+                    } else {
+                        throw new Error('No dynamic effect found');
+                    }
+                } else {
+                    throw new Error('No simulationConfig');
+                }
+            } catch (e) {
+                delta = fallbackEffects[approach] || {};
+                console.log(`[PHYSICS] ⚠️ FALLBACK for "${approach}":`, delta);
+            }
+
             for (const [metric, change] of Object.entries(delta)) {
-                const currentVal = session.worldState.get(metric) || 0;
-                session.worldState.set(metric, Math.max(0, Math.min(100, currentVal + change)));
+                const currentVal = session.worldState.get(metric) ?? 50;
+                session.worldState.set(metric, Math.max(0, Math.min(100, currentVal + Number(change))));
             }
 
             // Track Skill Scores (Soft Skills)
@@ -393,6 +452,71 @@ exports.respondToScenario = async (req, res) => {
     }
 };
 
+// @desc    Advance to Next Scenario (Assessment Version)
+// @route   POST /api/assessment/next
+// @access  Private (Candidate)
+exports.nextScenario = async (req, res) => {
+    try {
+        const { sessionId, reason } = req.body;
+        const session = await ChatSession.findById(sessionId).populate({
+            path: 'application',
+            populate: { path: 'job', populate: { path: 'assessmentId' } }
+        });
+
+        if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+
+        const currentIdx = session.scenarioProgress.currentScenario - 1;
+        const scenarios = session.scenarioProgress.scenarios;
+        const assessment = session.application.job.assessmentId;
+
+        // Mark current scenario as resolved
+        scenarios[currentIdx].status = 'resolved';
+        scenarios[currentIdx].completedAt = new Date();
+
+        const isLast = session.scenarioProgress.currentScenario >= session.scenarioProgress.totalScenarios;
+
+        if (!isLast) {
+            session.scenarioProgress.currentScenario += 1;
+            const nextIdx = session.scenarioProgress.currentScenario - 1;
+            const next = scenarios[nextIdx];
+            const nextTemplate = assessment.scenarioTemplates[nextIdx];
+
+            next.status = 'pending';
+            next.startedAt = new Date();
+
+            session.persona.name = next.stakeholder;
+            session.persona.role = next.stakeholder;
+            session.persona.briefing.situation = next.description;
+            session.messages = []; // Clear messages for new scenario — metrics carry over unchanged
+
+            // NOTE: No new metrics injected. The same 3 metrics from simulationConfig
+            // are used for the ENTIRE assessment across all scenarios.
+
+            console.log(`[ASSESSMENT] Advancing to Scenario ${session.scenarioProgress.currentScenario}`);
+        } else {
+            session.status = 'completed';
+            session.completedAt = new Date();
+            console.log(`[ASSESSMENT] All scenarios complete.`);
+        }
+
+        session.markModified('scenarioProgress.scenarios');
+        session.markModified('worldState');
+        session.markModified('metricPolarity');
+        await session.save();
+
+        res.json({
+            success: true,
+            data: {
+                currentScenario: session.scenarioProgress.currentScenario,
+                isComplete: session.status === 'completed'
+            }
+        });
+    } catch (error) {
+        console.error('Error advancing scenario:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 // @desc    Finalize Assessment
 // @route   POST /api/assessment/finalize
 // @access  Private (Candidate)
@@ -409,12 +533,10 @@ exports.finalizeAssessment = async (req, res) => {
         const assessment = application.job.assessmentId;
 
         // 1. Calculate Technical Score (MCQ) and Skill Breakdown
-        const skillStats = {}; // { skillName: { correct: 0, total: 0 } }
-
+        const skillStats = {};
         session.mcqAnswers.forEach(answer => {
             const skill = answer.skill || 'General';
             if (!skillStats[skill]) skillStats[skill] = { correct: 0, total: 0 };
-
             skillStats[skill].total++;
             if (answer.isCorrect) skillStats[skill].correct++;
         });
@@ -430,12 +552,16 @@ exports.finalizeAssessment = async (req, res) => {
         const techScore = totalMCQs > 0 ? (correctMCQs / totalMCQs) * 100 : 0;
 
         // 2. Calculate Soft Skill Score (Scenario)
-        // Average health of worldState metrics
         const worldStateEntries = Object.fromEntries(session.worldState);
+        const metricPolarity = session.metricPolarity ? Object.fromEntries(session.metricPolarity) : {};
+
         let totalHealth = 0;
         let count = 0;
-        Object.values(worldStateEntries).forEach(val => {
-            totalHealth += val;
+
+        Object.entries(worldStateEntries).forEach(([metric, value]) => {
+            const polarity = metricPolarity[metric] || 'high';
+            let health = (polarity === 'high') ? value : (100 - value);
+            totalHealth += health;
             count++;
         });
         const softScore = count > 0 ? totalHealth / count : 0;
@@ -459,7 +585,7 @@ exports.finalizeAssessment = async (req, res) => {
             weightedScore: Math.round(weightedScore),
             overallFit,
             skillBreakdown,
-            softSkillBreakdown: worldStateEntries, // Save raw world state as soft skill breakdown
+            softSkillBreakdown: worldStateEntries,
             completedAt: new Date()
         };
         await application.save();

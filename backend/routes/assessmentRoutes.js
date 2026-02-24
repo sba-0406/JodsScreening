@@ -10,6 +10,7 @@ router.get('/assessment/:applicationId', protect, assessmentController.startAsse
 router.get('/session/:id', protect, assessmentController.getAssessmentSession);
 router.post('/submit-mcq', protect, assessmentController.submitMCQAnswer);
 router.post('/respond', protect, assessmentController.respondToScenario);
+router.post('/next', protect, assessmentController.nextScenario);
 router.post('/finalize', protect, assessmentController.finalizeAssessment);
 
 module.exports = router;

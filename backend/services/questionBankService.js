@@ -10,12 +10,10 @@ const skillMappings = {
     "Go": "Python",
     "Kotlin": "Java",
     "Swift": "JavaScript",
+    // Frontend Frameworks (Removed Angular/Vue/Svelte -> React mapping as they are too different)
     "TypeScript": "JavaScript",
-
-    // Frontend Frameworks
-    "Svelte": "React",
-    "Vue": "React",
-    "Angular": "React",
+    "Tailwind": "CSS",
+    "jQuery": "JavaScript",
 
     // Backend Frameworks
     "FastAPI": "Node.js",

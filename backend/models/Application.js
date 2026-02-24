@@ -74,7 +74,15 @@ const ApplicationSchema = new mongoose.Schema({
     reminderCount: {
         type: Number,
         default: 0
+    },
+
+    // Timestamps
+    appliedAt: {
+        type: Date,
+        default: Date.now
     }
+}, {
+    timestamps: true
 });
 
 // Update timestamp on save

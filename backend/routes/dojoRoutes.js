@@ -16,8 +16,6 @@ router.get('/session/:id', dojoController.getDojoSession);
 
 // View Routes (render pages)
 router.get('/assessment/:applicationId', assessmentController.startAssessment);
-router.get('/roles', dojoController.renderRolesPage);
-router.get('/reports', dojoController.renderReportsPage);
 
 router.get('/simulation/:sessionId', async (req, res) => {
   res.render('dojo-simulation', {

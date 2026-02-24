@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= job.title %> | ScenarioSim
+    </title>
+    <link rel="stylesheet" href="/css/style.css?v=9">
+</head>
+
+<body class="has-sidebar">
+    <%- include('partials/_navbar') %>
+
+        <div class="main-wrapper">
+            <div class="container">
+                <div class="breadcrumb mb-20">
+                    <a href="/api/jobs/dashboard">Dashboard</a> / <span style="color: var(--text-muted);">
+                        <%= job.title %>
+                    </span>
+                </div>
+
+                <!-- Job Header -->
+                <div class="job-header">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h1>
+                                <%= job.title %>
+                            </h1>
+                            <div class="job-meta">
+                                <%= job.department %> • <%= job.location %> •
+                                        <%= job.experienceMin %>-<%= job.experienceMax %> years •
+                                                <%= job.employmentType %>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+                            <span class="badge badge-warning">
+                                JOB: <%= job.status.toUpperCase() %>
+                            </span>
+                            <% if (job.assessmentId) { %>
+                                <% const pendingCount=job.assessmentId.technicalQuestions?.filter(q=>
+                                    q.questionId?.status === 'pending_review').length || 0; %>
+                                    <span class="badge <%= pendingCount > 0 ? 'badge-warning' : 'badge-success' %>">
+                                        ASSESSMENT: <%= pendingCount> 0 ? `${pendingCount} PENDING REVIEW` : 'ACTIVE' %>
+                                    </span>
+                                    <% } %>
+                                        <button onclick="deleteJob()"
+                                            style="margin-top:0.5rem; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">🗑️
+                                            Delete Job</button>
+                        </div>
+                    </div>
+
+                    <% const hasPendingQuestions=job.assessmentId?.technicalQuestions?.some(q=> q.questionId?.status ===
+                        'pending_review'); %>
+                        <% if (hasPendingQuestions) { %>
+                            <div class="warning-box"
+                                style="margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+                                <span style="font-size: 1.5rem;">⚖️</span>
+                                <div>
+                                    <h4 style="color: #92400e; margin-bottom: 0.25rem;">Moderation Required</h4>
+                                    <p style="color: #78350f; font-size: 0.875rem; margin-bottom: 0.75rem;">This
+                                        assessment
+                                        contains
+                                        AI-generated questions that need your review before they enter the global pool.
+                                    </p>
+                                    <div style="display: flex; gap: 0.75rem;">
+                                        <button onclick="approveAllQuestions()" class="btn btn-primary"
+                                            style="background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">Approve
+                                            All</button>
+                                        <button
+                                            onclick="document.getElementById('questions-section').scrollIntoView({behavior:'smooth'})"
+                                            class="btn btn-secondary"
+                                            style="background: white; border: 1px solid #d1d5db; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">Review
+                                            Questions</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <% } %>
+                </div>
+
+                <!-- Job Information -->
+                <div class="card">
+                    <h2>Job Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Views</span>
+                            <span class="info-value">
+                                <%= job.views || 0 %>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Applications</span>
+                            <span class="info-value">
+                                <%= job.applications || 0 %>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Assessments Completed</span>
+                            <span class="info-value">
+                                <%= job.assessmentsCompleted || 0 %>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Posted</span>
+                            <span class="info-value">
+                                <%= new Date(job.createdAt).toLocaleDateString() %>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <% if (job.assessmentId) { %>
+                    <!-- Assessment Configuration -->
+                    <div class="card">
+                        <h2 class="mb-20">AI-Generated Assessment</h2>
+
+                        <div class="assessment-config">
+                            <div class="sub-section-header">Role Classification</div>
+                            <div class="info-grid mb-20">
+                                <div class="info-item">
+                                    <span class="info-label">Category</span>
+                                    <span class="info-value">
+                                        <%= job.assessmentId.roleCategory %>
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Seniority</span>
+                                    <span class="info-value">
+                                        <%= job.assessmentId.seniorityLevel %>
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Type</span>
+                                    <span class="info-value">
+                                        <%= job.assessmentId.roleType || 'IC' %>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="sub-section-header">Extracted Skills</div>
+                            <div style="margin-bottom: 20px;">
+                                <div style="display: flex; flex-direction: column; gap: 15px;">
+                                    <div>
+                                        <div class="info-label" style="margin-bottom: 8px;">Technical Skills</div>
+                                        <div class="skills-list">
+                                            <% job.assessmentId.technicalSkills.forEach(skill=> { %>
+                                                <span class="skill-tag">
+                                                    <%= skill %>
+                                                </span>
+                                                <% }); %>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="info-label" style="margin-bottom: 8px;">Soft Skills</div>
+                                        <div class="skills-list">
+                                            <% job.assessmentId.softSkills.forEach(skill=> { %>
+                                                <span class="skill-tag">
+                                                    <%= skill %>
+                                                </span>
+                                                <% }); %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weight Customization -->
+                        <div class="sub-section-header">Assessment Weights</div>
+                        <div class="weight-config-grid">
+                            <div class="weight-slider-card">
+                                <div class="weight-slider-header">
+                                    <span class="weight-label">Technical Skills</span>
+                                    <span id="tech-weight-value" class="weight-pct">
+                                        <%= Math.round(job.assessmentId.technicalWeight * 100) %>%
+                                    </span>
+                                </div>
+                                <input type="range" id="tech-weight" min="0" max="100"
+                                    value="<%= Math.round(job.assessmentId.technicalWeight * 100) %>">
+                            </div>
+
+                            <div class="weight-slider-card">
+                                <div class="weight-slider-header">
+                                    <span class="weight-label">Soft Skills</span>
+                                    <span id="soft-weight-value" class="weight-pct">
+                                        <%= Math.round(job.assessmentId.softSkillWeight * 100) %>%
+                                    </span>
+                                </div>
+                                <input type="range" id="soft-weight" min="0" max="100"
+                                    value="<%= Math.round(job.assessmentId.softSkillWeight * 100) %>">
+                            </div>
+                        </div>
+
+                        <div class="sub-section-header">Assessment Configuration</div>
+                        <div class="info-grid mb-20" style="align-items: flex-end;">
+                            <div class="info-item">
+                                <span class="info-label" style="margin-bottom: 10px;">Default Questions Per Skill</span>
+                                <input type="number" id="questions-per-skill"
+                                    value="<%= job.assessmentConfig?.questionsPerSkill || 2 %>" min="1" max="10"
+                                    class="form-control" style="width: 120px;">
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label" style="margin-bottom: 10px;">AI Question Generation</span>
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="allow-ai-gen" <%=job.assessmentConfig?.allowAIGeneration
+                                        ? 'checked' : '' %>
+                                    style="width: 18px; height: 18px;">
+                                    <span style="color: var(--text-main); font-size: 0.9rem; font-weight: 500;">Enable
+                                        automated
+                                        generation</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 24px;">
+                            <div class="info-label" style="margin-bottom: 12px;">Questions per specific
+                                skill</div>
+                            <div id="skill-counts-container"
+                                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;">
+                                <% job.assessmentId.technicalSkills.forEach(skill=> {
+                                    const config = job.assessmentConfig?.skillConfigs?.find(sc => sc.skill === skill);
+                                    const count = config ? config.questionCount :
+                                    (job.assessmentConfig?.questionsPerSkill
+                                    || 2);
+                                    %>
+                                    <div
+                                        style="background: #ffffff; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+                                        <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 700;">
+                                            <%= skill %>
+                                        </div>
+                                        <input type="number" class="skill-count-input form-control"
+                                            data-skill="<%= skill %>" value="<%= count %>" min="1" max="10"
+                                            style="padding: 4px 8px; width: 55px; height: 32px; text-align: center;">
+                                    </div>
+                                    <% }); %>
+                            </div>
+                        </div>
+
+                        <div class="sub-section-header">Passing Thresholds</div>
+                        <div class="info-grid mb-24">
+                            <div class="info-item">
+                                <span class="info-label" style="margin-bottom: 8px;">Min Technical Score (%)</span>
+                                <input type="number" id="min-tech-score"
+                                    value="<%= job.assessmentId.minTechnicalScore %>" min="0" max="100"
+                                    class="form-control" style="width: 120px;">
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label" style="margin-bottom: 8px;">Min Soft Skill Score (%)</span>
+                                <input type="number" id="min-soft-score"
+                                    value="<%= job.assessmentId.minSoftSkillScore %>" min="0" max="100"
+                                    class="form-control" style="width: 120px;">
+                            </div>
+                        </div>
+
+                        <button onclick="saveAssessmentConfig()" class="btn" style="margin-top: 1rem;">
+                            Save Changes
+                        </button>
+                    </div>
+
+                    <!-- Questions Preview & Moderation -->
+                    <div class="card" id="questions-section">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div class="sub-section-header" style="margin: 0; flex: 1;">Technical Questions Pool (<%=
+                                    job.assessmentId.technicalQuestions.length %>)</div>
+                            <button onclick="regenerateQuestions()" class="btn-sm"
+                                style="font-size: 0.75rem; padding: 0.4rem 1rem;">
+                                Regenerate All
+                            </button>
+                        </div>
+
+                        <% job.assessmentId.technicalQuestions.forEach(q=> { %>
+                            <div class="question-preview">
+                                <div class="question-header">
+                                    <span class="question-skill">
+                                        <%= q.skill %>
+                                            <% if (q.questionId?.source==='ai_generated' ) { %>
+                                                <span class="tag-ai">AI GEN</span>
+                                                <% } %>
+                                                    <% if (q.questionId?.status==='pending_review' ) { %>
+                                                        <span class="tag-warning"
+                                                            style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; margin-left: 5px;">WAITING
+                                                            APPROVAL</span>
+                                                        <% } %>
+                                    </span>
+                                    <span class="question-difficulty diff-<%= q.difficulty.toLowerCase() %>">
+                                        <%= q.difficulty %>
+                                    </span>
+                                </div>
+                                <div class="question-text">
+                                    <%= q.questionId?.question || 'Question content loading...' %>
+                                </div>
+
+                                <% if (q.questionId?.status==='pending_review' ) { %>
+                                    <div class="moderation-actions" style="display: flex; gap: 10px; margin-top: 10px;">
+                                        <button onclick="moderateQuestion('<%= q.questionId._id %>', 'approve')"
+                                            class="btn btn-secondary"
+                                            style="background: var(--success); color: white; border: none; font-size: 0.8rem;">Approve</button>
+                                        <button onclick="moderateQuestion('<%= q.questionId._id %>', 'reject')"
+                                            class="btn btn-secondary"
+                                            style="background: var(--danger); color: white; border: none; font-size: 0.8rem;">Reject</button>
+                                    </div>
+                                    <% } %>
+                            </div>
+                            <% }); %>
+                    </div>
+
+                    <!-- Scenarios Preview -->
+                    <div class="card">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div class="sub-section-header" style="margin: 0; flex: 1;">Scenario Templates (<%=
+                                    job.assessmentId.scenarioTemplates.length %>)</div>
+                            <button onclick="regenerateScenarios()" class="btn-sm"
+                                style="font-size: 0.75rem; padding: 0.4rem 1rem;">
+                                Regenerate All
+                            </button>
+                        </div>
+                        <% job.assessmentId.scenarioTemplates.forEach(scenario=> { %>
+                            <div class="question-preview">
+                                <div class="question-header">
+                                    <span class="question-skill">
+                                        <%= scenario.theme %>
+                                    </span>
+                                </div>
+                                <div style="color: var(--text-muted); font-size: 0.875rem;">
+                                    Metrics: <%= scenario.metrics.join(', ') %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+
+        <% if (job.assessmentId.missingSkills && job.assessmentId.missingSkills.length > 0) { %>
+        <!-- Warnings -->
+        <div class="warning-box" style="margin-top: 2rem; display: block;">
+            <h3 style="color: #92400e; margin-bottom: 0.5rem;">⚠️ Skill Gap Detected</h3>
+            <p style="color: #78350f; font-size: 0.875rem; margin-bottom: 1rem;">
+                The following skills were identified in the Job Description but are missing from our standard question bank. 
+                Candidates will <strong>not</strong> be tested on these unless you enable AI Generation:
+            </p>
+            <ul style="color: #92400e; font-size: 0.875rem; margin-bottom: 1.5rem; list-style-position: inside;">
+                <% job.assessmentId.missingSkills.forEach(skill => { %>
+                    <li><%= skill %></li>
+                <% }); %>
+            </ul>
+            <div style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #fbbf24;">
+                <p style="font-size: 0.8125rem; color: #78350f;"><strong>To fix this:</strong></p>
+                <ol style="font-size: 0.8125rem; color: #92400e; padding-left: 1.25rem; margin-top: 0.25rem;">
+                    <li>Enable <strong>"Allow AI Generation"</strong> in the settings above.</li>
+                    <li>Click <strong>"Save Changes"</strong>.</li>
+                    <li>Click <strong>"Regenerate All"</strong> in the Technical Questions Pool section.</li>
+                </ol>
+            </div>
+        </div>
+        <% } %>
+
+        <% } else { %>
+        <!-- No Assessment -->
+        <div class="card">
+            <h2>Assessment</h2>
+            <p style="color: var(--text-muted);">No assessment generated yet.</p>
+            <button onclick="generateAssessment()" class="btn" style="margin-top: 1rem;">
+                Generate Assessment
+            </button>
+        </div>
+        <% } %>
+
+                    <div class="action-buttons" style="display: flex; gap: 12px; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 24px;">
+                        <a href="/api/jobs/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+                        <% if (job.status.trim() === ' draft' && job.assessmentId) { %>
+                                        <button onclick="publishJob()" class="btn">Publish Job</button>
+                                        <% } %>
+                                            <% if (job.status.trim()==='active' ) { %>
+                                                <button onclick="closeJob()" class="btn btn-secondary">Close
+                                                    Job</button>
+                                                <% } %>
+                                </div>
+                            </div>
+                    </div>
+
+                    <script>
+                        const jobId = '<%= job._id %>';
+
+                        // Weight sliders
+                        const techWeight = document.getElementById('tech-weight');
+                        const softWeight = document.getElementById('soft-weight');
+                        const techValue = document.getElementById('tech-weight-value');
+                        const softValue = document.getElementById('soft-weight-value');
+
+                        techWeight.addEventListener('input', (e) => {
+                            const val = parseInt(e.target.value);
+                            techValue.textContent = val + '%';
+                            softWeight.value = 100 - val;
+                            softValue.textContent = (100 - val) + '%';
+                        });
+
+                        softWeight.addEventListener('input', (e) => {
+                            const val = parseInt(e.target.value);
+                            softValue.textContent = val + '%';
+                            techWeight.value = 100 - val;
+                            techValue.textContent = (100 - val) + '%';
+                        });
+
+                        async function saveAssessmentConfig() {
+                            const techWeight = parseInt(document.getElementById('tech-weight').value) / 100;
+                            const softWeight = parseInt(document.getElementById('soft-weight').value) / 100;
+                            const minTechScore = parseInt(document.getElementById('min-tech-score').value);
+                            const minSoftScore = parseInt(document.getElementById('min-soft-score').value);
+                            const questionsPerSkill = parseInt(document.getElementById('questions-per-skill').value);
+                            const allowAIGen = document.getElementById('allow-ai-gen').checked;
+
+                            // Harvest granular skill counts
+                            const skillConfigs = {};
+                            document.querySelectorAll('.skill-count-input').forEach(input => {
+                                skillConfigs[input.dataset.skill] = parseInt(input.value);
+                            });
+
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}/assessment`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        technicalWeight: techWeight,
+                                        softSkillWeight: softWeight,
+                                        minTechnicalScore: minTechScore,
+                                        minSoftSkillScore: minSoftScore,
+                                        questionsPerSkill: questionsPerSkill,
+                                        allowAIGeneration: allowAIGen,
+                                        skillConfigs: skillConfigs
+                                    })
+                                });
+
+                                const result = await response.json();
+                                if (result.success) {
+                                    alert('Assessment configuration saved!');
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error saving configuration');
+                            }
+                        }
+
+                        async function moderateQuestion(questionId, action) {
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}/questions/${questionId}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: action })
+                                });
+
+                                const result = await response.json();
+                                if (result.success) {
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error moderating question');
+                            }
+                        }
+
+                        async function approveAllQuestions() {
+                            if (!confirm('Approve all AI-generated questions and add them to the global question bank?')) return;
+
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}/approve-all`, {
+                                    method: 'POST'
+                                });
+
+                                const result = await response.json();
+                                if (result.success) {
+                                    alert('All questions approved!');
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error approving questions');
+                            }
+                        }
+
+                        async function regenerateQuestions() {
+                            if (!confirm('Regenerate all technical questions? This will replace the current pool.')) return;
+
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}/regenerate-questions`, {
+                                    method: 'POST'
+                                });
+
+                                const result = await response.json();
+                                if (result.success) {
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error regenerating questions');
+                            }
+                        }
+
+                        async function regenerateScenarios() {
+                            if (!confirm('Regenerate all scenario templates?')) return;
+
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}/regenerate-scenarios`, {
+                                    method: 'POST'
+                                });
+
+                                const result = await response.json();
+                                if (result.success) {
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error regenerating scenarios');
+                            }
+                        }
+
+                        async function publishJob() {
+                            if (!confirm('Publish this job? It will be visible to candidates.')) return;
+
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ status: 'active' })
+                                });
+
+                                const result = await response.json();
+                                if (result.success) {
+                                    alert('Job published successfully!');
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error publishing job');
+                            }
+                        }
+
+                        async function closeJob() {
+                            if (!confirm('Close this job? No new applications will be accepted.')) return;
+
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ status: 'closed' })
+                                });
+
+                                const result = await response.json();
+                                if (result.success) {
+                                    alert('Job closed successfully!');
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error closing job');
+                            }
+                        }
+
+                        async function generateAssessment() {
+                            if (!confirm('Generate assessment for this job?')) return;
+
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}/generate-assessment`, {
+                                    method: 'POST'
+                                });
+
+                                const result = await response.json();
+                                if (result.success) {
+                                    alert('Assessment generated successfully!');
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error generating assessment');
+                            }
+                        }
+
+                        async function deleteJob() {
+                            if (!confirm('⚠️ Are you sure you want to permanently delete this job and its assessment? This cannot be undone.')) return;
+
+                            try {
+                                const response = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+                                const result = await response.json();
+                                if (result.success) {
+                                    alert('Job deleted successfully.');
+                                    window.location.href = '/api/jobs/dashboard';
+                                } else {
+                                    alert('Error: ' + result.error);
+                                }
+                            } catch (error) {
+                                alert('Error deleting job');
+                            }
+                        }
+                    </script>
+</body>
+
+</html>

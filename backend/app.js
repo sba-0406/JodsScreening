@@ -65,12 +65,27 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/dojo', dojoRoutes);
-app.use('/assessment', assessmentRoutes); // For view routes like /assessment/123
-
 
 // View Routes
 app.get('/', (req, res) => res.redirect('/login'));
 app.get('/login', (req, res) => res.render('login'));
 app.get('/register', (req, res) => res.render('register'));
+
+// 404 Handler
+app.use((req, res) => {
+    if (req.accepts('html')) {
+        return res.status(404).send('<h2>404 – Page not found</h2><a href="/login">Go to Login</a>');
+    }
+    res.status(404).json({ success: false, error: 'Route not found' });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+    console.error('[SERVER ERROR]', err.stack);
+    if (req.accepts('html')) {
+        return res.status(500).send('<h2>500 – Server error</h2><a href="/login">Go to Login</a>');
+    }
+    res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
+});
 
 module.exports = app;

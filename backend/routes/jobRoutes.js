@@ -25,6 +25,7 @@ router.delete('/:id', jobController.deleteJob);
 router.post('/:id/generate-assessment', jobController.generateAssessment);
 router.put('/:id/assessment', jobController.updateAssessment);
 router.post('/:id/regenerate-questions', jobController.regenerateTechnicalAssessment);
+router.post('/:id/approve-all', jobController.approveAllQuestions);
 router.put('/:id/questions/:questionId', jobController.moderateQuestion);
 
 // Analytics

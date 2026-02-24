@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %> | ScenarioSim
+    </title>
+    <link rel="stylesheet" href="/css/style.css?v=9">
+</head>
+
+<body class="has-sidebar">
+    <%- include('partials/_navbar') %>
+
+        <div class="main-wrapper">
+            <div class="container" style="max-width: 800px;">
+                <div class="form-header mb-20">
+                    <h1>Application Form</h1>
+                    <p style="color: var(--text-muted);">Please fill in your details to apply</p>
+                </div>
+
+                <div class="card mb-20" style="background: var(--primary-color); color: white; border: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h2 style="color: white; margin-bottom: 5px; font-weight: 700;">
+                                <%= job.title %>
+                            </h2>
+                            <div style="font-size: 0.9rem; opacity: 0.8; font-weight: 500;">
+                                <%= job.location %> • <%= job.department %>
+                            </div>
+                        </div>
+                        <div class="badge badge-success"
+                            style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                            ACTIVE</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <form id="application-form" enctype="multipart/form-data">
+                        <div class="grid-adaptive" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+                            <div class="form-group">
+                                <label>Full Name *</label>
+                                <input type="text" name="candidateName" class="form-control" required
+                                    value="<%= user.name %>" placeholder="e.g. John Doe">
+                            </div>
+                            <div class="form-group">
+                                <label>Email Address *</label>
+                                <input type="email" name="candidateEmail" class="form-control" required
+                                    value="<%= user.email %>" placeholder="john@example.com">
+                            </div>
+                        </div>
+
+                        <div class="grid-adaptive" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+                            <div class="form-group">
+                                <label>Phone Number *</label>
+                                <input type="tel" name="candidatePhone" class="form-control" required
+                                    placeholder="+1 (555) 000-0000">
+                            </div>
+                            <div class="form-group">
+                                <label>Years of Experience *</label>
+                                <input type="number" name="yearsExperience" class="form-control" required min="0"
+                                    max="50" placeholder="0">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Resume (PDF/DOC) *</label>
+                            <label class="file-upload-dropzone">
+                                <input type="file" name="resume" required accept=".pdf,.doc,.docx"
+                                    onchange="document.getElementById('file-chosen').innerText = '📄 ' + this.files[0].name; document.getElementById('file-chosen').style.color = 'var(--primary-color)'">
+                                <span class="file-upload-icon">📄</span>
+                                <span id="file-chosen" class="file-upload-text">Click to upload your resume or drag and
+                                    drop</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Cover Letter (Optional)</label>
+                            <textarea name="coverLetter" class="form-control" style="min-height: 120px;"
+                                placeholder="Tell us why you are a great fit for this role..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn"
+                            style="width: 100%; padding: 14px; margin-top: 10px; font-weight: 700;" id="submit-btn">
+                            Submit Application
+                        </button>
+                        <div id="form-error"
+                            style="color: var(--danger); margin-top: 10px; display: none; font-size: 0.9rem;"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const jobId = '<%= job._id %>';
+
+            function handleFileSelect(event) {
+                const fileName = event.target.files[0]?.name;
+                const fileNameDisplay = document.getElementById('file-name');
+                const uploadInfo = document.getElementById('upload-info');
+
+                if (fileName) {
+                    fileNameDisplay.textContent = 'Selected: ' + fileName;
+                    fileNameDisplay.style.display = 'block';
+                    uploadInfo.style.display = 'none';
+                } else {
+                    fileNameDisplay.style.display = 'none';
+                    uploadInfo.style.display = 'block';
+                }
+            }
+
+            document.getElementById('application-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const submitBtn = document.getElementById('submit-btn');
+                const errorDisplay = document.getElementById('form-error');
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Submitting...';
+                errorDisplay.style.display = 'none';
+
+                const formData = new FormData(e.target);
+
+                try {
+                    const response = await fetch(`/api/applications/apply/${jobId}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // Redirect to application detail or dashboard
+                        alert('Application submitted successfully!');
+                        window.location.href = `/api/applications/application/${result.data._id}/view`;
+                    } else {
+                        throw new Error(result.error || 'Failed to submit application');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    errorDisplay.textContent = error.message;
+                    errorDisplay.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Application';
+                }
+            });
+        </script>
+</body>
+
+</html>

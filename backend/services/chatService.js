@@ -217,7 +217,7 @@ exports.generateMCQOptions = async function (history, scenarioDescription, world
   try {
     console.log(`[AI MCQ] Generating options for ${role}...`);
     const response = await aiService.generateContent(prompt);
-    console.log(`[AI MCQ] Raw Response:`, response);
+    //console.log(`[AI MCQ] Raw Response:`, response);
     const options = aiService.extractJSON(response);
 
     if (!Array.isArray(options)) {

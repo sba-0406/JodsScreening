@@ -1,3 +1,14 @@
 .env
 node_modules
+.DS_Store
 
+# Development & Redundant Files
+backend/controllers/chatController.js
+backend/scripts/
+
+# Documentation
+documentation/
+
+# Uploads & Sensitive Data
+backend/uploads/resumes/*
+!backend/uploads/resumes/.gitkeep

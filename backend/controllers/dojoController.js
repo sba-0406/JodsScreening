@@ -366,65 +366,6 @@ exports.finalizeDojoSession = async (req, res) => {
 };
 
 /**
- * Get Stats for Roles Page
- */
-exports.renderRolesPage = async (req, res) => {
-  try {
-    const sessions = await ChatSession.find({
-      user: req.user._id,
-      status: 'completed',
-      'finalReport.overallGrade': { $exists: true }
-    }).sort({ createdAt: -1 });
-
-    const roleStats = {}; // { Manager: { recent: 'A', best: 'S' } }
-    const gradeHierarchy = { 'S': 6, 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'F': 1 };
-
-    sessions.forEach(s => {
-      const role = s.archetype.role;
-      const grade = s.finalReport.overallGrade;
-
-      if (!roleStats[role]) {
-        roleStats[role] = { recent: grade, best: grade };
-      } else {
-        const currentBest = roleStats[role].best;
-        if (gradeHierarchy[grade] > gradeHierarchy[currentBest]) {
-          roleStats[role].best = grade;
-        }
-      }
-    });
-
-    res.render('dojo-roles', {
-      user: req.user,
-      stats: roleStats
-    });
-  } catch (err) {
-    console.error('[DOJO ERROR] renderRolesPage:', err);
-    res.render('dojo-roles', { user: req.user, stats: {} });
-  }
-};
-
-/**
- * Render Reports Gallery
- */
-exports.renderReportsPage = async (req, res) => {
-  try {
-    const sessions = await ChatSession.find({
-      user: req.user._id,
-      status: 'completed',
-      'finalReport.overallGrade': { $exists: true }
-    }).sort({ completedAt: -1 });
-
-    res.render('dojo-reports', {
-      user: req.user,
-      sessions: sessions
-    });
-  } catch (err) {
-    console.error('[DOJO ERROR] renderReportsPage:', err);
-    res.render('dojo-reports', { user: req.user, sessions: [] });
-  }
-};
-
-/**
  * Retrieval
  */
 exports.getDojoSession = async (req, res) => {

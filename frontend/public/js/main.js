@@ -11,21 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let navHtml = '';
 
         if (user) {
-            // Common links
-            const links = [
-                { name: 'ScenarioSim', url: '/dojo/roles' },
-                { name: 'Reports', url: '/dojo/reports' }
-            ];
-
-            links.forEach(l => {
-                const isActive = currentPath === l.url;
-                navHtml += `<a href="${l.url}" class="${isActive ? 'active' : ''}">${l.name}</a>`;
-            });
-
+            // Updated links: Remove ScenarioSim and Reports
+            navHtml += `<a href="/api/applications/jobs-portal">Browse Jobs</a>`;
+            navHtml += `<a href="/api/applications/my-dashboard">My Applications</a>`;
             navHtml += `<a href="#" id="logoutBtn">Logout</a>`;
         } else {
             // Not logged in - redirect from protected pages
-            const protectedPaths = ['/dojo/roles', '/dojo/simulation'];
+            const protectedPaths = ['/dojo/simulation'];
             const isProtected = protectedPaths.some(p => currentPath.startsWith(p));
 
             if (isProtected) {

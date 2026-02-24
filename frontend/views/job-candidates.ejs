@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %> | ScenarioSim
+    </title>
+    <link rel="stylesheet" href="/css/style.css?v=9">
+    <style>
+        /* ── Candidates Table ───────────────── */
+        .candidates-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .candidates-table th,
+        .candidates-table td {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .candidates-table th {
+            background: #f8fafc;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .candidates-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .candidates-table tbody tr:hover {
+            background: #f8faff;
+        }
+
+        .candidate-name {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .candidate-email {
+            font-size: 0.825rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Score badges */
+        .score-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.825rem;
+        }
+
+        .score-high {
+            background: #ecfdf5;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .score-medium {
+            background: #fffbeb;
+            color: #d97706;
+            border: 1px solid #fde68a;
+        }
+
+        .score-low {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        /* Application status badges */
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .status-applied {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        .status-reviewing {
+            background: #f5f3ff;
+            color: #7c3aed;
+            border: 1px solid #ddd6fe;
+        }
+
+        .status-shortlisted {
+            background: #ecfdf5;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-interview_scheduled {
+            background: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-rejected {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .status-hired {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        /* Assessment status pill */
+        .assessment-pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .assessment-pill.completed {
+            background: #ecfdf5;
+            color: #16a34a;
+            border-color: #bbf7d0;
+        }
+
+        /* Fit label */
+        .fit-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .fit-label.strong {
+            color: #16a34a;
+        }
+
+        .fit-label.moderate {
+            color: #d97706;
+        }
+
+        .fit-label.weak {
+            color: #dc2626;
+        }
+
+        /* Page header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.5rem;
+            color: var(--text-main);
+            margin: 0 0 4px;
+        }
+
+        .page-header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body class="has-sidebar">
+    <%- include('partials/_navbar') %>
+
+        <div class="main-wrapper">
+            <div class="container">
+
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div>
+                        <h1>Candidates for <em>
+                                <%= job.title %>
+                            </em></h1>
+                        <p>
+                            <%= candidates.length %> total application<%= candidates.length !==1 ? 's' : '' %>
+                        </p>
+                    </div>
+                    <a href="/api/jobs/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+                </div>
+
+                <!-- Candidates Table -->
+                <div class="card" style="padding: 0; overflow: hidden;">
+                    <table class="candidates-table">
+                        <thead>
+                            <tr>
+                                <th><a href="?sort=name" style="color: inherit; text-decoration: none;">Candidate ↕</a>
+                                </th>
+                                <th>Status</th>
+                                <th>Assessment</th>
+                                <th><a href="?sort=score" style="color: inherit; text-decoration: none;">Score ↕</a>
+                                </th>
+                                <th>Fit</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (candidates.length===0) { %>
+                                <tr>
+                                    <td colspan="6" class="empty-state" style="color: var(--text-muted);">
+                                        No candidates found for this position yet.
+                                    </td>
+                                </tr>
+                                <% } else { %>
+                                    <% candidates.forEach(candidate=> { %>
+                                        <% const score=candidate.assessmentResults?.weightedScore; %>
+                                            <% const fit=candidate.assessmentResults?.overallFit || '' ; %>
+                                                <tr>
+                                                    <td>
+                                                        <div class="candidate-name">
+                                                            <%= candidate.candidateName %>
+                                                        </div>
+                                                        <div class="candidate-email">
+                                                            <%= candidate.candidateEmail %>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="status-badge status-<%= candidate.status %>">
+                                                            <%= candidate.status.replace(/_/g, ' ' ) %>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            class="assessment-pill <%= candidate.assessmentStatus === 'completed' ? 'completed' : '' %>">
+                                                            <%= candidate.assessmentStatus.replace(/_/g, ' '
+                                                                ).toUpperCase() %>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <% if (score !==undefined && score !==null) { %>
+                                                            <span
+                                                                class="score-badge <%= score >= 70 ? 'score-high' : score >= 50 ? 'score-medium' : 'score-low' %>">
+                                                                <%= score %>%
+                                                            </span>
+                                                            <% } else { %>
+                                                                <span style="color: var(--text-muted);">—</span>
+                                                                <% } %>
+                                                    </td>
+                                                    <td>
+                                                        <% if (fit) { %>
+                                                            <span
+                                                                class="fit-label <%= fit.toLowerCase().includes('strong') ? 'strong' : fit.toLowerCase().includes('moderate') ? 'moderate' : 'weak' %>">
+                                                                <%= fit %>
+                                                            </span>
+                                                            <% } else { %>
+                                                                <span style="color: var(--text-muted);">—</span>
+                                                                <% } %>
+                                                    </td>
+                                                    <td>
+                                                        <a href="/api/applications/application/<%= candidate._id %>/view"
+                                                            class="btn btn-sm">View Profile</a>
+                                                    </td>
+                                                </tr>
+                                                <% }); %>
+                                                    <% } %>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+</body>
+
+</html>

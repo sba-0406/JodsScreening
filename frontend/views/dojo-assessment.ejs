@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Assessment | ScenarioSim</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css?v=10">
+    <style>
+        /* Assessment-specific overrides that cannot be fully externalized yet */
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-main);
+        }
+
+        .assessment-header {
+            background: #ffffff;
+            border-bottom: 3px solid var(--primary-color);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+        }
+
+        .progress-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .main-container {
+            flex: 1;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(30, 58, 138, 0.1);
+            backdrop-filter: blur(12px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border);
+        }
+
+        .chat-feed {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="assessment-header">
+        <div>
+            <div class="sub-section-header" id="phaseDisplay" style="margin: 0;">Phase 1: Technical MCQ</div>
+            <div class="progress-text" id="progressDisplay">Question 1 of 10</div>
+        </div>
+        <div id="metricsContainer" style="display: flex; gap: 1rem;">
+            <!-- Metrics for Scenario phase -->
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- MCQ Interface -->
+        <div class="card" id="mcqInterface" style="width: 100%; max-width: 800px; padding: 40px;">
+            <div class="question-text" id="mcqQuestion" style="font-size: 1.4rem; margin-bottom: 30px;">Loading
+                question...</div>
+            <div class="option-group" id="mcqOptions">
+                <!-- Options injected by JS -->
+            </div>
+        </div>
+
+        <!-- Scenario Interface -->
+        <div id="scenarioInterface"
+            style="display: none; width: 100%; max-width: 900px; flex-direction: column; height: 100%;">
+            <div class="assessment-chat-container">
+                <div class="chat-feed" id="chatFeed">
+                    <!-- Chat messages -->
+                </div>
+            </div>
+            <div class="interaction-zone"
+                style="background: #ffffff; border-top: 1px solid var(--border); padding: 20px; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                <div
+                    style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">
+                    Choose your response</div>
+                <div class="option-group" id="scenarioMcqContainer">
+                    <!-- Scenario MCQ options -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transition Overlay -->
+    <div class="overlay" id="overlay">
+        <div class="modal">
+            <div id="overlayIcon" style="font-size: 4rem; margin-bottom: 20px;">🎯</div>
+            <h2 id="overlayTitle" style="font-weight: 700; margin-bottom: 10px;">Excellent Work!</h2>
+            <p id="overlayDesc" style="color: var(--text-muted); line-height: 1.6;">You've completed the technical
+                phase. Ready for the behavioral scenarios?</p>
+            <button class="btn" style="width: 100%; margin-top: 30px; padding: 14px;" id="overlayBtn">Continue
+                Assessment</button>
+        </div>
+    </div>
+
+    <script>
+        const sessionId = '<%= sessionId %>';
+        let currentPhase = 'MCQ';
+        let isSubmitting = false;
+        let currentStakeholderName = 'Stakeholder';
+
+        async function loadState() {
+            try {
+                const res = await fetch(`/api/assessment/session/${sessionId}`);
+                const { success, data } = await res.json();
+
+                if (success) {
+                    currentPhase = data.phase;
+                    if (currentPhase === 'MCQ') {
+                        renderMCQ(data);
+                    } else if (currentPhase === 'SCENARIO') {
+                        renderScenario(data);
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function renderMCQ(data) {
+            document.getElementById('mcqInterface').style.display = 'block';
+            document.getElementById('scenarioInterface').style.display = 'none';
+            document.getElementById('phaseDisplay').textContent = 'Phase 1: Technical MCQ';
+            document.getElementById('progressDisplay').textContent = `Question ${data.current} of ${data.total}`;
+
+            document.getElementById('mcqQuestion').textContent = data.question.text;
+            const optionsGrid = document.getElementById('mcqOptions');
+            optionsGrid.innerHTML = '';
+
+            data.question.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'assessment-option-btn';
+                btn.innerHTML = `<span style="opacity: 0.5; font-weight: 700; font-size: 0.8rem;">${String.fromCharCode(65 + idx)}</span> <span>${opt}</span>`;
+                btn.onclick = () => submitMCQ(idx);
+                optionsGrid.appendChild(btn);
+            });
+        }
+
+        const toggleLoading = (loading) => {
+            isSubmitting = loading;
+        };
+
+        async function submitMCQ(idx) {
+            toggleLoading(true);
+            try {
+                const res = await fetch('/api/assessment/submit-mcq', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, answerIndex: idx })
+                });
+                const { success, data } = await res.json();
+                if (success) {
+                    if (data.phaseComplete) {
+                        showOverlay('Phase Complete!', 'You have finished the technical questions. Now, let\'s move to the behavioral scenarios.', '👥', () => {
+                            window.location.reload();
+                        });
+                    } else {
+                        loadState();
+                    }
+                }
+            } catch (err) { console.error(err); } finally {
+                toggleLoading(false);
+            }
+        }
+
+        function renderScenario(data) {
+            document.getElementById('mcqInterface').style.display = 'none';
+            document.getElementById('scenarioInterface').style.display = 'flex';
+            document.getElementById('phaseDisplay').textContent = 'Phase 2: Behavioral Scenarios';
+            const themeToRole = {
+                'Leadership': 'Senior Manager', 'Collaboration': 'Cross-Functional Lead',
+                'Influence': 'Key Stakeholder', 'Communication': 'Client Director',
+                'Problem-solving': 'Technical Lead', 'Teamwork': 'Team Member',
+                'Conflict Resolution': 'Concerned Partner', 'Strategic Thinking': 'Executive Sponsor',
+                'Operations': 'Operations Head', 'Sales': 'Sales Director',
+                'Customer Success': 'Client Success Manager'
+            };
+            const rawName = data.scenario.stakeholder || 'Stakeholder';
+            currentStakeholderName = themeToRole[rawName] || rawName;
+            document.getElementById('progressDisplay').textContent = `Scenario ${data.current} of ${data.total}: ${currentStakeholderName}`;
+
+            const feed = document.getElementById('chatFeed');
+            feed.innerHTML = '';
+
+            if (data.messages.length === 0) {
+                const welcome = document.createElement('div');
+                welcome.className = 'chat-bubble ai';
+                welcome.innerHTML = `
+                    <span class="chat-bubble-label">System Briefing</span>
+                    <div style="font-weight: 500;">You are speaking with <strong>${data.scenario.stakeholder}</strong>.</div>
+                    <div style="font-size: 0.85rem; margin-top: 8px; color: var(--text-muted);">${data.scenario.description}</div>
+                `;
+                feed.appendChild(welcome);
+            }
+
+            data.messages.forEach(m => {
+                const div = document.createElement('div');
+                div.className = `chat-bubble ${m.sender}`;
+                const label = m.sender === 'ai' ? data.scenario.stakeholder : 'You';
+                div.innerHTML = `
+                    <span class="chat-bubble-label">${label}</span>
+                    <div>${m.text}</div>
+                `;
+                feed.appendChild(div);
+            });
+            setTimeout(() => {
+                feed.scrollTop = feed.scrollHeight;
+            }, 100);
+
+            updateMetrics(data.worldState);
+
+            // Only generate MCQs on the true first load of a scenario (no messages yet)
+            // After that, MCQs come back with each respond call
+            if (data.messages.length === 0) {
+                fetchInitialScenarioMCQs();
+            }
+        }
+
+        async function fetchInitialScenarioMCQs() {
+            try {
+                const res = await fetch('/api/assessment/respond', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, message: '' })
+                });
+                const { success, data } = await res.json();
+                if (success) renderScenarioMCQs(data.mcqOptions);
+            } catch (err) { console.error(err); }
+        }
+
+        function renderScenarioMCQs(options) {
+            console.log(`[FRONTEND MCQ] Received ${options?.length || 0} options:`, options);
+            const container = document.getElementById('scenarioMcqContainer');
+            container.innerHTML = '';
+            if (!options || options.length === 0) {
+                container.innerHTML = '<p style="color:red">No options generated. Please wait or reload.</p>';
+                return;
+            }
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'assessment-option-btn';
+                btn.disabled = false; // always enable fresh buttons
+
+                let insightHtml = '';
+                if (opt.satisfies || opt.violates) {
+                    insightHtml = `
+                        <div style="font-size: 0.75rem; margin-top: 0.8rem; display: flex; gap: 0.8rem; border-top: 1px solid var(--border); padding-top: 0.8rem;">
+                            ${opt.satisfies ? `<span style="color:var(--success); font-weight: 600;">✓ ${opt.satisfies}</span>` : ''}
+                            ${opt.violates ? `<span style="color:var(--danger); font-weight: 600;">⚠ ${opt.violates}</span>` : ''}
+                        </div>
+                    `;
+                }
+
+                btn.innerHTML = `
+                    <div style="width: 100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                            <span class="badge" style="background: #eff6ff; color: var(--primary-color); padding: 4px 8px; font-weight: 700;">${opt.approach.toUpperCase()}</span>
+                        </div>
+                        <div style="font-weight: 500; line-height: 1.4;">${opt.text}</div>
+                        ${insightHtml}
+                    </div>
+                `;
+                btn.onclick = () => { if (!isSubmitting) submitScenarioResponse(opt); };
+                container.appendChild(btn);
+            });
+        }
+
+        async function submitScenarioResponse(opt) {
+            toggleLoading(true);
+            try {
+                const res = await fetch('/api/assessment/respond', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, mcqChoice: opt })
+                });
+                const { success, data } = await res.json();
+                if (success) {
+                    if (data.isResolved) {
+                        if (data.isLastScenario) {
+                            showOverlay('Assessment Complete!', 'Thank you for completing the evaluation. Processing your results...', '🏆', () => {
+                                finalizeAssessment();
+                            });
+                        } else {
+                            showOverlay('Scenario Resolved', 'Moving to the next challenge...', '✅', () => {
+                                advanceScenario();
+                            });
+                        }
+                    } else {
+                        // Directly add the AI response to the chat feed (no full reload)
+                        if (data.message) {
+                            const feed = document.getElementById('chatFeed');
+                            const userDiv = document.createElement('div');
+                            userDiv.className = 'chat-bubble user';
+                            userDiv.innerHTML = `<span class="chat-bubble-label">You</span><div>${opt.text}</div>`;
+                            feed.appendChild(userDiv);
+
+                            const aiDiv = document.createElement('div');
+                            aiDiv.className = 'chat-bubble ai';
+                            aiDiv.innerHTML = `<span class="chat-bubble-label">${currentStakeholderName}</span><div>${data.message}</div>`;
+                            feed.appendChild(aiDiv);
+
+                            setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 100);
+                        }
+
+                        // Update metrics panel
+                        if (data.worldState) updateMetrics(data.worldState);
+
+                        // Render the new MCQ options returned from this turn
+                        if (data.mcqOptions) renderScenarioMCQs(data.mcqOptions);
+                    }
+                }
+            } catch (err) { console.error(err); } finally {
+                toggleLoading(false);
+            }
+        }
+
+        async function advanceScenario() {
+            try {
+                const res = await fetch('/api/assessment/next', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId })
+                });
+                if ((await res.json()).success) window.location.reload();
+            } catch (err) { console.error(err); }
+        }
+
+        async function finalizeAssessment() {
+            try {
+                const res = await fetch('/api/assessment/finalize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId })
+                });
+                const { success } = await res.json();
+                if (success) window.location.href = `/api/applications/my-dashboard`;
+            } catch (err) { console.error(err); }
+        }
+
+        function updateMetrics(worldState) {
+            const container = document.getElementById('metricsContainer');
+            container.innerHTML = '';
+            Object.entries(worldState).forEach(([key, val]) => {
+                const div = document.createElement('div');
+                div.style.fontSize = '0.75rem';
+                div.innerHTML = `<span style="color:var(--text-muted)">${key}:</span> <span style="color:var(--neon-success)">${val}%</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function showOverlay(title, desc, icon, callback) {
+            const overlay = document.getElementById('overlay');
+            document.getElementById('overlayTitle').textContent = title;
+            document.getElementById('overlayDesc').textContent = desc;
+            document.getElementById('overlayIcon').textContent = icon;
+            document.getElementById('overlayBtn').onclick = () => {
+                overlay.style.display = 'none';
+                callback();
+            };
+            overlay.style.display = 'flex';
+        }
+
+        loadState();
+    </script>
+</body>
+
+</html>

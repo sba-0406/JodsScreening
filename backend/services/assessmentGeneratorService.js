@@ -3,21 +3,19 @@ const { selectQuestions } = require('./questionBankService');
 const Assessment = require('../models/Assessment');
 
 /**
- * Phase 20: Assessment Quality & AI Generation Fixes ✅
- * - **Realistic Scenarios**: Scenarios now use the **Full Job Description** as context. This ensures the situational challenges are role-specific (e.g., mention of "low-latency" or "microservices" if present in the JD) rather than generic workplace tropes.
- * - **Robust AI Questions**: Fixed a JSON formatting bug (mismatch between array and object) that was causing AI generation to fail for skills not in the question bank. Niche skills like "Rust" or "Mojo" now correctly trigger question generation.
- * - **Verified**: Confirmed both fixes with automated test scripts (`final_verify_ai.js`).
- *
- * ---
- *
- * ## Final Verification
- * - [x] Resumes are served statically and accessible via browser.
- * - [x] AI generation for missing skills works without `ReferenceError` or JSON errors.
- * - [x] New jobs are visible to candidates immediately.
- * - [x] Scenarios include role-specific context from the JD.
+ * ============================================================================
+ * ASSESSMENT GENERATOR SERVICE
+ * ============================================================================
+ * This service is responsible for orchestrating the creation of a full
+ * assessment by combining:
+ * 1. AI-driven Job Description (JD) analysis.
+ * 2. Database lookups for technical questions.
+ * 3. AI-driven situational scenario generation.
+ * ============================================================================
  */
+
 /**
- * Generate a complete assessment from a job description
+ * @desc    Generate a complete assessment from a job description
  * @param {string} jobDescription - Full job description text
  * @param {string} jobId - Job ID to link assessment to
  * @param {string} createdBy - User ID of creator (HR/Admin)
@@ -26,32 +24,34 @@ const Assessment = require('../models/Assessment');
  */
 async function generateAssessment(jobDescription, jobId, createdBy, assessmentConfig = {}) {
     try {
-        // Step 1: Analyze JD with AI
-        console.log('Analyzing job description...');
+        // STEP 1: AI Job Description Analysis
+        // We deconstruct the JD into skills, seniority, and weighting logic.
+        console.log('[GENERATE] Step 1: Analyzing Job Description...');
         const analysis = await analyzeJobDescription(jobDescription);
 
-        // Step 2: Select technical questions from bank
-        console.log('Selecting technical questions...');
+        // STEP 2: Technical Question Sourcing
+        // We look at the existing question bank. If allowed, we generate AI questions for missing skills.
+        console.log('[GENERATE] Step 2: Selecting Technical Questions...');
 
-        // Use HR config if available, otherwise fallback to global default
         let countConfig = assessmentConfig.questionsPerSkill || 2;
-        if (assessmentConfig.skillConfigs && assessmentConfig.skillConfigs.length > 0) {
+        if (assessmentConfig.skillConfigs?.length > 0) {
             countConfig = { default: assessmentConfig.questionsPerSkill || 2 };
-            assessmentConfig.skillConfigs.forEach(sc => {
-                countConfig[sc.skill] = sc.questionCount;
-            });
+            assessmentConfig.skillConfigs.forEach(sc => countConfig[sc.skill] = sc.questionCount);
         }
+
+        const difficulty = analysis.seniorityLevel === 'Junior' ? 'Easy' :
+            analysis.seniorityLevel === 'Lead' ? 'Hard' : 'Medium';
 
         const { questions, missingSkills, skillMappings } = await selectQuestions(
             analysis.technicalSkills,
             countConfig,
-            analysis.seniorityLevel === 'Junior' ? 'Easy' :
-                analysis.seniorityLevel === 'Lead' ? 'Hard' : 'Medium',
+            difficulty,
             assessmentConfig.allowAIGeneration || false
         );
 
-        // Step 3: Generate scenario templates
-        console.log('Generating scenario templates...');
+        // STEP 3: Scenario Template Creation
+        // We generate situational "themes" and "prompts" for the soft-skill simulation phase.
+        console.log('[GENERATE] Step 3: Generating Situational Scenarios...');
         const scenarios = await generateScenarioTemplates(
             analysis.softSkills,
             analysis.roleCategory,
@@ -60,65 +60,41 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
             jobDescription
         );
 
-        // Step 4: Create assessment
+        // STEP 4: Assessment Persistence
+        // We save the structured assessment to the database.
         const assessment = await Assessment.create({
             job: jobId,
             roleCategory: analysis.roleCategory,
             seniorityLevel: analysis.seniorityLevel,
             roleType: analysis.roleType,
-
             technicalSkills: analysis.technicalSkills,
             softSkills: analysis.softSkills,
-            domainSkills: analysis.domainSkills || [],
-            businessSkills: analysis.businessSkills || [],
-
             technicalWeight: analysis.technicalWeight,
             softSkillWeight: analysis.softSkillWeight,
-            domainWeight: analysis.domainWeight || 0,
-            businessWeight: analysis.businessWeight || 0,
-
             technicalQuestions: questions,
-            scenarioTemplates: scenarios,
-
+            scenarioTemplates: scenarios.scenarios, // Use .scenarios from result
+            simulationConfig: {
+                metrics: scenarios.physics.metrics,
+                metricPolarity: scenarios.physics.polarity,
+                approachEffects: scenarios.physics.effects
+            },
             minTechnicalScore: analysis.minTechnicalScore,
             minSoftSkillScore: analysis.minSoftSkillScore,
-
             questionCounts: {
                 technical: questions.length,
-                scenarios: scenarios.length,
+                scenarios: scenarios.scenarios.length,
                 totalTime: analysis.recommendedQuestionCount.totalTime
             },
-
             missingSkills,
             skillMappings,
-
-            aiAnalysis: {
-                reasoning: analysis.reasoning,
-                confidence: 0.85,
-                recommendations: []
-            },
-
             createdBy,
             status: (missingSkills.length > 0 || questions.some(q => q.status === 'pending_review')) ? 'pending_review' : 'active'
         });
 
-        console.log(`Assessment created: ${assessment._id}`);
-        console.log(`- ${questions.length} technical questions`);
-        console.log(`- ${scenarios.length} scenarios`);
-        if (missingSkills.length > 0) {
-            console.log(`- Missing skills: ${missingSkills.join(', ')}`);
-        }
-
-        return {
-            assessment,
-            analysis,
-            warnings: missingSkills.length > 0 ? [
-                `The following skills are not in the question bank: ${missingSkills.join(', ')}`
-            ] : []
-        };
+        return { assessment, analysis, warnings: missingSkills.length > 0 ? [`Missing skills in bank: ${missingSkills.join(', ')}`] : [] };
     } catch (error) {
-        console.error('Error generating assessment:', error);
-        throw new Error('Failed to generate assessment: ' + error.message);
+        console.error('[SERVICE ERROR] generateAssessment:', error);
+        throw new Error('Assessment generation failed: ' + error.message);
     }
 }
 
@@ -133,7 +109,7 @@ async function regenerateScenarios(assessmentId) {
         throw new Error('Assessment not found');
     }
 
-    const scenarios = await generateScenarioTemplates(
+    const result = await generateScenarioTemplates(
         assessment.softSkills,
         assessment.roleCategory,
         assessment.roleType,
@@ -141,7 +117,12 @@ async function regenerateScenarios(assessmentId) {
         assessment.job.description || '' // Ensure JD is passed if available
     );
 
-    assessment.scenarioTemplates = scenarios;
+    assessment.scenarioTemplates = result.scenarios;
+    assessment.simulationConfig = {
+        metrics: result.physics.metrics,
+        metricPolarity: result.physics.polarity,
+        approachEffects: result.physics.effects
+    };
     await assessment.save();
 
     return assessment;

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %> | ScenarioSim
+    </title>
+    <link rel="stylesheet" href="/css/style.css?v=10">
+</head>
+
+<body class="has-sidebar">
+    <%- include('partials/_navbar') %>
+
+        <div class="main-wrapper">
+            <div class="details-container">
+                <a href="/api/applications/jobs-portal" class="btn-sm btn-secondary mb-20"
+                    style="text-decoration: none;">
+                    ← Back to Jobs
+                </a>
+
+                <!-- Job Header Card -->
+                <div class="details-header-card">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 300px;">
+                            <h1
+                                style="font-size: 2.25rem; font-weight: 800; color: var(--primary-color); margin-bottom: 8px;">
+                                <%= job.title %>
+                            </h1>
+                            <% if (job.companyName) { %>
+                                <div
+                                    style="font-size: 1.1rem; color: var(--text-muted); font-weight: 600; margin-bottom: 20px;">
+                                    <%= job.companyName %>
+                                </div>
+                                <% } %>
+
+                                    <div class="card-meta-grid" style="margin: 0; max-width: 500px;">
+                                        <div class="card-meta-item" style="font-size: 0.9rem;"><span>📍</span>
+                                            <%= job.location %>
+                                        </div>
+                                        <div class="card-meta-item" style="font-size: 0.9rem;"><span>💼</span>
+                                            <%= job.department %>
+                                        </div>
+                                        <div class="card-meta-item" style="font-size: 0.9rem;"><span>⏱️</span>
+                                            <%= job.experienceMin %>-<%= job.experienceMax %> yrs
+                                        </div>
+                                        <div class="card-meta-item" style="font-size: 0.9rem;"><span>🕒</span>
+                                            <%= job.employmentType %>
+                                        </div>
+                                    </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 15px; align-items: flex-end;">
+                            <% if (user) { %>
+                                <% if (isApplied) { %>
+                                    <div class="badge badge-success" style="padding: 10px 20px; font-size: 0.85rem;">✓
+                                        ALREADY APPLIED</div>
+                                    <a href="/api/applications/application/<%= existingApplicationId %>/view"
+                                        class="btn" style="width: 100%;">
+                                        View Status
+                                    </a>
+                                    <% } else { %>
+                                        <a href="/api/applications/job/<%= job._id %>/apply" class="btn"
+                                            style="padding: 15px 40px; font-size: 1.1rem;">
+                                            Apply Now
+                                        </a>
+                                        <% } %>
+                                            <% } else { %>
+                                                <a href="/login" class="btn"
+                                                    style="padding: 15px 40px; font-size: 1.1rem;">
+                                                    Login to Apply
+                                                </a>
+                                                <% } %>
+
+                                                    <% if (job.salaryMin && job.salaryMax) { %>
+                                                        <div
+                                                            style="color: var(--success); font-weight: 800; font-size: 1.25rem;">
+                                                            <%= job.salaryCurrency %>
+                                                                <%= job.salaryMin.toLocaleString() %>+
+                                                        </div>
+                                                        <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-adaptive" style="grid-template-columns: 2fr 1fr; gap: 30px; align-items: flex-start;">
+                    <!-- Left Column: Description -->
+                    <div>
+                        <div class="details-section-card">
+                            <h2 class="details-section-title">Job Description</h2>
+                            <div
+                                style="white-space: pre-wrap; line-height: 1.8; color: var(--text-main); font-size: 1rem;">
+                                <%= job.description %>
+                            </div>
+                        </div>
+
+                        <% if (job.companyDescription) { %>
+                            <div class="details-section-card">
+                                <h2 class="details-section-title">About <%= job.companyName || 'the Company' %>
+                                </h2>
+                                <div style="line-height: 1.8; color: var(--text-main);">
+                                    <%= job.companyDescription %>
+                                </div>
+                                <% if (job.companyWebsite) { %>
+                                    <div style="margin-top: 20px;">
+                                        <a href="<%= job.companyWebsite %>" target="_blank" class="btn-sm btn-outline">
+                                            Visit Website ↗
+                                        </a>
+                                    </div>
+                                    <% } %>
+                            </div>
+                            <% } %>
+                    </div>
+
+                    <!-- Right Column: Sidebar Info -->
+                    <div style="position: sticky; top: 20px;">
+                        <% if (job.assessmentId && (job.assessmentId.technicalSkills.length> 0 ||
+                            job.assessmentId.softSkills.length > 0)) { %>
+                            <div class="details-section-card" style="background: #f8fafc;">
+                                <h2 class="details-section-title" style="font-size: 1.1rem;">Required Skills</h2>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <% job.assessmentId.technicalSkills.forEach(skill=> { %>
+                                        <span class="badge badge-info"
+                                            style="text-transform: none; border-radius: 6px;">
+                                            <%= skill %>
+                                        </span>
+                                        <% }); %>
+                                            <% job.assessmentId.softSkills.forEach(skill=> { %>
+                                                <span class="badge"
+                                                    style="background: #ffffff; border: 1px solid var(--border); color: var(--text-main); text-transform: none; border-radius: 6px;">
+                                                    <%= skill %>
+                                                </span>
+                                                <% }); %>
+                                </div>
+                            </div>
+                            <% } %>
+
+                                <% if (job.requireAssessment) { %>
+                                    <div class="details-section-card"
+                                        style="border-left: 4px solid var(--primary-color); background: #eff6ff;">
+                                        <h2 class="details-section-title"
+                                            style="font-size: 1.1rem; color: var(--primary-color);">Assessment Required
+                                        </h2>
+                                        <p
+                                            style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; margin: 0;">
+                                            This role uses <strong>ScenarioSim AI</strong> to evaluate fit. After
+                                            applying, you'll complete a 30-min immersive simulation focusing on your
+                                            role-specific competencies.
+                                        </p>
+                                    </div>
+                                    <% } %>
+
+                                        <div style="text-align: center; margin-top: 20px;">
+                                            <% if (!isApplied) { %>
+                                                <a href="/api/applications/job/<%= job._id %>/apply" class="btn"
+                                                    style="width: 100%; padding: 15px;">
+                                                    Apply for this Position
+                                                </a>
+                                                <% } %>
+                                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+</body>
+
+</html>

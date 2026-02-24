@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %> | ScenarioSim
+    </title>
+    <link rel="stylesheet" href="/css/style.css?v=9">
+</head>
+
+<body class="has-sidebar">
+    <%- include('partials/_navbar') %>
+
+        <div class="main-wrapper">
+            <div class="container">
+                <div class="dashboard-header mb-20">
+                    <div class="grid-adaptive"
+                        style="grid-template-columns: 1fr auto; align-items: center; width: 100%;">
+                        <div>
+                            <h1>HR Dashboard</h1>
+                            <p style="color: var(--text-muted);">Welcome back, <%= user.name %>
+                            </p>
+                        </div>
+                        <a href="/api/jobs/create/view" class="btn">+ Create Job</a>
+                    </div>
+                </div>
+
+                <!-- Stats Overview -->
+                <div class="grid-adaptive mb-20" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="stat-card">
+                        <h3>Total Jobs</h3>
+                        <div class="stat-value" id="total-jobs">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Active Jobs</h3>
+                        <div class="stat-value" id="active-jobs">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Applications</h3>
+                        <div class="stat-value" id="total-applications">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Pending Reviews</h3>
+                        <div class="stat-value" id="pending-reviews">-</div>
+                    </div>
+                </div>
+
+                <!-- Jobs List -->
+                <div class="card">
+                    <div class="section-header mb-20"
+                        style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2>Job Postings</h2>
+                        <div class="filter-tabs" style="display: flex; gap: 10px;">
+                            <button class="btn btn-secondary active" data-status="all">All</button>
+                            <button class="btn btn-secondary" data-status="active">Active</button>
+                        </div>
+                    </div>
+
+                    <div class="job-list grid-adaptive" id="job-list">
+                        <div class="empty-state">
+                            <p>Loading jobs...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let allJobs = [];
+            let currentFilter = 'all';
+
+            // Fetch jobs on load
+            async function loadJobs() {
+                try {
+                    const response = await fetch('/api/jobs');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        allJobs = data.data;
+                        updateStats();
+                        renderJobs();
+                    }
+                } catch (error) {
+                    console.error('Error loading jobs:', error);
+                    document.getElementById('job-list').innerHTML = `
+                    <div class="empty-state">
+                        <p>Error loading jobs. Please refresh the page.</p>
+                    </div>
+                `;
+                }
+            }
+
+            function updateStats() {
+                const totalJobs = allJobs.length;
+                const activeJobs = allJobs.filter(j => j.status === 'active').length;
+                const totalApplications = allJobs.reduce((sum, j) => sum + (j.applications || 0), 0);
+                const pendingReviews = allJobs.reduce((sum, j) => sum + (j.assessmentsCompleted || 0), 0);
+
+                document.getElementById('total-jobs').textContent = totalJobs;
+                document.getElementById('active-jobs').textContent = activeJobs;
+                document.getElementById('total-applications').textContent = totalApplications;
+                document.getElementById('pending-reviews').textContent = pendingReviews;
+            }
+
+            function renderJobs() {
+                const filteredJobs = currentFilter === 'all'
+                    ? allJobs
+                    : allJobs.filter(j => j.status === currentFilter);
+
+                const jobList = document.getElementById('job-list');
+
+                if (filteredJobs.length === 0) {
+                    jobList.innerHTML = `
+                    <div class="empty-state">
+                        <p>No jobs found. Create your first job posting!</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                jobList.innerHTML = filteredJobs.map(job => `
+                <div class="job-card">
+                    <div class="job-card-header">
+                        <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
+                    </div>
+                    <div class="job-card-body">
+                        <h3 class="job-title">${job.title}</h3>
+                        <p class="job-meta-loc">📍 ${job.location} &nbsp;·&nbsp; 💼 ${job.department}</p>
+                        <p class="job-meta-exp">⏱ ${job.experienceMin}–${job.experienceMax} yrs experience</p>
+                    </div>
+                    <div class="job-stats">
+                        <div class="job-stat">
+                            <span class="job-stat-value">${job.views || 0}</span>
+                            <span class="job-stat-label">Views</span>
+                        </div>
+                        <div class="job-stat">
+                            <span class="job-stat-value">${job.applications || 0}</span>
+                            <span class="job-stat-label">Applied</span>
+                        </div>
+                        <div class="job-stat">
+                            <span class="job-stat-value">${job.assessmentsCompleted || 0}</span>
+                            <span class="job-stat-label">Completed</span>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <a href="/api/jobs/${job._id}/view" class="btn btn-sm">Details</a>
+                        <a href="/api/jobs/${job._id}/candidates" class="btn btn-sm">Candidates</a>
+                        <a href="/api/jobs/${job._id}/analytics" class="btn btn-sm btn-outline">Analytics</a>
+                    </div>
+                </div>
+            `).join('');
+            }
+
+            // Filter tabs
+            document.querySelectorAll('.filter-tabs button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.status;
+                    renderJobs();
+                });
+            });
+
+            // Load jobs on page load
+            loadJobs();
+        </script>
+</body>
+
+</html>

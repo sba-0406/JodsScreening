@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %> | ScenarioSim
+    </title>
+    <link rel="stylesheet" href="/css/style.css?v=10">
+</head>
+
+<body class="has-sidebar">
+    <%- include('partials/_navbar') %>
+
+        <div class="main-wrapper">
+            <div class="container">
+                <!-- Header -->
+                <div class="portal-header mb-20">
+                    <h1>Find Your Next Opportunity</h1>
+                    <p style="color: var(--text-muted);">Browse open positions and apply with AI-powered assessments</p>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="card mb-20">
+                    <div class="search-inputs">
+                        <input type="text" id="search" class="form-control" placeholder="Search title or keywords...">
+                        <input type="text" id="location" class="form-control" placeholder="Location">
+                        <select id="department" class="form-control" style="width: auto;">
+                            <option value="">All Departments</option>
+                            <option value="Engineering">Engineering</option>
+                            <option value="Product">Product</option>
+                            <option value="Design">Design</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Sales">Sales</option>
+                        </select>
+                        <button class="btn" onclick="searchJobs()">Search Jobs</button>
+                    </div>
+                </div>
+
+                <!-- Jobs Grid -->
+                <div id="jobs-count" style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.875rem;">
+                    Loading jobs...
+                </div>
+                <div class="grid-adaptive" id="jobs-grid">
+                    <div class="empty-state">
+                        <p>Loading jobs...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let allJobs = [];
+
+            async function loadJobs() {
+                try {
+                    const response = await fetch('/api/applications/jobs');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        allJobs = data.data;
+                        renderJobs(allJobs);
+                    }
+                } catch (error) {
+                    console.error('Error loading jobs:', error);
+                    document.getElementById('jobs-grid').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Error Loading Jobs</h3>
+                        <p>Please refresh the page to try again.</p>
+                    </div>
+                `;
+                }
+            }
+
+            function renderJobs(jobs) {
+                const grid = document.getElementById('jobs-grid');
+                const count = document.getElementById('jobs-count');
+
+                count.textContent = `${jobs.length} job${jobs.length !== 1 ? 's' : ''} found`;
+
+                if (jobs.length === 0) {
+                    grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Jobs Found</h3>
+                        <p>Try adjusting your search criteria</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                grid.innerHTML = jobs.map(job => `
+                <div class="job-card" onclick="window.location.href='${job.isApplied ? `/api/applications/my-dashboard` : `/api/applications/job/${job._id}/view`}'">
+                    <div class="mb-20">
+                        ${job.isApplied ? '<div class="badge badge-success mb-20">✓ APPLIED</div>' : ''}
+                        <h3 class="card-title">${job.title}</h3>
+                        ${job.companyName ? `<div class="card-subtitle">${job.companyName}</div>` : ''}
+                    </div>
+
+                    <div class="card-meta-grid">
+                        <div class="card-meta-item"><span>📍</span> ${job.location}</div>
+                        <div class="card-meta-item"><span>💼</span> ${job.department}</div>
+                        <div class="card-meta-item"><span>⏱️</span> ${job.experienceMin}-${job.experienceMax} yrs</div>
+                        <div class="card-meta-item"><span>🕒</span> ${job.employmentType}</div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="salary-range" style="color: var(--success); font-weight: 700; font-size: 0.9rem;">
+                            ${job.salaryMin ? `${job.salaryCurrency} ${job.salaryMin.toLocaleString()}` : ''}
+                        </div>
+                        <button class="btn-sm ${job.isApplied ? 'btn-secondary' : ''}">
+                            ${job.isApplied ? 'Status' : 'View Details'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            }
+
+            function searchJobs() {
+                const search = document.getElementById('search').value.toLowerCase();
+                const location = document.getElementById('location').value.toLowerCase();
+                const department = document.getElementById('department').value;
+
+                const filtered = allJobs.filter(job => {
+                    const matchesSearch = !search ||
+                        job.title.toLowerCase().includes(search) ||
+                        (job.description && job.description.toLowerCase().includes(search));
+
+                    const matchesLocation = !location ||
+                        job.location.toLowerCase().includes(location);
+
+                    const matchesDepartment = !department ||
+                        job.department === department;
+
+                    return matchesSearch && matchesLocation && matchesDepartment;
+                });
+
+                renderJobs(filtered);
+            }
+
+            // Search on Enter key
+            document.getElementById('search').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchJobs();
+            });
+
+            document.getElementById('location').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchJobs();
+            });
+
+            // Load jobs on page load
+            loadJobs();
+        </script>
+</body>
+
+</html>

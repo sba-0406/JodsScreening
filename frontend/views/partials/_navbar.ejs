@@ -1,0 +1,70 @@
+<nav class="navbar">
+    <a href="/" class="nav-logo">
+        <h2 style="margin: 0;">ScenarioSim</h2>
+    </a>
+
+    <div class="nav-links">
+        <% if (user) { %>
+            <% if (user.role==='hr' || user.role==='admin' ) { %>
+                <a href="/api/jobs/dashboard" class="<%= currentPath === '/api/jobs/dashboard' ? 'active' : '' %>">
+                    <span class="nav-icon">📊</span> HR Dashboard
+                </a>
+                <a href="/api/jobs/create/view" class="<%= currentPath === '/api/jobs/create/view' ? 'active' : '' %>">
+                    <span class="nav-icon">➕</span> Post a Job
+                </a>
+                <% } else { %>
+                    <a href="/api/applications/jobs-portal"
+                        class="<%= currentPath === '/api/applications/jobs-portal' ? 'active' : '' %>">
+                        <span class="nav-icon">💼</span> Browse Jobs
+                    </a>
+                    <a href="/api/applications/my-dashboard"
+                        class="<%= currentPath === '/api/applications/my-dashboard' ? 'active' : '' %>">
+                        <span class="nav-icon">📁</span> My Applications
+                    </a>
+                    <% } %>
+
+                        <div class="user-section"
+                            style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
+                            <div class="user-info" style="margin-bottom: 15px;">
+                                <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">
+                                    <%= user.name %>
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                    <%= user.role.toUpperCase() %>
+                                </div>
+                            </div>
+                            <a href="/api/auth/logout" onclick="logout(event)"
+                                style="color: #ef4444; background: #fef2f2; text-align: center;">
+                                Logout
+                            </a>
+                        </div>
+                        <% } else { %>
+                            <a href="/api/applications/jobs-portal">
+                                <span class="nav-icon">🔍</span> Explore Jobs
+                            </a>
+                            <a href="/login">
+                                <span class="nav-icon">👤</span> Login
+                            </a>
+                            <a href="/register" class="btn" style="color: white; margin-top: 10px;">
+                                Sign Up
+                            </a>
+                            <% } %>
+    </div>
+</nav>
+
+
+<script>
+    async function logout(e) {
+        e.preventDefault();
+        try {
+            const res = await fetch('/api/auth/logout');
+            const data = await res.json();
+            if (data.success) {
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            }
+        } catch (err) {
+            console.error('Logout failed:', err);
+        }
+    }
+</script>

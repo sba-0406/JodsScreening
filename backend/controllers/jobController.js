@@ -3,96 +3,79 @@ const Assessment = require('../models/Assessment');
 const Application = require('../models/Application');
 const { generateAssessment } = require('../services/assessmentGeneratorService');
 
-// @desc    Create a new job posting
-// @route   POST /api/jobs
-// @access  Private (HR/Admin)
+// ==========================================
+// JOB MANAGEMENT (HR Actions)
+// ==========================================
+
+/**
+ * @desc    Post a new job opportunity
+ * @route   POST /api/jobs
+ */
 exports.createJob = async (req, res) => {
     try {
-        const {
-            title,
-            department,
-            location,
-            experienceMin,
-            experienceMax,
-            employmentType,
-            salaryMin,
-            salaryMax,
-            salaryCurrency,
-            description,
-            companyName,
-            companyDescription,
-            companyWebsite,
-            requireAssessment,
-            allowResumeUpload,
-            requireCoverLetter,
-            applicationDeadline,
-            questionsPerSkill,
-            allowAIGeneration
-        } = req.body;
+        const data = req.body;
 
-        // Create job
+        // Create job with sensible defaults
         const job = await Job.create({
-            title,
-            department,
-            location,
-            experienceMin,
-            experienceMax,
-            employmentType,
-            salaryMin,
-            salaryMax,
-            salaryCurrency,
-            description,
-            companyName,
-            companyDescription,
-            companyWebsite,
-            requireAssessment,
-            allowResumeUpload,
-            requireCoverLetter,
-            applicationDeadline,
+            ...data,
             assessmentConfig: {
-                questionsPerSkill: parseInt(questionsPerSkill) || 3,
-                allowAIGeneration: allowAIGeneration === 'on' || allowAIGeneration === true
+                questionsPerSkill: parseInt(data.questionsPerSkill) || 3,
+                allowAIGeneration: data.allowAIGeneration === 'on' || data.allowAIGeneration === true
             },
             postedBy: req.user._id,
-            status: 'active' // Default to active so visible in portal immediately
+            status: 'active'
         });
 
-        res.status(201).json({
-            success: true,
-            data: job
-        });
+        res.status(201).json({ success: true, data: job });
     } catch (error) {
-        console.error('Error creating job:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Failed to create job'
-        });
+        console.error('[CONTROLLER ERROR] createJob:', error);
+        res.status(500).json({ success: false, error: 'Creation failed' });
     }
 };
 
-// @desc    Generate assessment for a job
-// @route   POST /api/jobs/:id/generate-assessment
-// @access  Private (HR/Admin)
+/**
+ * @desc    Delete a job and its linked assessment (e.g., rollback on failed generation)
+ * @route   DELETE /api/jobs/:id
+ */
+exports.deleteJob = async (req, res) => {
+    try {
+        const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+
+        // Only owner or admin can delete
+        if (job.postedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        // Delete linked assessment if exists
+        if (job.assessmentId) {
+            await Assessment.findByIdAndDelete(job.assessmentId);
+        }
+
+        await Job.findByIdAndDelete(req.params.id);
+
+        res.json({ success: true, message: 'Job deleted successfully' });
+    } catch (error) {
+        console.error('[CONTROLLER ERROR] deleteJob:', error);
+        res.status(500).json({ success: false, error: 'Delete failed' });
+    }
+};
+
+/**
+ * @desc    Triggers AI to analyze JD and generate a tailored assessment
+ * @route   POST /api/jobs/:id/generate-assessment
+ */
 exports.generateAssessment = async (req, res) => {
     try {
         const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
 
-        if (!job) {
-            return res.status(404).json({
-                success: false,
-                error: 'Job not found'
-            });
-        }
-
-        // Check if user owns this job
+        // Security: Ensure ownership
         if (job.postedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                error: 'Not authorized to modify this job'
-            });
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
         }
 
-        // Generate assessment using AI
+        // Call the generation service
         const { assessment, analysis, warnings } = await generateAssessment(
             job.description,
             job._id,
@@ -100,177 +83,91 @@ exports.generateAssessment = async (req, res) => {
             job.assessmentConfig
         );
 
-        // Link assessment to job
+        // Link the generated assessment back to the job
         job.assessmentId = assessment._id;
         await job.save();
 
-        res.json({
-            success: true,
-            data: {
-                job,
-                assessment,
-                analysis,
-                warnings
-            }
-        });
+        res.json({ success: true, data: { job, assessment, analysis, warnings } });
     } catch (error) {
-        console.error('Error generating assessment:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Failed to generate assessment'
-        });
+        console.error('[CONTROLLER ERROR] generateAssessment:', error);
+        res.status(500).json({ success: false, error: 'AI Generation failed' });
     }
 };
 
-// @desc    Update assessment configuration
-// @route   PUT /api/jobs/:id/assessment
-// @access  Private (HR/Admin)
+/**
+ * @desc    Adjust weights and configuration for an assessment
+ * @route   PUT /api/jobs/:id/assessment
+ */
 exports.updateAssessment = async (req, res) => {
     try {
         const job = await Job.findById(req.params.id).populate('assessmentId');
+        if (!job?.assessmentId) return res.status(404).json({ success: false, error: 'Assessment not found' });
 
-        if (!job) {
-            return res.status(404).json({
-                success: false,
-                error: 'Job not found'
-            });
-        }
+        const body = req.body;
 
-        if (!job.assessmentId) {
-            return res.status(400).json({
-                success: false,
-                error: 'No assessment found for this job'
-            });
-        }
+        // 1. Update Weights & Scores
+        const weights = ['technicalWeight', 'softSkillWeight', 'minTechnicalScore', 'minSoftSkillScore'];
+        weights.forEach(f => { if (body[f] !== undefined) job.assessmentId[f] = body[f]; });
 
-        // Update assessment fields
-        const allowedUpdates = [
-            'technicalWeight',
-            'softSkillWeight',
-            'minTechnicalScore',
-            'minSoftSkillScore'
-        ];
+        // 2. Update Job-level Generation Config
+        if (body.questionsPerSkill || body.allowAIGeneration || body.skillConfigs) {
+            if (body.questionsPerSkill) job.assessmentConfig.questionsPerSkill = parseInt(body.questionsPerSkill);
+            if (body.allowAIGeneration !== undefined) job.assessmentConfig.allowAIGeneration = !!body.allowAIGeneration;
 
-        allowedUpdates.forEach(field => {
-            if (req.body[field] !== undefined) {
-                job.assessmentId[field] = req.body[field];
+            if (body.skillConfigs) {
+                job.assessmentConfig.skillConfigs = Object.entries(body.skillConfigs).map(([skill, count]) => ({
+                    skill, questionCount: parseInt(count)
+                }));
             }
-        });
-
-        // Update Job-level config
-        if (req.body.questionsPerSkill !== undefined || req.body.allowAIGeneration !== undefined || req.body.skillConfigs !== undefined) {
-            if (!job.assessmentConfig) job.assessmentConfig = {};
-
-            if (req.body.questionsPerSkill !== undefined) {
-                job.assessmentConfig.questionsPerSkill = parseInt(req.body.questionsPerSkill);
-            }
-
-            if (req.body.allowAIGeneration !== undefined) {
-                job.assessmentConfig.allowAIGeneration = req.body.allowAIGeneration === true || req.body.allowAIGeneration === 'true';
-            }
-
-            if (req.body.skillConfigs !== undefined) {
-                // Expecting structure: { "React": 3, "Node.js": 2 }
-                const config = req.body.skillConfigs;
-                const skillConfigsArray = [];
-                for (const skill in config) {
-                    skillConfigsArray.push({
-                        skill,
-                        questionCount: parseInt(config[skill])
-                    });
-                }
-                job.assessmentConfig.skillConfigs = skillConfigsArray;
-            }
-
             await job.save();
         }
 
         await job.assessmentId.save();
-
-        res.json({
-            success: true,
-            data: job.assessmentId
-        });
+        res.json({ success: true, data: job.assessmentId });
     } catch (error) {
-        console.error('Error updating assessment:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Failed to update assessment'
-        });
+        console.error('[CONTROLLER ERROR] updateAssessment:', error);
+        res.status(500).json({ success: false, error: 'Update failed' });
     }
 };
 
-// @desc    Get all jobs (for HR dashboard)
-// @route   GET /api/jobs
-// @access  Private (HR/Admin)
+/**
+ * @desc    Fetch jobs for the HR/Admin dashboard
+ * @route   GET /api/jobs
+ */
 exports.getJobs = async (req, res) => {
     try {
         const { status, search } = req.query;
-
         const query = {};
 
-        // Filter by status if provided
-        if (status) {
-            query.status = status;
-        }
+        if (status) query.status = status;
+        if (search) query.$or = [{ title: { $regex: search, $options: 'i' } }, { department: { $regex: search, $options: 'i' } }];
 
-        // Search by title or department
-        if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { department: { $regex: search, $options: 'i' } }
-            ];
-        }
+        // Identity filter: HR sees only their jobs
+        if (req.user.role === 'hr') query.postedBy = req.user._id;
 
-        // HR can only see their own jobs, admin can see all
-        if (req.user.role === 'hr') {
-            query.postedBy = req.user._id;
-        }
-
-        const jobs = await Job.find(query)
-            .populate('assessmentId')
-            .sort({ createdAt: -1 });
-
-        res.json({
-            success: true,
-            count: jobs.length,
-            data: jobs
-        });
+        const jobs = await Job.find(query).populate('assessmentId').sort({ createdAt: -1 });
+        res.json({ success: true, count: jobs.length, data: jobs });
     } catch (error) {
-        console.error('Error fetching jobs:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to fetch jobs'
-        });
+        console.error('[CONTROLLER ERROR] getJobs:', error);
+        res.status(500).json({ success: false, error: 'Fetch failed' });
     }
 };
 
-// @desc    Get single job by ID
-// @route   GET /api/jobs/:id
-// @access  Private (HR/Admin)
+/**
+ * @desc    Get full job profile by ID
+ * @route   GET /api/jobs/:id
+ */
 exports.getJobById = async (req, res) => {
     try {
         const job = await Job.findById(req.params.id)
             .populate('assessmentId')
             .populate('postedBy', 'name email');
 
-        if (!job) {
-            return res.status(404).json({
-                success: false,
-                error: 'Job not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            data: job
-        });
+        if (!job) return res.status(404).json({ success: false, error: 'Not found' });
+        res.json({ success: true, data: job });
     } catch (error) {
-        console.error('Error fetching job:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to fetch job'
-        });
+        console.error('[CONTROLLER ERROR] getJobById:', error);
+        res.status(500).json({ success: false, error: 'Internal Error' });
     }
 };
 
@@ -310,6 +207,7 @@ exports.moderateQuestion = async (req, res) => {
         } else if (action === 'reject') {
             // Remove from assessment
             assessment.technicalQuestions.splice(qIndex, 1);
+            await assessment.save(); // Save the removal
 
             // Optionally retire from pool
             if (questionPoolItem) {
@@ -319,13 +217,11 @@ exports.moderateQuestion = async (req, res) => {
             }
         }
 
-        // Re-calculate assessment status
-        // We need to fetch the updated assessment questions to check their pool status
+        // Re-calculate assessment status: only blocked if questions still need approval
         const updatedAssessment = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
         const hasPending = updatedAssessment.technicalQuestions.some(q => q.questionId?.status === 'pending_review');
-        const hasMissing = updatedAssessment.missingSkills && updatedAssessment.missingSkills.length > 0;
 
-        updatedAssessment.status = (hasPending || hasMissing) ? 'pending_review' : 'active';
+        updatedAssessment.status = hasPending ? 'pending_review' : 'active';
         await updatedAssessment.save();
 
         res.json({
@@ -335,6 +231,44 @@ exports.moderateQuestion = async (req, res) => {
         });
     } catch (error) {
         console.error('Error moderating question:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+// @desc    Approve all pending questions in an assessment
+// @route   POST /api/jobs/:id/approve-all
+// @access  Private (HR/Admin)
+exports.approveAllQuestions = async (req, res) => {
+    try {
+        const job = await Job.findById(req.params.id);
+        if (!job || !job.assessmentId) {
+            return res.status(404).json({ success: false, error: 'Job or assessment not found' });
+        }
+
+        const Assessment = require('../models/Assessment');
+        const Question = require('../models/Question');
+        const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
+
+        for (const qEntry of assessment.technicalQuestions) {
+            if (qEntry.questionId && qEntry.questionId.status === 'pending_review') {
+                qEntry.questionId.status = 'active';
+                await qEntry.questionId.save();
+            }
+        }
+
+        // Assessment is now active as long as no questions are still pending review
+        assessment.status = assessment.technicalQuestions.some(
+            q => q.questionId?.status === 'pending_review'
+        ) ? 'pending_review' : 'active';
+        await assessment.save();
+
+        res.json({
+            success: true,
+            message: 'All pending questions approved and added to global bank',
+            data: assessment
+        });
+    } catch (error) {
+        console.error('Error approving all questions:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 };
@@ -466,234 +400,114 @@ exports.deleteJob = async (req, res) => {
     }
 };
 
-// @desc    Get job analytics
-// @route   GET /api/jobs/:id/analytics
-// @access  Private (HR/Admin)
+/**
+ * @desc    Get data for the analytics dashboard (JSON or HTML)
+ * @route   GET /api/jobs/:id/analytics
+ */
 exports.getJobAnalytics = async (req, res) => {
     try {
         const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
 
-        if (!job) {
-            return res.status(404).json({
-                success: false,
-                error: 'Job not found'
-            });
-        }
+        const [total, completed, shortlisted] = await Promise.all([
+            Application.countDocuments({ job: job._id }),
+            Application.countDocuments({ job: job._id, assessmentStatus: 'completed' }),
+            Application.countDocuments({ job: job._id, status: 'shortlisted' })
+        ]);
 
-        // Get application statistics
-        const totalApplications = await Application.countDocuments({ job: job._id });
-        const completedAssessments = await Application.countDocuments({
-            job: job._id,
-            assessmentStatus: 'completed'
-        });
-        const shortlisted = await Application.countDocuments({
-            job: job._id,
-            status: 'shortlisted'
-        });
+        const apps = await Application.find({ job: job._id, assessmentStatus: 'completed' });
+        const calcAvg = (field) => apps.length ? (apps.reduce((sum, a) => sum + (a.assessmentResults?.[field] || 0), 0) / apps.length).toFixed(1) : 0;
 
-        // Get average scores
-        const applications = await Application.find({
-            job: job._id,
-            assessmentStatus: 'completed'
-        });
-
-        let avgTechnicalScore = 0;
-        let avgSoftSkillScore = 0;
-        let avgWeightedScore = 0;
-
-        if (applications.length > 0) {
-            avgTechnicalScore = applications.reduce((sum, app) =>
-                sum + (app.assessmentResults?.technicalScore || 0), 0) / applications.length;
-            avgSoftSkillScore = applications.reduce((sum, app) =>
-                sum + (app.assessmentResults?.softSkillScore || 0), 0) / applications.length;
-            avgWeightedScore = applications.reduce((sum, app) =>
-                sum + (app.assessmentResults?.weightedScore || 0), 0) / applications.length;
-        }
-
-        // Score distribution
-        const scoreDistribution = {
-            excellent: applications.filter(app => app.assessmentResults?.weightedScore >= 85).length,
-            strong: applications.filter(app => {
-                const score = app.assessmentResults?.weightedScore;
-                return score >= 70 && score < 85;
-            }).length,
-            fair: applications.filter(app => {
-                const score = app.assessmentResults?.weightedScore;
-                return score >= 60 && score < 70;
-            }).length,
-            below: applications.filter(app => app.assessmentResults?.weightedScore < 60).length
+        const analyticsData = {
+            views: job.views,
+            applications: total,
+            completedAssessments: completed,
+            shortlisted,
+            avgTechnicalScore: calcAvg('technicalScore'),
+            avgSoftSkillScore: calcAvg('softSkillScore'),
+            avgWeightedScore: calcAvg('weightedScore'),
+            conversionRates: {
+                viewToApply: job.views ? (total / job.views * 100).toFixed(1) : 0,
+                applyToComplete: total ? (completed / total * 100).toFixed(1) : 0,
+                completeToShortlist: completed ? (shortlisted / completed * 100).toFixed(1) : 0
+            },
+            scoreDistribution: {
+                '<50': apps.filter(a => (a.assessmentResults?.weightedScore || 0) < 50).length,
+                '50-70': apps.filter(a => (a.assessmentResults?.weightedScore || 0) >= 50 && (a.assessmentResults?.weightedScore || 0) < 70).length,
+                '70-85': apps.filter(a => (a.assessmentResults?.weightedScore || 0) >= 70 && (a.assessmentResults?.weightedScore || 0) < 85).length,
+                '>85': apps.filter(a => (a.assessmentResults?.weightedScore || 0) >= 85).length
+            },
+            skillGapAnalysis: {}
         };
 
-        // Conversion rates
-        const conversionRates = {
-            viewToApply: job.views > 0 ? (totalApplications / job.views * 100).toFixed(1) : 0,
-            applyToComplete: totalApplications > 0 ? (completedAssessments / totalApplications * 100).toFixed(1) : 0,
-            completeToShortlist: completedAssessments > 0 ? (shortlisted / completedAssessments * 100).toFixed(1) : 0
-        };
+        // Calculate Average Score Per Skill
+        const skillTotals = {};
+        const skillCounts = {};
 
-        // Skill Gap Analysis
-        const skillGaps = {}; // { skill: { totalScore: 0, count: 0 } }
-        applications.forEach(app => {
+        apps.forEach(app => {
             if (app.assessmentResults?.skillBreakdown) {
-                // skillBreakdown is a Map in Mongoose, but it might be treated as a plain object after .toObject() or if not lean
-                // Handle both cases
-                const breakdown = app.assessmentResults.skillBreakdown instanceof Map
-                    ? Object.fromEntries(app.assessmentResults.skillBreakdown)
-                    : app.assessmentResults.skillBreakdown;
-
-                Object.entries(breakdown).forEach(([skill, score]) => {
-                    if (!skillGaps[skill]) skillGaps[skill] = { totalScore: 0, count: 0 };
-                    skillGaps[skill].totalScore += score;
-                    skillGaps[skill].count++;
+                app.assessmentResults.skillBreakdown.forEach((score, skill) => {
+                    skillTotals[skill] = (skillTotals[skill] || 0) + score;
+                    skillCounts[skill] = (skillCounts[skill] || 0) + 1;
                 });
             }
         });
 
-        const skillGapAnalysis = {};
-        Object.keys(skillGaps).forEach(skill => {
-            skillGapAnalysis[skill] = Math.round(skillGaps[skill].totalScore / skillGaps[skill].count);
+        Object.keys(skillTotals).forEach(skill => {
+            analyticsData.skillGapAnalysis[skill] = (skillTotals[skill] / skillCounts[skill]).toFixed(1);
         });
 
-        const analyticsData = {
-            views: job.views,
-            applications: totalApplications,
-            completedAssessments,
-            shortlisted,
-            avgTechnicalScore: avgTechnicalScore.toFixed(1),
-            avgSoftSkillScore: avgSoftSkillScore.toFixed(1),
-            avgWeightedScore: avgWeightedScore.toFixed(1),
-            scoreDistribution,
-            conversionRates,
-            skillGapAnalysis
-        };
-
-        // If browser request, render view
-        if (req.headers.accept && req.headers.accept.includes('text/html')) {
-            return res.render('job-analytics.ejs', {
-                title: `Analytics | ${job.title}`,
-                job,
-                analytics: analyticsData,
-                user: req.user
-            });
+        if (req.headers.accept?.includes('text/html')) {
+            return res.render('job-analytics.ejs', { title: 'Analytics', job, analytics: analyticsData, user: req.user });
         }
-
-        res.json({
-            success: true,
-            data: analyticsData
-        });
+        res.json({ success: true, data: analyticsData });
     } catch (error) {
-        console.error('Error fetching analytics:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to fetch analytics'
-        });
+        console.error('[CONTROLLER ERROR] getJobAnalytics:', error);
+        res.status(500).json({ success: false, error: 'Fetch failed' });
     }
 };
 
-// @desc    Get candidates for a job
-// @route   GET /api/jobs/:id/candidates
-// @access  Private (HR/Admin)
+/**
+ * @desc    Fetch and sort candidates for a specific job
+ * @route   GET /api/jobs/:id/candidates
+ */
 exports.getJobCandidates = async (req, res) => {
     try {
         const { status, sort } = req.query;
-
         const query = { job: req.params.id };
+        if (status) query.status = status;
 
-        if (status) {
-            query.status = status;
-        }
+        const sortOption = sort === 'score' ? { 'assessmentResults.weightedScore': -1 } :
+            sort === 'name' ? { candidateName: 1 } : { appliedAt: -1 };
 
-        let sortOption = { appliedAt: -1 }; // Default: newest first
+        const candidates = await Application.find(query).sort(sortOption).populate('job', 'title');
 
-        if (sort === 'score') {
-            sortOption = { 'assessmentResults.weightedScore': -1 };
-        } else if (sort === 'name') {
-            sortOption = { candidateName: 1 };
-        }
-
-        const candidates = await Application.find(query).sort(sortOption)
-            .populate('job', 'title');
-
-        // If browser request, render view
-        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+        if (req.headers.accept?.includes('text/html')) {
             const job = await Job.findById(req.params.id);
-            return res.render('job-candidates.ejs', {
-                title: `Candidates | ${job.title}`,
-                job,
-                candidates,
-                user: req.user
-            });
+            return res.render('job-candidates.ejs', { title: 'Candidates', job, candidates, user: req.user });
         }
 
-        res.json({
-            success: true,
-            count: candidates.length,
-            data: candidates
-        });
+        res.json({ success: true, count: candidates.length, data: candidates });
     } catch (error) {
-        console.error('Error fetching candidates:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to fetch candidates'
-        });
+        console.error('[CONTROLLER ERROR] getJobCandidates:', error);
+        res.status(500).json({ success: false, error: 'Fetch failed' });
     }
 };
 
-// @desc    Render HR dashboard
-// @route   GET /api/jobs/dashboard/view
-// @access  Private (HR/Admin)
-exports.renderHRDashboard = async (req, res) => {
-    try {
-        res.render('hr-dashboard', {
-            user: req.user,
-            title: 'HR Dashboard'
-        });
-    } catch (error) {
-        console.error('Error rendering dashboard:', error);
-        res.status(500).send('Error loading dashboard');
-    }
-};
+// ==========================================
+// VIEW CONTROLLERS (HTML Rendering)
+// ==========================================
 
-// @desc    Render create job page
-// @route   GET /api/jobs/create/view
-// @access  Private (HR/Admin)
-exports.renderCreateJob = async (req, res) => {
-    try {
-        res.render('create-job', {
-            user: req.user,
-            title: 'Create Job Posting'
-        });
-    } catch (error) {
-        console.error('Error rendering create job page:', error);
-        res.status(500).send('Error loading page');
-    }
-};
+exports.renderHRDashboard = (req, res) => res.render('hr-dashboard', { user: req.user, title: 'HR Dashboard' });
+exports.renderCreateJob = (req, res) => res.render('create-job', { user: req.user, title: 'Create Job' });
 
-// @desc    Render job detail page
-// @route   GET /api/jobs/:id/view
-// @access  Private (HR/Admin)
 exports.renderJobDetail = async (req, res) => {
     try {
         const job = await Job.findById(req.params.id)
-            .populate({
-                path: 'assessmentId',
-                populate: {
-                    path: 'technicalQuestions.questionId'
-                }
-            })
+            .populate({ path: 'assessmentId', populate: { path: 'technicalQuestions.questionId' } })
             .populate('postedBy', 'name email');
 
-        if (!job) {
-            return res.status(404).send('Job not found');
-        }
-
-        res.render('job-detail', {
-            user: req.user,
-            job,
-            title: job.title
-        });
-    } catch (error) {
-        console.error('Error rendering job detail:', error);
-        res.status(500).send('Error loading job');
-    }
+        if (!job) return res.status(404).send('Job not found');
+        res.render('job-detail', { user: req.user, job, title: job.title });
+    } catch (e) { res.status(500).send('Error'); }
 };

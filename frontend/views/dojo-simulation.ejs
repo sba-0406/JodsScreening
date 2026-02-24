@@ -9,293 +9,95 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
         rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css?v=9">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg-dark: #030712;
-            --glass-panel: rgba(17, 24, 39, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --neon-accent: #6366f1;
-            --neon-danger: #f43f5e;
-            --neon-success: #10b981;
-            --neon-warning: #f59e0b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-        }
-
+        /* Simulation-specific overrides */
         body {
-            font-family: 'Outfit', sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-main);
             overflow: hidden;
             height: 100vh;
+            background: var(--bg-main);
         }
 
-        /* FIXED HEADER - Flush with Navbar */
         .simulation-header {
             position: fixed;
-            top: 60px;
-            /* Standard navbar height */
+            top: 0;
             left: 0;
             right: 0;
-            min-height: 100px;
-            background: rgba(15, 23, 42, 0.98);
-            backdrop-filter: blur(15px);
-            border-bottom: 2px solid var(--neon-accent);
+            background: #ffffff;
+            border-bottom: 3px solid var(--primary-color);
             padding: 15px 40px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
             z-index: 1000;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
         }
 
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .scenario-title {
-            font-weight: 700;
-            font-size: 1.1em;
-            color: var(--neon-accent);
-        }
-
-        .timer {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.2em;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        /* MOOD BAR */
         .mood-container {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 24px;
             width: 100%;
-            padding-top: 10px;
         }
 
-        .mood-emoji {
-            font-size: 1.2em;
-        }
-
-        .mood-bar-bg {
-            flex: 1;
-            height: 12px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 6px;
-            overflow: hidden;
-            position: relative;
-            min-width: 100px;
-        }
-
-        .mood-bar-fill {
-            height: 100%;
-            width: 0%;
-            transition: width 1s ease-in-out;
-            background: var(--neon-accent);
-            border-radius: 6px;
-        }
-
-        /* MAIN CONTENT */
         .main-content {
             position: fixed;
-            top: 175px;
-            /* Navbar + Auto Header approx */
-            bottom: 300px;
+            top: 140px;
+            bottom: 240px;
             left: 0;
             right: 0;
             overflow-y: auto;
             padding: 40px 15%;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            scroll-behavior: smooth;
+            gap: 15px;
         }
 
-        /* MESSAGES */
-        .msg {
-            max-width: 80%;
-            padding: 16px 24px;
-            border-radius: 20px;
-            line-height: 1.5;
-            animation: fadeIn 0.3s ease-out;
-            position: relative;
-        }
-
-        .msg.ai {
-            align-self: flex-start;
-            background: var(--glass-panel);
-            border: 1px solid var(--glass-border);
-            border-bottom-left-radius: 4px;
-        }
-
-        .msg.user {
-            align-self: flex-end;
-            background: linear-gradient(135deg, #4f46e5, #6366f1);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-
-        /* INTERACTION ZONE - 300px max, flexible */
         .interaction-zone {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            min-height: 220px;
-            max-height: 300px;
-            background: #0f172a;
-            border-top: 1px solid var(--glass-border);
+            min-height: 180px;
+            max-height: 240px;
+            background: #ffffff;
+            border-top: 1px solid var(--border);
             padding: 20px 15%;
             display: flex;
             flex-direction: column;
             gap: 15px;
             z-index: 1000;
             overflow-y: auto;
+            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
         }
 
-        .mcq-options {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .mcq-btn {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #cbd5e1;
-            padding: 14px 20px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 0.95em;
-            text-align: left;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: flex-start;
-            gap: 15px;
-            line-height: 1.6;
-        }
-
-        .mcq-btn span {
-            font-size: 1.2em;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        .mcq-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: var(--neon-accent);
-            transform: translateY(-2px);
-        }
-
-        .divider {
-            display: flex;
-            align-items: center;
-            text-align: center;
-            color: #475569;
-            font-size: 0.75em;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .divider span {
-            padding: 0 15px;
-        }
-
-        .text-input-group {
-            display: flex;
-            gap: 15px;
-        }
-
-        .text-input-group input {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-family: inherit;
-        }
-
-        .send-btn {
-            background: var(--neon-accent);
-            color: white;
-            border: none;
-            padding: 0 25px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        /* OVERLAYS */
         .overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(30, 58, 138, 0.1);
+            backdrop-filter: blur(12px);
             z-index: 10000;
             display: none;
-            align-items: flex-start;
-            /* Start from top to allow scrolling */
+            align-items: center;
             justify-content: center;
-            padding: 40px 20px;
-            backdrop-filter: blur(10px);
-            overflow-y: auto;
-            /* Enable scroll if content is long */
         }
 
         .modal {
-            background: #1e293b;
+            background: #ffffff;
             padding: 40px;
-            border-radius: 24px;
+            border-radius: 20px;
             max-width: 500px;
-            width: 100%;
+            width: 90%;
             text-align: center;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal h2 {
-            margin-bottom: 15px;
-        }
-
-        .modal p {
-            color: #94a3b8;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border);
         }
 
         .typing-indicator {
-            align-self: flex-start;
+            font-size: 0.8rem;
             color: var(--text-muted);
-            font-size: 0.85em;
             font-style: italic;
+            margin-bottom: 15px;
             display: none;
         }
     </style>
@@ -315,11 +117,11 @@
     <!-- HEADER -->
     <div class="simulation-header">
         <div class="header-top">
-            <div class="scenario-title" id="scenarioIndicator">Scenario 1 / 3</div>
-            <button class="mcq-btn"
-                style="padding: 5px 15px; width: auto; font-size: 0.8em; border-color: var(--neon-danger); color: var(--neon-danger);"
+            <div class="sub-section-header" id="scenarioIndicator" style="margin: 0; flex: 1;">Scenario 1 / 3</div>
+            <div class="timer" id="timer"
+                style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--primary-color);">05:00</div>
+            <button class="btn-sm btn-secondary" style="margin-left: 20px; color: var(--danger); border-color: #fee2e2;"
                 id="skipBtn">Skip Stakeholder</button>
-            <div class="timer" id="timer">05:00</div>
         </div>
         <div class="mood-container" id="metricsContainer">
             <!-- Metrics will be injected here -->
@@ -351,10 +153,11 @@
     <!-- RESOLUTION OVERLAY -->
     <div class="overlay" id="resolutionOverlay">
         <div class="modal">
-            <div style="font-size: 4em; margin-bottom: 20px;" id="resolutionIcon">🎉</div>
-            <h2 id="resolutionTitle">Scenario Resolved</h2>
-            <p id="resolutionDesc">You successfully navigated this challenge. Moving to next scenario...</p>
-            <button class="send-btn" style="padding: 12px 30px; width: auto;" id="nextBtn">Continue ➤</button>
+            <div style="font-size: 4rem; margin-bottom: 20px;" id="resolutionIcon">🎉</div>
+            <h2 id="resolutionTitle" style="font-weight: 700; margin-bottom: 10px;">Scenario Resolved</h2>
+            <p id="resolutionDesc" style="color: var(--text-muted); line-height: 1.6; margin-bottom: 30px;">You
+                successfully navigated this challenge. Moving to next scenario...</p>
+            <button class="btn" style="width: 100%; padding: 14px;" id="nextBtn">Continue Simulation ➤</button>
         </div>
     </div>
 
@@ -576,7 +379,7 @@
 
             function renderMessage(msg) {
                 const div = document.createElement('div');
-                div.className = `msg ${msg.sender}`;
+                div.className = `chat-bubble ${msg.sender}`;
                 div.textContent = msg.text;
                 chatFeed.insertBefore(div, document.getElementById('typingIndicator'));
                 scrollToBottom();
@@ -670,19 +473,20 @@
 
             function showFinalReport(report) {
                 const overlay = document.getElementById('resolutionOverlay');
-                overlay.style.display = 'flex'; // Ensure visible!
+                overlay.style.display = 'flex';
 
                 let skillsHtml = '';
                 if (report.skillScores) {
                     Object.entries(report.skillScores).forEach(([skill, score]) => {
+                        const scorePercent = Math.min(100, (score / 10) * 100); // Assuming 10 is max per skill
                         skillsHtml += `
-                            <div style="margin-bottom: 12px;">
-                                <div style="display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 5px; color: var(--text-muted);">
+                            <div style="margin-bottom: 20px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px; color: var(--text-main); font-weight: 600;">
                                     <span>${skill}</span>
-                                    <span style="color: var(--neon-accent); font-weight: bold;">${score} pts</span>
+                                    <span style="color: var(--primary-color);">${score} / 10</span>
                                 </div>
-                                <div class="mood-bar-bg" style="height: 6px;">
-                                    <div class="mood-bar-fill" style="width: ${Math.min(100, (score / 50) * 100)}%; background: var(--neon-accent);"></div>
+                                <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; border: 1px solid var(--border);">
+                                    <div style="height: 100%; width: ${scorePercent}%; background: var(--primary-color); transition: width 1s ease;"></div>
                                 </div>
                             </div>
                         `;
@@ -690,26 +494,26 @@
                 }
 
                 overlay.innerHTML = `
-                    <div class="modal" style="max-width: 600px; margin: auto;">
-                        <span style="font-size: 0.8em; color: var(--neon-accent); text-transform: uppercase; letter-spacing: 2px;">Final Assessment</span>
-                        <h1 style="font-size: 4em; margin: 10px 0 30px;">Grade: ${report.overallGrade}</h1>
+                    <div class="modal" style="max-width: 600px; width: 95%;">
+                        <div style="font-size: 0.75rem; color: var(--primary-color); text-transform: uppercase; letter-spacing: 2px; font-weight: 800; margin-bottom: 10px;">Simulation Complete</div>
+                        <h1 style="font-size: 5rem; margin: 0 0 20px; color: var(--primary-color); font-weight: 800;">${report.overallGrade}</h1>
                         
-                        <div style="background: rgba(255,255,255,0.03); padding: 25px; border-radius: 16px; margin-bottom: 25px; text-align: left; border: 1px solid var(--glass-border);">
-                            <h4 style="color: var(--text-main); margin-bottom: 20px; font-size: 1.1em;">Behavioral Skill Profile</h4>
+                        <div style="background: #f8fafc; padding: 25px; border-radius: 16px; margin-bottom: 25px; text-align: left; border: 1px solid var(--border);">
+                            <h4 style="color: var(--text-main); margin-bottom: 20px; font-size: 1.1rem; font-weight: 700;">Behavioral Competency Profile</h4>
                             ${skillsHtml}
                         </div>
 
-                        <div style="background: rgba(99, 102, 241, 0.1); padding: 20px; border-radius: 16px; margin-bottom: 30px; text-align: left; border: 1px solid rgba(99, 102, 241, 0.2);">
-                            <h4 style="color: var(--neon-accent); margin-bottom: 10px; font-size: 0.9em; text-transform: uppercase;">Expert Summary</h4>
-                            <p style="color: #cbd5e1; line-height: 1.7; font-size: 1em;">${report.recommendation}</p>
+                        <div style="background: #eff6ff; padding: 20px; border-radius: 16px; margin-bottom: 30px; text-align: left; border: 1px solid #dbeafe;">
+                            <h4 style="color: var(--primary-color); margin-bottom: 8px; font-size: 0.8rem; text-transform: uppercase; font-weight: 800;">AI Performance Summary</h4>
+                            <p style="color: var(--text-main); line-height: 1.6; font-size: 0.95rem;">${report.recommendation}</p>
                         </div>
                         
-                        <div style="display: flex; flex-direction: column; gap: 15px;">
-                            <button onclick="window.location.href='/dojo/roles'" class="send-btn" style="padding: 16px; width: 100%; font-size: 1.1em;">
-                                Return to Roles Selection
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <button onclick="window.location.href='/api/applications/my-dashboard'" class="btn" style="padding: 16px; width: 100%; font-size: 1.1rem; font-weight: 700;">
+                                Return to Dashboard
                             </button>
-                            <button onclick="window.location.reload()" style="background: transparent; border: 1px solid var(--glass-border); color: var(--text-muted); padding: 12px; border-radius: 12px; cursor: pointer;">
-                                Restart This Role
+                            <button onclick="window.location.reload()" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 12px; border-radius: 12px; cursor: pointer; font-family: inherit; font-weight: 600;">
+                                Restart Simulation
                             </button>
                         </div>
                     </div>

@@ -65,6 +65,10 @@ exports.getPublicJobDetail = async (req, res) => {
             return res.status(404).json({ success: false, error: 'Job not found' });
         }
 
+        // Increment views using $inc for reliability
+        await Job.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+        console.log(`[METRICS] Incremented views for job (API): ${req.params.id}`);
+
         // Check application status for logged-in users
         let isApplied = false;
         if (req.user) {
@@ -114,9 +118,9 @@ exports.submitApplication = async (req, res) => {
             assessmentStatus: job.requireAssessment ? 'pending' : 'not_required'
         });
 
-        // 3. Increment Stats
-        job.applications += 1;
-        await job.save();
+        // 3. Increment Stats using $inc for reliability
+        await Job.findByIdAndUpdate(jobId, { $inc: { applications: 1 } });
+        console.log(`[METRICS] Incremented applications for job: ${jobId}`);
 
         res.status(201).json({ success: true, data: application });
     } catch (error) {
@@ -178,6 +182,10 @@ exports.renderJobDetailPublic = async (req, res) => {
     try {
         const job = await Job.findById(req.params.id).populate('assessmentId', 'technicalSkills softSkills');
         if (!job) return res.status(404).send('Job not found');
+
+        // Increment views using $inc for reliability
+        await Job.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+        console.log(`[METRICS] Incremented views for job (VIEW): ${req.params.id}`);
 
         let isApplied = false, existingApplicationId = null;
         if (req.user) {
@@ -294,4 +302,3 @@ exports.generateAISummary = async (req, res) => {
         res.status(500).json({ success: false, error: 'AI Generation Failed' });
     }
 };
-

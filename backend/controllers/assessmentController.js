@@ -590,6 +590,15 @@ exports.finalizeAssessment = async (req, res) => {
         };
         await application.save();
 
+        // 6. Update Job Stats
+        if (application.job) {
+            const Job = require('../models/Job');
+            await Job.findByIdAndUpdate(application.job._id, {
+                $inc: { assessmentsCompleted: 1 }
+            });
+            console.log(`[METRICS] Incremented assessmentsCompleted for job: ${application.job._id}`);
+        }
+
         session.status = 'completed';
         session.completedAt = new Date();
         await session.save();

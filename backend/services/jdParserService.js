@@ -107,11 +107,12 @@ Guidelines:
  */
 async function generateScenarioTemplates(softSkills, roleCategory, roleType, count = 3, jobDescription = '') {
   try {
-    const prompt = `Generate ${count} realistic workplace scenario templates for a ${roleType} in ${roleCategory}.
+    const prompt = `Generate exactly ${softSkills.length} realistic workplace scenario templates for a ${roleType} in ${roleCategory}.
 
-Soft skills to test: ${softSkills.join(', ')}
+STRICT REQUIREMENT: You MUST generate exactly one scenario for EACH of the following soft skills:
+Skills to test: ${softSkills.join(', ')}
 
-Job Description:
+Job Description Context:
 """
 ${jobDescription}
 """
@@ -122,8 +123,8 @@ EXACT STRUCTURE (no extra fields):
 {
   "scenarios": [
     {
-      "theme": "One of: Conflict Resolution | Communication | Leadership | Negotiation | Problem-solving",
-      "prompt": "A specific, realistic workplace challenge this candidate will face. Be detailed and role-specific.",
+      "theme": "The EXACT name of the soft skill being tested (e.g. '${softSkills[0]}')",
+      "prompt": "A specific, realistic workplace challenge explicitly designed to test THIS skill. Be detailed and role-specific.",
       "applicableRoles": ["${roleType}"]
     }
   ],
@@ -143,22 +144,20 @@ EXACT STRUCTURE (no extra fields):
 }
 
 RULES — follow exactly:
-1. METRICS: Choose exactly 3 metrics that are critical success factors for THIS specific job role.
+1. QUANTITY: Return exactly ${softSkills.length} scenarios. One for each skill.
+2. THEME: The 'theme' field MUST be the exact name of the soft skill from the list provided.
+3. METRICS: Choose exactly 3 metrics that are critical success factors for THIS specific job role.
    - Use clear, professional names (e.g. "Stakeholder Trust", "Delivery Speed", "Compliance Risk")
    - Do NOT use generic names like "TeamMorale", "Trust", "Productivity"
 
-2. POLARITY: "high" = higher is better. "low" = higher is worse (use for Risk, Stress, Debt, Friction).
+4. POLARITY: "high" = higher is better. "low" = higher is worse (use for Risk, Stress, Debt, Friction).
 
-3. EFFECTS — CRITICAL RULES:
-   - Every effect object MUST contain ALL 3 metric keys — no missing metrics.
-   - Every approach MUST have at least one positive AND one negative value — no safe choices.
+5. EFFECTS — CRITICAL RULES:
+   - Every effect object MUST contain ALL 3 metric keys.
+   - Every approach MUST have at least one positive AND one negative value.
    - Range: -15 to +15. Use real numbers, not zeros.
-   - "Results" should push output/speed but damage relationship or quality.
-   - "Relationship" should build trust but sacrifice speed or efficiency.
-   - "Boundary" should enforce standards but reduce flexibility and short-term satisfaction.
 
-4. SCENARIOS: Be specific to the job. Do not write generic "team conflict" scenarios.
-   Each scenario prompt should describe a concrete stakeholder, their complaint/demand, and the stakes.`;
+6. SCENARIOS: Be specific to the job. Each prompt should describe a concrete stakeholder, their complaint/demand, and the stakes related to the specific soft skill being tested.`;
 
     const response = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],

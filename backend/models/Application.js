@@ -22,7 +22,12 @@ const ApplicationSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    candidatePhone: String,
+    // candidatePhone: String,
+    candidatePhone: {
+        type: String,
+        required: true,
+        match: [/^\+?[1-9]\d{7,14}$/, 'Please enter a valid phone number']
+    },
     resume: String, // File path or URL
     coverLetter: String,
     yearsExperience: Number,

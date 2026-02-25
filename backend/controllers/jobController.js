@@ -179,19 +179,40 @@ exports.moderateQuestion = async (req, res) => {
         const { id, questionId } = req.params;
         const { action } = req.body; // 'approve' or 'reject'
 
-        const job = await Job.findById(id).populate({
-            path: 'assessmentId',
-            populate: { path: 'technicalQuestions.questionId' }
-        });
+        console.log(`[MODERATION] action=${action} questionId=${questionId} jobId=${id}`);
 
+        const job = await Job.findById(id);
         if (!job || !job.assessmentId) {
             return res.status(404).json({ success: false, error: 'Job or assessment not found' });
         }
 
-        const assessment = job.assessmentId;
-        const qIndex = assessment.technicalQuestions.findIndex(q => q.questionId?._id?.toString() === questionId);
+        // Load assessment directly with populated questions for comparison
+        const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
+        if (!assessment) {
+            return res.status(404).json({ success: false, error: 'Assessment not found' });
+        }
+
+        console.log(`[MODERATION] Assessment has ${assessment.technicalQuestions.length} questions`);
+
+        // Robust comparison: handle both populated & unpopulated questionId refs
+        const qIndex = assessment.technicalQuestions.findIndex(q => {
+            const qId = q.questionId;
+            if (!qId) return false;
+            // If populated (object with _id), compare _id; if unpopulated (ObjectId), compare directly
+            const idStr = qId._id ? qId._id.toString() : qId.toString();
+            return idStr === questionId;
+        });
+
+        console.log(`[MODERATION] findIndex result: ${qIndex}`);
 
         if (qIndex === -1) {
+            console.error(`[MODERATION ERROR] questionId ${questionId} not found. IDs in assessment:`,
+                assessment.technicalQuestions.map(q => {
+                    const qId = q.questionId;
+                    if (!qId) return 'null';
+                    return qId._id ? qId._id.toString() : qId.toString();
+                })
+            );
             return res.status(404).json({ success: false, error: 'Question not found in assessment' });
         }
 
@@ -203,13 +224,16 @@ exports.moderateQuestion = async (req, res) => {
                 questionPoolItem.status = 'active';
                 await questionPoolItem.save();
                 console.log(`[MODERATION] Question ${questionId} approved and added to active bank.`);
+            } else {
+                console.warn(`[MODERATION] Question ${questionId} not in Question collection. Marking assessment entry only.`);
             }
         } else if (action === 'reject') {
             // Remove from assessment
             assessment.technicalQuestions.splice(qIndex, 1);
-            await assessment.save(); // Save the removal
+            assessment.markModified('technicalQuestions');
+            await assessment.save();
 
-            // Optionally retire from pool
+            // Retire from pool
             if (questionPoolItem) {
                 questionPoolItem.status = 'retired';
                 await questionPoolItem.save();

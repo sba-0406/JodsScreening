@@ -316,289 +316,316 @@
                                 Regenerate All
                             </button>
                         </div>
-                        <% job.assessmentId.scenarioTemplates.forEach(scenario=> { %>
-                            <div class="question-preview">
-                                <div class="question-header">
-                                    <span class="question-skill">
-                                        <%= scenario.theme %>
+
+                        <% if (job.assessmentId.simulationConfig && job.assessmentId.simulationConfig.metrics &&
+                            job.assessmentId.simulationConfig.metrics.length> 0) { %>
+                            <div
+                                style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <span
+                                    style="font-size: 0.75rem; font-weight: 700; color: #0369a1; text-transform: uppercase; letter-spacing: 0.05em;">Simulation
+                                    Metrics:</span>
+                                <% job.assessmentId.simulationConfig.metrics.forEach(function(metric) { %>
+                                    <span
+                                        style="background: white; border: 1px solid #7dd3fc; color: #0369a1; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                                        <%= metric %>
                                     </span>
-                                </div>
-                                <div style="color: var(--text-muted); font-size: 0.875rem;">
-                                    Metrics: <%= scenario.metrics.join(', ') %>
+                                    <% }); %>
                             </div>
-                        </div>
-                    <% }); %>
-                </div>
+                            <% } %>
 
-        <% if (job.assessmentId.missingSkills && job.assessmentId.missingSkills.length > 0) { %>
-        <!-- Warnings -->
-        <div class="warning-box" style="margin-top: 2rem; display: block;">
-            <h3 style="color: #92400e; margin-bottom: 0.5rem;">⚠️ Skill Gap Detected</h3>
-            <p style="color: #78350f; font-size: 0.875rem; margin-bottom: 1rem;">
-                The following skills were identified in the Job Description but are missing from our standard question bank. 
-                Candidates will <strong>not</strong> be tested on these unless you enable AI Generation:
-            </p>
-            <ul style="color: #92400e; font-size: 0.875rem; margin-bottom: 1.5rem; list-style-position: inside;">
-                <% job.assessmentId.missingSkills.forEach(skill => { %>
-                    <li><%= skill %></li>
-                <% }); %>
-            </ul>
-            <div style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #fbbf24;">
-                <p style="font-size: 0.8125rem; color: #78350f;"><strong>To fix this:</strong></p>
-                <ol style="font-size: 0.8125rem; color: #92400e; padding-left: 1.25rem; margin-top: 0.25rem;">
-                    <li>Enable <strong>"Allow AI Generation"</strong> in the settings above.</li>
-                    <li>Click <strong>"Save Changes"</strong>.</li>
-                    <li>Click <strong>"Regenerate All"</strong> in the Technical Questions Pool section.</li>
-                </ol>
-            </div>
-        </div>
-        <% } %>
-
-        <% } else { %>
-        <!-- No Assessment -->
-        <div class="card">
-            <h2>Assessment</h2>
-            <p style="color: var(--text-muted);">No assessment generated yet.</p>
-            <button onclick="generateAssessment()" class="btn" style="margin-top: 1rem;">
-                Generate Assessment
-            </button>
-        </div>
-        <% } %>
-
-                    <div class="action-buttons" style="display: flex; gap: 12px; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 24px;">
-                        <a href="/api/jobs/dashboard" class="btn btn-secondary">Back to Dashboard</a>
-                        <% if (job.status.trim() === ' draft' && job.assessmentId) { %>
-                                        <button onclick="publishJob()" class="btn">Publish Job</button>
-                                        <% } %>
-                                            <% if (job.status.trim()==='active' ) { %>
-                                                <button onclick="closeJob()" class="btn btn-secondary">Close
-                                                    Job</button>
-                                                <% } %>
-                                </div>
-                            </div>
+                                <% job.assessmentId.scenarioTemplates.forEach(function(scenario) { %>
+                                    <div class="question-preview">
+                                        <div class="question-header">
+                                            <span class="question-skill">
+                                                <%= scenario.theme %>
+                                            </span>
+                                        </div>
+                                        <div style="color: var(--text-muted); font-size: 0.875rem; margin-top: 6px;">
+                                            <%= scenario.prompt || 'No description.' %>
+                                        </div>
+                                    </div>
+                                    <% }); %>
                     </div>
 
-                    <script>
-                        const jobId = '<%= job._id %>';
 
-                        // Weight sliders
-                        const techWeight = document.getElementById('tech-weight');
-                        const softWeight = document.getElementById('soft-weight');
-                        const techValue = document.getElementById('tech-weight-value');
-                        const softValue = document.getElementById('soft-weight-value');
 
-                        techWeight.addEventListener('input', (e) => {
-                            const val = parseInt(e.target.value);
-                            techValue.textContent = val + '%';
-                            softWeight.value = 100 - val;
-                            softValue.textContent = (100 - val) + '%';
-                        });
+                    <% if (job.assessmentId.missingSkills && job.assessmentId.missingSkills.length> 0) { %>
+                        <!-- Warnings -->
+                        <div class="warning-box" style="margin-top: 2rem; display: block;">
+                            <h3 style="color: #92400e; margin-bottom: 0.5rem;">⚠️ Skill Gap Detected</h3>
+                            <p style="color: #78350f; font-size: 0.875rem; margin-bottom: 1rem;">
+                                The following skills were identified in the Job Description but are missing from our
+                                standard question bank.
+                                Candidates will <strong>not</strong> be tested on these unless you enable AI Generation:
+                            </p>
+                            <ul
+                                style="color: #92400e; font-size: 0.875rem; margin-bottom: 1.5rem; list-style-position: inside;">
+                                <% job.assessmentId.missingSkills.forEach(skill=> { %>
+                                    <li>
+                                        <%= skill %>
+                                    </li>
+                                    <% }); %>
+                            </ul>
+                            <div
+                                style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #fbbf24;">
+                                <p style="font-size: 0.8125rem; color: #78350f;"><strong>To fix this:</strong></p>
+                                <ol
+                                    style="font-size: 0.8125rem; color: #92400e; padding-left: 1.25rem; margin-top: 0.25rem;">
+                                    <li>Enable <strong>"Allow AI Generation"</strong> in the settings above.</li>
+                                    <li>Click <strong>"Save Changes"</strong>.</li>
+                                    <li>Click <strong>"Regenerate All"</strong> in the Technical Questions Pool section.
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                        <% } %>
 
-                        softWeight.addEventListener('input', (e) => {
-                            const val = parseInt(e.target.value);
-                            softValue.textContent = val + '%';
-                            techWeight.value = 100 - val;
-                            techValue.textContent = (100 - val) + '%';
-                        });
+                            <% } else { %>
+                                <!-- No Assessment -->
+                                <div class="card">
+                                    <h2>Assessment</h2>
+                                    <p style="color: var(--text-muted);">No assessment generated yet.</p>
+                                    <button onclick="generateAssessment()" class="btn" style="margin-top: 1rem;">
+                                        Generate Assessment
+                                    </button>
+                                </div>
+                                <% } %>
 
-                        async function saveAssessmentConfig() {
-                            const techWeight = parseInt(document.getElementById('tech-weight').value) / 100;
-                            const softWeight = parseInt(document.getElementById('soft-weight').value) / 100;
-                            const minTechScore = parseInt(document.getElementById('min-tech-score').value);
-                            const minSoftScore = parseInt(document.getElementById('min-soft-score').value);
-                            const questionsPerSkill = parseInt(document.getElementById('questions-per-skill').value);
-                            const allowAIGen = document.getElementById('allow-ai-gen').checked;
+                                    <div class="action-buttons"
+                                        style="display: flex; gap: 12px; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 24px;">
+                                        <a href="/api/jobs/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+                                        <% if (job.status.trim()===' draft' && job.assessmentId) { %>
+                                            <button onclick="publishJob()" class="btn">Publish Job</button>
+                                            <% } %>
+                                                <% if (job.status.trim()==='active' ) { %>
+                                                    <button onclick="closeJob()" class="btn btn-secondary">Close
+                                                        Job</button>
+                                                    <% } %>
+                                    </div>
+            </div>
+        </div>
 
-                            // Harvest granular skill counts
-                            const skillConfigs = {};
-                            document.querySelectorAll('.skill-count-input').forEach(input => {
-                                skillConfigs[input.dataset.skill] = parseInt(input.value);
-                            });
+        <script>
+            const jobId = '<%= job._id %>';
 
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}/assessment`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        technicalWeight: techWeight,
-                                        softSkillWeight: softWeight,
-                                        minTechnicalScore: minTechScore,
-                                        minSoftSkillScore: minSoftScore,
-                                        questionsPerSkill: questionsPerSkill,
-                                        allowAIGeneration: allowAIGen,
-                                        skillConfigs: skillConfigs
-                                    })
-                                });
+            // Weight sliders
+            const techWeight = document.getElementById('tech-weight');
+            const softWeight = document.getElementById('soft-weight');
+            const techValue = document.getElementById('tech-weight-value');
+            const softValue = document.getElementById('soft-weight-value');
 
-                                const result = await response.json();
-                                if (result.success) {
-                                    alert('Assessment configuration saved!');
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error saving configuration');
-                            }
-                        }
+            techWeight.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                techValue.textContent = val + '%';
+                softWeight.value = 100 - val;
+                softValue.textContent = (100 - val) + '%';
+            });
 
-                        async function moderateQuestion(questionId, action) {
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}/questions/${questionId}`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ action: action })
-                                });
+            softWeight.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                softValue.textContent = val + '%';
+                techWeight.value = 100 - val;
+                techValue.textContent = (100 - val) + '%';
+            });
 
-                                const result = await response.json();
-                                if (result.success) {
-                                    location.reload();
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error moderating question');
-                            }
-                        }
+            async function saveAssessmentConfig() {
+                const techWeight = parseInt(document.getElementById('tech-weight').value) / 100;
+                const softWeight = parseInt(document.getElementById('soft-weight').value) / 100;
+                const minTechScore = parseInt(document.getElementById('min-tech-score').value);
+                const minSoftScore = parseInt(document.getElementById('min-soft-score').value);
+                const questionsPerSkill = parseInt(document.getElementById('questions-per-skill').value);
+                const allowAIGen = document.getElementById('allow-ai-gen').checked;
 
-                        async function approveAllQuestions() {
-                            if (!confirm('Approve all AI-generated questions and add them to the global question bank?')) return;
+                // Harvest granular skill counts
+                const skillConfigs = {};
+                document.querySelectorAll('.skill-count-input').forEach(input => {
+                    skillConfigs[input.dataset.skill] = parseInt(input.value);
+                });
 
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}/approve-all`, {
-                                    method: 'POST'
-                                });
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/assessment`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            technicalWeight: techWeight,
+                            softSkillWeight: softWeight,
+                            minTechnicalScore: minTechScore,
+                            minSoftSkillScore: minSoftScore,
+                            questionsPerSkill: questionsPerSkill,
+                            allowAIGeneration: allowAIGen,
+                            skillConfigs: skillConfigs
+                        })
+                    });
 
-                                const result = await response.json();
-                                if (result.success) {
-                                    alert('All questions approved!');
-                                    location.reload();
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error approving questions');
-                            }
-                        }
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('Assessment configuration saved!');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error saving configuration');
+                }
+            }
 
-                        async function regenerateQuestions() {
-                            if (!confirm('Regenerate all technical questions? This will replace the current pool.')) return;
+            async function moderateQuestion(questionId, action) {
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/questions/${questionId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: action })
+                    });
 
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}/regenerate-questions`, {
-                                    method: 'POST'
-                                });
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error moderating question');
+                }
+            }
 
-                                const result = await response.json();
-                                if (result.success) {
-                                    location.reload();
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error regenerating questions');
-                            }
-                        }
+            async function approveAllQuestions() {
+                if (!confirm('Approve all AI-generated questions and add them to the global question bank?')) return;
 
-                        async function regenerateScenarios() {
-                            if (!confirm('Regenerate all scenario templates?')) return;
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/approve-all`, {
+                        method: 'POST'
+                    });
 
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}/regenerate-scenarios`, {
-                                    method: 'POST'
-                                });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('All questions approved!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error approving questions');
+                }
+            }
 
-                                const result = await response.json();
-                                if (result.success) {
-                                    location.reload();
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error regenerating scenarios');
-                            }
-                        }
+            async function regenerateQuestions() {
+                if (!confirm('Regenerate all technical questions? This will replace the current pool.')) return;
 
-                        async function publishJob() {
-                            if (!confirm('Publish this job? It will be visible to candidates.')) return;
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/regenerate-questions`, {
+                        method: 'POST'
+                    });
 
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ status: 'active' })
-                                });
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error regenerating questions');
+                }
+            }
 
-                                const result = await response.json();
-                                if (result.success) {
-                                    alert('Job published successfully!');
-                                    location.reload();
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error publishing job');
-                            }
-                        }
+            async function regenerateScenarios() {
+                if (!confirm('Regenerate all scenario templates?')) return;
 
-                        async function closeJob() {
-                            if (!confirm('Close this job? No new applications will be accepted.')) return;
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/regenerate-scenarios`, {
+                        method: 'POST'
+                    });
 
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ status: 'closed' })
-                                });
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error regenerating scenarios');
+                }
+            }
 
-                                const result = await response.json();
-                                if (result.success) {
-                                    alert('Job closed successfully!');
-                                    location.reload();
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error closing job');
-                            }
-                        }
+            async function publishJob() {
+                if (!confirm('Publish this job? It will be visible to candidates.')) return;
 
-                        async function generateAssessment() {
-                            if (!confirm('Generate assessment for this job?')) return;
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'active' })
+                    });
 
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}/generate-assessment`, {
-                                    method: 'POST'
-                                });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('Job published successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error publishing job');
+                }
+            }
 
-                                const result = await response.json();
-                                if (result.success) {
-                                    alert('Assessment generated successfully!');
-                                    location.reload();
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error generating assessment');
-                            }
-                        }
+            async function closeJob() {
+                if (!confirm('Close this job? No new applications will be accepted.')) return;
 
-                        async function deleteJob() {
-                            if (!confirm('⚠️ Are you sure you want to permanently delete this job and its assessment? This cannot be undone.')) return;
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'closed' })
+                    });
 
-                            try {
-                                const response = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
-                                const result = await response.json();
-                                if (result.success) {
-                                    alert('Job deleted successfully.');
-                                    window.location.href = '/api/jobs/dashboard';
-                                } else {
-                                    alert('Error: ' + result.error);
-                                }
-                            } catch (error) {
-                                alert('Error deleting job');
-                            }
-                        }
-                    </script>
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('Job closed successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error closing job');
+                }
+            }
+
+            async function generateAssessment() {
+                if (!confirm('Generate assessment for this job?')) return;
+
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/generate-assessment`, {
+                        method: 'POST'
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('Assessment generated successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error generating assessment');
+                }
+            }
+
+            async function deleteJob() {
+                if (!confirm('⚠️ Are you sure you want to permanently delete this job and its assessment? This cannot be undone.')) return;
+
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('Job deleted successfully.');
+                        window.location.href = '/api/jobs/dashboard';
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error deleting job');
+                }
+            }
+        </script>
 </body>
 
 </html>

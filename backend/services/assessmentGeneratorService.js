@@ -50,13 +50,13 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
         );
 
         // STEP 3: Scenario Template Creation
-        // We generate situational "themes" and "prompts" for the soft-skill simulation phase.
+        // We generate one situational scenario for each soft skill identified.
         console.log('[GENERATE] Step 3: Generating Situational Scenarios...');
         const scenarios = await generateScenarioTemplates(
             analysis.softSkills,
             analysis.roleCategory,
             analysis.roleType,
-            analysis.recommendedQuestionCount.scenarios,
+            analysis.softSkills.length, // Explicitly one per soft skill
             jobDescription
         );
 
@@ -104,17 +104,21 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
  * @returns {Promise<Object>} - Updated assessment
  */
 async function regenerateScenarios(assessmentId) {
-    const assessment = await Assessment.findById(assessmentId);
+    const assessment = await Assessment.findById(assessmentId).populate('job', 'description');
     if (!assessment) {
         throw new Error('Assessment not found');
     }
+
+    // Safely get the job description - job is now populated
+    const jobDescription = assessment.job?.description || '';
+    const scenarioCount = assessment.softSkills?.length || 3;
 
     const result = await generateScenarioTemplates(
         assessment.softSkills,
         assessment.roleCategory,
         assessment.roleType,
-        assessment.scenarioTemplates.length,
-        assessment.job.description || '' // Ensure JD is passed if available
+        scenarioCount,
+        jobDescription
     );
 
     assessment.scenarioTemplates = result.scenarios;

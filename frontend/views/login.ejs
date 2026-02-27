@@ -62,7 +62,9 @@
                     localStorage.setItem('user', JSON.stringify(data.data));
 
                     // Role-based redirection
-                    if (data.data.role === 'hr' || data.data.role === 'admin') {
+                    if (data.data.role === 'admin') {
+                        window.location.href = '/api/admin/dashboard';
+                    } else if (data.data.role === 'hr') {
                         window.location.href = '/api/jobs/dashboard';
                     } else {
                         window.location.href = '/api/applications/my-dashboard';

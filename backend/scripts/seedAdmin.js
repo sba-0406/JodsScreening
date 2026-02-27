@@ -32,7 +32,7 @@ async function seedAdmin() {
         console.log('✓ Admin user created successfully!');
         console.log('  Email: admin@scenariosim.com');
         console.log('  Password: admin123');
-        console.log('\n⚠️  Please change the password after first login!');
+        //console.log('\n⚠️  Please change the password after first login!');
 
         process.exit(0);
     } catch (error) {

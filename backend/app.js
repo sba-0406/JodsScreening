@@ -49,6 +49,7 @@ const authRoutes = require('./routes/authRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
 const assessmentRoutes = require('./routes/assessmentRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const { loadUser } = require('./middleware/authMiddleware');
 
 // Global middleware for templates
@@ -64,6 +65,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/assessment', assessmentRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/dojo', dojoRoutes);
 
 // View Routes

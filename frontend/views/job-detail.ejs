@@ -79,33 +79,66 @@
                             <% } %>
                 </div>
 
-                <!-- Job Information -->
-                <div class="card">
-                    <h2>Job Information</h2>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Views</span>
-                            <span class="info-value">
-                                <%= job.views || 0 %>
-                            </span>
+                <!-- Job Information Stats -->
+                <div class="grid-adaptive mb-20" style="grid-template-columns: repeat(4, 1fr); gap: 15px;">
+                    <div class="card stat-card" style="margin-bottom: 0; padding: 1.25rem;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="background: #eff6ff; padding: 10px; border-radius: 10px; font-size: 1.25rem;">
+                            </div>
+                            <div>
+                                <div
+                                    style="color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    Views</div>
+                                <div
+                                    style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); line-height: 1;">
+                                    <%= job.views || 0 %>
+                                </div>
+                            </div>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">Applications</span>
-                            <span class="info-value">
-                                <%= job.applications || 0 %>
-                            </span>
+                    </div>
+                    <div class="card stat-card" style="margin-bottom: 0; padding: 1.25rem;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="background: #f0fdf4; padding: 10px; border-radius: 10px; font-size: 1.25rem;">
+                            </div>
+                            <div>
+                                <div
+                                    style="color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    Applications</div>
+                                <div
+                                    style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); line-height: 1;">
+                                    <%= job.applications || 0 %>
+                                </div>
+                            </div>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">Assessments Completed</span>
-                            <span class="info-value">
-                                <%= job.assessmentsCompleted || 0 %>
-                            </span>
+                    </div>
+                    <div class="card stat-card" style="margin-bottom: 0; padding: 1.25rem;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="background: #faf5ff; padding: 10px; border-radius: 10px; font-size: 1.25rem;">
+                            </div>
+                            <div>
+                                <div
+                                    style="color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    Assessments</div>
+                                <div
+                                    style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); line-height: 1;">
+                                    <%= job.assessmentsCompleted || 0 %>
+                                </div>
+                            </div>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">Posted</span>
-                            <span class="info-value">
-                                <%= new Date(job.createdAt).toLocaleDateString() %>
-                            </span>
+                    </div>
+                    <div class="card stat-card" style="margin-bottom: 0; padding: 1.25rem;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="background: #fff7ed; padding: 10px; border-radius: 10px; font-size: 1.25rem;">
+                            </div>
+                            <div>
+                                <div
+                                    style="color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    Posted On</div>
+                                <div
+                                    style="font-size: 1rem; font-weight: 800; color: var(--text-main); line-height: 1.5;">
+                                    <%= new Date(job.createdAt).toLocaleDateString() %>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

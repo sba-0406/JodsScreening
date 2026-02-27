@@ -44,11 +44,10 @@ exports.protect = async (req, res, next) => {
  *          Must be placed AFTER 'protect'.
  */
 exports.authorizeHR = (req, res, next) => {
-  // If user isn't HR or Admin, block them
-  if (!['hr', 'admin'].includes(req.user?.role)) {
+  if (req.user?.role !== 'hr') {
     return res.status(403).json({
       success: false,
-      error: 'Restricted: HR or Admin permissions required.'
+      error: 'Restricted: HR permissions required.'
     });
   }
   next();

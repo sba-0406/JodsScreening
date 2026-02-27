@@ -174,82 +174,12 @@ exports.generateScenarioSet = function (role) {
   }));
 };
 
-// 4. MCQ Option Generator
+/*
+// DEPRECATED: generateMCQOptions is replaced by dynamic behavioral evaluation
 exports.generateMCQOptions = async function (history, scenarioDescription, worldState, role) {
-  const latestInteraction = history.length > 0 ? history[history.length - 1].text : "Starting the conversation.";
-  const worldStateStr = Object.entries(worldState).map(([k, v]) => `- ${k}: ${v}/100`).join('\n');
-
-  const prompt = `You are a leadership development expert. Generate 3 distinct leadership options.
-    
-    CONTEXT:
-    - Role: ${role}
-    - Scenario: ${scenarioDescription}
-    - World State:
-    ${worldStateStr}
-    - Last Message from Stakeholder: "${latestInteraction}"
-
-    GENERATE 3 OPTIONS:
-    1. RELATIONSHIP: Focus on empathy and people.
-       - Satisfies: Long-term trust, psychological safety.
-       - Violates: Immediate efficiency or strict rules.
-    2. RESULTS: Focus on deadlines, data, and shipping.
-       - Satisfies: Project velocity, revenue, client satisfaction.
-       - Violates: Team morale or long-term quality.
-    3. BOUNDARY: Focus on standards, rules, and professional limits.
-       - Satisfies: Professional standards, legal compliance, role clarity.
-       - Violates: Short-term likability or flexibility.
-
-    GROUNDING RULES:
-    - Options must be a direct response to the last message.
-    - Sound like a real leader.
-    
-    Return ONLY a valid JSON array.
-    JSON FORMAT:
-    [
-      { 
-        "text": "The response text...", 
-        "approach": "Relationship" | "Results" | "Boundary",
-        "satisfies": "One short phrase (e.g., 'Team Trust')",
-        "violates": "One short phrase (e.g., 'Deadline Efficiency')"
-      }
-    ]`;
-
-  try {
-    console.log(`[AI MCQ] Generating options for ${role}...`);
-    const response = await aiService.generateContent(prompt);
-    //console.log(`[AI MCQ] Raw Response:`, response);
-    const options = aiService.extractJSON(response);
-
-    if (!Array.isArray(options)) {
-      throw new Error("AI returned object instead of array");
-    }
-
-    console.log(`[AI MCQ] Extracted ${options.length} options.`);
-    return options;
-  } catch (e) {
-    console.warn(`[AI MCQ] Generation failed, using local fallback:`, e.message);
-    return [
-      {
-        text: "I understand the tension here. Let's focus on how we can support the team's needs while moving forward.",
-        approach: "Relationship",
-        satisfies: "Team Trust",
-        violates: "Immediate Efficiency"
-      },
-      {
-        text: "We have to prioritize our deliverables. Let's look at the data and see how we can hit the target.",
-        approach: "Results",
-        satisfies: "Project Velocity",
-        violates: "Team Morale"
-      },
-      {
-        text: "It's important that we stick to our professional standards and established protocols in this situation.",
-        approach: "Boundary",
-        satisfies: "Professional Standards",
-        violates: "Short-term Flexibility"
-      }
-    ];
-  }
+  ...
 };
+*/
 
 // 5. Final Report Generator
 exports.generateFinalReport = async function (data) {

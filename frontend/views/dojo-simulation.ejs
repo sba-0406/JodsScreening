@@ -135,18 +135,28 @@
     </div>
 
     <!-- INTERACTION ZONE -->
-    <div class="interaction-zone">
+    <div class="interaction-zone" style="min-height: 200px;">
+        <!-- 
+        // DEPRECATED: Static MCQ Options are replaced by free-text evaluation
         <div class="mcq-options" id="mcqContainer">
-            <!-- MCQ buttons -->
         </div>
 
         <div class="divider">
             <span>OR TYPE CUSTOM RESPONSE</span>
         </div>
+        -->
 
-        <div class="text-input-group">
-            <input type="text" id="customInput" placeholder="How would you handle this situation?" autocomplete="off">
-            <button class="send-btn" id="sendBtn">➤</button>
+        <div
+            style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+            Your Response
+        </div>
+        <div class="text-input-group" style="flex: 1; align-items: stretch; gap: 15px;">
+            <textarea id="customInput"
+                placeholder="How would you handle this situation? Describe your actions and reasoning..."
+                style="flex: 1; border: 1.5px solid var(--border); border-radius: 12px; padding: 15px; font-family: inherit; font-size: 1rem; resize: none; transition: border-color 0.2s;"
+                autocomplete="off"></textarea>
+            <button class="send-btn" id="sendBtn"
+                style="height: auto; width: 60px; border-radius: 12px; background: var(--primary-color); color: white; border: none; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">➤</button>
         </div>
     </div>
 
@@ -204,7 +214,7 @@
                         } else {
                             currentSession.messages.forEach(m => renderMessage(m));
                         }
-                        generateInitialMCQs();
+                        // DEPRECATED: generateInitialMCQs();
                     }
                 } catch (err) {
                     console.error("Load Session Failed:", err);
@@ -276,7 +286,7 @@
 
             function setupInput() {
                 sendBtn.onclick = () => handleResponse(customInput.value);
-                customInput.onkeypress = (e) => { if (e.key === 'Enter') handleResponse(customInput.value); };
+                customInput.onkeypress = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleResponse(customInput.value); } };
                 document.getElementById('skipBtn').onclick = skipScenario;
             }
 
@@ -295,7 +305,7 @@
                 const userText = mcqChoice ? mcqChoice.text : text;
                 renderMessage({ sender: 'user', text: userText });
                 customInput.value = '';
-                mcqContainer.innerHTML = '';
+                // mcqContainer.innerHTML = ''; // DEPRECATED
                 document.getElementById('typingIndicator').style.display = 'block';
                 scrollToBottom();
 
@@ -313,7 +323,7 @@
                     if (data.success) {
                         renderMessage({ sender: 'ai', text: data.data.message });
                         updateMetricsDisplay(data.data.worldState);
-                        renderMCQs(data.data.mcqOptions);
+                        // renderMCQs(data.data.mcqOptions); // DEPRECATED
 
                         if (data.data.isResolved) {
                             showResolution('success', data.data.isLastScenario);
@@ -322,6 +332,8 @@
                 } catch (err) { console.error(err); }
             }
 
+            /*
+            // DEPRECATED: renderMCQs and generateInitialMCQs
             function renderMCQs(options) {
                 mcqContainer.innerHTML = '';
                 options.forEach(opt => {
@@ -376,6 +388,7 @@
                     if (d.success) renderMCQs(d.data.mcqOptions);
                 }
             }
+            */
 
             function renderMessage(msg) {
                 const div = document.createElement('div');

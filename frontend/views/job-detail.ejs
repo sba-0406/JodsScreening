@@ -263,10 +263,73 @@
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <div class="sub-section-header" style="margin: 0; flex: 1;">Technical Questions Pool (<%=
                                     job.assessmentId.technicalQuestions.length %>)</div>
-                            <button onclick="regenerateQuestions()" class="btn-sm"
-                                style="font-size: 0.75rem; padding: 0.4rem 1rem;">
-                                Regenerate All
-                            </button>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="toggleManualQuestionForm()" class="btn-sm btn-secondary"
+                                    style="font-size: 0.75rem;">+ Add Question</button>
+                                <button onclick="regenerateQuestions()" class="btn-sm"
+                                    style="font-size: 0.75rem; padding: 0.4rem 1rem;">
+                                    Regenerate All
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Question Form (Hidden by default) -->
+                        <div id="manual-question-form" class="card"
+                            style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; margin-bottom: 20px;">
+                            <h4 class="mb-15">Add Custom Technical Question</h4>
+                            <div class="form-group mb-15">
+                                <label class="info-label">Question Text</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <textarea id="mq-text" class="form-control" rows="2"
+                                        placeholder="Enter your question here..."></textarea>
+                                    <button onclick="refineHRContent('mq-text', 'question')"
+                                        class="btn-sm btn-secondary" title="Refine with AI">✨</button>
+                                </div>
+                            </div>
+                            <div class="info-grid mb-15">
+                                <div class="info-item">
+                                    <label class="info-label">Skill</label>
+                                    <select id="mq-skill" class="form-control">
+                                        <% job.assessmentId.technicalSkills.forEach(skill=> { %>
+                                            <option value="<%= skill %>">
+                                                <%= skill %>
+                                            </option>
+                                            <% }); %>
+                                    </select>
+                                </div>
+                                <div class="info-item">
+                                    <label class="info-label">Difficulty</label>
+                                    <select id="mq-diff" class="form-control">
+                                        <option value="Beginner">Beginner</option>
+                                        <option value="Intermediate" selected>Intermediate</option>
+                                        <option value="Advanced">Advanced</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" class="mb-15">
+                                <% [0, 1, 2, 3].forEach(i=> { %>
+                                    <div>
+                                        <label class="info-label">Option <%= i+1 %></label>
+                                        <input type="text" id="mq-opt-<%= i %>" class="form-control"
+                                            placeholder="Option <%= i+1 %>">
+                                    </div>
+                                    <% }); %>
+                            </div>
+                            <div class="form-group mb-15">
+                                <label class="info-label">Correct Option</label>
+                                <select id="mq-correct" class="form-control">
+                                    <option value="0">Option 1</option>
+                                    <option value="1">Option 2</option>
+                                    <option value="2">Option 3</option>
+                                    <option value="3">Option 4</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="saveManualQuestion()" class="btn btn-primary btn-sm"
+                                    style="background: #22c55e;">Save Question</button>
+                                <button onclick="toggleManualQuestionForm()"
+                                    class="btn btn-secondary btn-sm">Cancel</button>
+                            </div>
                         </div>
 
                         <% job.assessmentId.technicalQuestions.forEach(q=> { %>
@@ -311,10 +374,55 @@
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <div class="sub-section-header" style="margin: 0; flex: 1;">Scenario Templates (<%=
                                     job.assessmentId.scenarioTemplates.length %>)</div>
-                            <button onclick="regenerateScenarios()" class="btn-sm"
-                                style="font-size: 0.75rem; padding: 0.4rem 1rem;">
-                                Regenerate All
-                            </button>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="toggleManualScenarioForm()" class="btn-sm btn-secondary"
+                                    style="font-size: 0.75rem;">+ Add Scenario</button>
+                                <button onclick="regenerateScenarios()" class="btn-sm"
+                                    style="font-size: 0.75rem; padding: 0.4rem 1rem;">
+                                    Regenerate All
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Scenario Form -->
+                        <div id="manual-scenario-form" class="card"
+                            style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; margin-bottom: 20px;">
+                            <h4 class="mb-15">Add Custom Behavioral Scenario</h4>
+                            <div class="form-group mb-15">
+                                <label class="info-label">Target Soft Skill</label>
+                                <select id="ms-skill" class="form-control">
+                                    <% job.assessmentId.softSkills.forEach(skill=> { %>
+                                        <option value="<%= skill %>">
+                                            <%= skill %>
+                                        </option>
+                                        <% }); %>
+                                </select>
+                            </div>
+                            <div class="form-group mb-15">
+                                <label class="info-label">Theme / Title</label>
+                                <input type="text" id="ms-theme" class="form-control"
+                                    placeholder="e.g. Critical Client Meeting">
+                            </div>
+                            <div class="form-group mb-15">
+                                <label class="info-label">Stakeholder Role</label>
+                                <input type="text" id="ms-stakeholder" class="form-control"
+                                    placeholder="e.g. Senior Manager, VP of Sales">
+                            </div>
+                            <div class="form-group mb-15">
+                                <label class="info-label">Situation Prompt</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <textarea id="ms-prompt" class="form-control" rows="3"
+                                        placeholder="Describe the workplace situation..."></textarea>
+                                    <button onclick="refineHRContent('ms-prompt', 'scenario')"
+                                        class="btn-sm btn-secondary" title="Refine with AI">✨</button>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="saveManualScenario()" class="btn btn-primary btn-sm"
+                                    style="background: #22c55e;">Save Scenario</button>
+                                <button onclick="toggleManualScenarioForm()"
+                                    class="btn btn-secondary btn-sm">Cancel</button>
+                            </div>
                         </div>
 
                         <% if (job.assessmentId.simulationConfig && job.assessmentId.simulationConfig.metrics &&
@@ -623,6 +731,101 @@
                     }
                 } catch (error) {
                     alert('Error deleting job');
+                }
+            }
+
+            // New Manual Entry Handlers
+            function toggleManualQuestionForm() {
+                const form = document.getElementById('manual-question-form');
+                form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            }
+
+            function toggleManualScenarioForm() {
+                const form = document.getElementById('manual-scenario-form');
+                form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            }
+
+            async function refineHRContent(fieldId, type) {
+                const textarea = document.getElementById(fieldId);
+                const text = textarea.value.trim();
+                if (!text) return alert('Please enter some text first');
+
+                const btn = event.currentTarget;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '...';
+                btn.disabled = true;
+
+                try {
+                    const response = await fetch('/api/jobs/refine-content', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text, type })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        textarea.value = result.data;
+                    }
+                } catch (err) {
+                    console.error('Refinement failed', err);
+                } finally {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }
+
+            async function saveManualQuestion() {
+                const data = {
+                    question: document.getElementById('mq-text').value,
+                    skill: document.getElementById('mq-skill').value,
+                    difficulty: document.getElementById('mq-diff').value,
+                    correctAnswer: parseInt(document.getElementById('mq-correct').value),
+                    options: [
+                        document.getElementById('mq-opt-0').value,
+                        document.getElementById('mq-opt-1').value,
+                        document.getElementById('mq-opt-2').value,
+                        document.getElementById('mq-opt-3').value
+                    ]
+                };
+
+                if (!data.question || data.options.some(o => !o)) return alert('Please fill all fields');
+
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/manual-question`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    }
+                } catch (err) {
+                    alert('Error saving question');
+                }
+            }
+
+            async function saveManualScenario() {
+                const data = {
+                    softSkill: document.getElementById('ms-skill').value,
+                    theme: document.getElementById('ms-theme').value,
+                    stakeholder: document.getElementById('ms-stakeholder').value,
+                    prompt: document.getElementById('ms-prompt').value
+                };
+
+                if (!data.theme || !data.stakeholder || !data.prompt) return alert('Please fill all fields');
+
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/manual-scenario`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    }
+                } catch (err) {
+                    alert('Error saving scenario');
                 }
             }
         </script>

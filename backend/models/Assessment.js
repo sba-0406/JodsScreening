@@ -38,19 +38,23 @@ const AssessmentSchema = new mongoose.Schema({
             ref: 'Question'
         },
         skill: String,
-        difficulty: String
+        difficulty: String,
+        isManual: { type: Boolean, default: false }
     }],
 
     // Scenario Templates (AI-generated)
     scenarioTemplates: [{
-        theme: String, // Leadership, Communication, etc.
+        theme: String, // Dynamic theme name
+        stakeholder: String, // e.g. "Senior Manager", "CEO", "Lead Designer"
+        softSkill: String, // The specific soft skill this tests
         metrics: [String], // Team Morale, Trust, etc.
         metricPolarity: {
             type: Map,
             of: String // 'high' or 'low'
         },
-        prompt: String, // AI prompt for generation
-        applicableRoles: [String]
+        prompt: String, // The workplace challenge text
+        applicableRoles: [String],
+        isManual: { type: Boolean, default: false }
     }],
 
     // Passing Thresholds

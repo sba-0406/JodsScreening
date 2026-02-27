@@ -3,6 +3,7 @@ const Assessment = require('../models/Assessment');
 const Question = require('../models/Question');
 const ChatSession = require('../models/ChatSession');
 const chatService = require('../services/chatService');
+const aiService = require('../services/aiService');
 
 // Helper to sanitize skill names for Mongoose Map keys (no dots allowed)
 const sanitizeSkill = (skill) => {
@@ -87,11 +88,12 @@ exports.startAssessment = async (req, res) => {
                             'Sales': 'Sales Director',
                             'Customer Success': 'Client Success Manager'
                         };
-                        const stakeholderRole = themeToRole[s.theme] || `${s.theme} Lead`;
+                        const stakeholderRole = s.stakeholder || themeToRole[s.softSkill] || `${s.softSkill} Lead`;
                         return {
                             scenarioNumber: i + 1,
                             stakeholder: stakeholderRole,
                             theme: s.theme,
+                            softSkill: s.softSkill,
                             description: s.prompt,
                             status: 'pending'
                         };
@@ -334,97 +336,58 @@ exports.respondToScenario = async (req, res) => {
         let userMessage = String(message || '').trim();
         let approach = 'Results';
 
-        // Initial fetch: Generate options without pushing a message
+        /*
+        // DEPRECATED: Initial MCQ fetch for scenario
         if (!userMessage && !mcqChoice) {
-            console.log(`[ASSESSMENT DEBUG] Initial fetch for scenario: ${currentScenario.stakeholder}`);
-            const mcqOptions = await chatService.generateMCQOptions(
-                session.messages,
-                currentScenario.description,
-                Object.fromEntries(session.worldState),
-                role
-            );
-            return res.json({
-                success: true,
-                data: {
-                    message: session.messages.length > 0 ? session.messages[session.messages.length - 1].text : null,
-                    worldState: Object.fromEntries(session.worldState),
-                    mcqOptions,
-                    isResolved: false,
-                    isLastScenario: false
-                }
-            });
+            const mcqOptions = await chatService.generateMCQOptions(...);
+            return res.json({ ... });
         }
+        */
 
-        if (mcqChoice) {
-            userMessage = mcqChoice.text;
-            approach = mcqChoice.approach || 'Results';
+        /*
+        // DEPRECATED: MCQ Choice handling
+        if (mcqChoice) { ... }
+        */
 
-            // Apply effects (Dynamic Simulation Physics)
-            const assessment = await Assessment.findById(session.application.job.assessmentId);
-            const config = assessment?.simulationConfig;
+        // --- NEW DYNAMIC EVALUATION ---
+        // 1. Analyze user response using AI Judge
+        const currentMetrics = Array.from(session.worldState.entries()).map(([name, value]) => ({ name, value }));
+        const evaluation = await aiService.evaluateBehavioralResponse(
+            { prompt: currentScenario.description, softSkill: currentScenario.theme || currentScenario.stakeholder },
+            userMessage,
+            currentMetrics
+        );
 
-            // Fallback effects use the actual worldState keys (not hardcoded names)
-            const wsKeys = Array.from(session.worldState.keys());
-            const [m0, m1, m2] = wsKeys.length >= 3 ? wsKeys : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
-            const fallbackEffects = {
-                'Results': { [m0]: +10, [m1]: -8, [m2]: +5 },
-                'Relationship': { [m0]: -5, [m1]: +10, [m2]: -8 },
-                'Boundary': { [m0]: +5, [m1]: -5, [m2]: -10 }
-            };
+        console.log(`[AI JUDGE] Assessment Evaluation for ${session._id}:`, evaluation);
 
-            let delta = {};
-            try {
-                if (config && config.approachEffects) {
-                    // Mongoose Map-of-Maps: convert to plain object safely
-                    const effectsObj = config.approachEffects.toObject ? config.approachEffects.toObject() : Object.fromEntries(config.approachEffects);
-                    const approachEffect = effectsObj[approach];
-                    if (approachEffect && typeof approachEffect === 'object') {
-                        delta = approachEffect instanceof Map ? Object.fromEntries(approachEffect) : approachEffect;
-                        console.log(`[PHYSICS] ✅ DYNAMIC effects for "${approach}":`, delta);
-                    } else {
-                        throw new Error('No dynamic effect found');
-                    }
-                } else {
-                    throw new Error('No simulationConfig');
-                }
-            } catch (e) {
-                delta = fallbackEffects[approach] || {};
-                console.log(`[PHYSICS] ⚠️ FALLBACK for "${approach}":`, delta);
-            }
-
-            for (const [metric, change] of Object.entries(delta)) {
+        // 2. Apply deltas to worldState
+        if (evaluation.deltas) {
+            for (const [metric, delta] of Object.entries(evaluation.deltas)) {
                 const currentVal = session.worldState.get(metric) ?? 50;
-                session.worldState.set(metric, Math.max(0, Math.min(100, currentVal + Number(change))));
-            }
+                session.worldState.set(metric, Math.max(0, Math.min(100, currentVal + Number(delta))));
 
-            // Track Skill Scores (Soft Skills)
-            const skillName = currentScenario.stakeholder + '_' + approach; // Placeholder mapping
-            const currentSkillScore = session.skillScores.get(approach) || 0;
-            session.skillScores.set(approach, currentSkillScore + 5);
+                // Track skill scores - we use the scenario theme/stakeholder as the skill proxy
+                if (delta > 0) {
+                    const approach = 'Behavioral'; // Generic label for free-text
+                    const currentSkillScore = session.skillScores.get(approach) || 0;
+                    session.skillScores.set(approach, currentSkillScore + delta);
+                }
+            }
         }
+
+        const aiResponseText = evaluation.feedback || "I understand. Let's see how this plays out.";
 
         // Update session state
         session.turnCount += 1;
         session.messages.push({ sender: 'user', text: userMessage });
+        session.messages.push({ sender: 'ai', text: aiResponseText });
 
-        // AI Response
-        const history = session.messages.map(m => ({ sender: m.sender, text: m.text }));
-        const aiResponse = await chatService.generateResponse(history, {
-            name: currentScenario.stakeholder,
-            role: currentScenario.stakeholder,
-            context: currentScenario.description,
-            worldState: Object.fromEntries(session.worldState)
-        }, role);
-
-        session.messages.push({ sender: 'ai', text: aiResponse });
-
-        // Generate MCQs for next turn
-        const mcqOptions = await chatService.generateMCQOptions(
-            session.messages,
-            currentScenario.description,
-            Object.fromEntries(session.worldState),
-            role
-        );
+        /*
+        // DEPRECATED: Persona response and MCQ generation
+        const history = ...
+        const personaResponse = ...
+        const mcqOptions = ...
+        */
 
         // Turn limit per scenario in assessment
         const MAX_TURNS = 3;
@@ -438,9 +401,9 @@ exports.respondToScenario = async (req, res) => {
         res.json({
             success: true,
             data: {
-                message: aiResponse,
+                message: aiResponseText,
                 worldState: Object.fromEntries(session.worldState),
-                mcqOptions,
+                mcqOptions: [], // DEPRECATED
                 isResolved: isScenarioOver,
                 isLastScenario: isLastScenario && isScenarioOver
             }
@@ -487,6 +450,7 @@ exports.nextScenario = async (req, res) => {
             session.persona.name = next.stakeholder;
             session.persona.role = next.stakeholder;
             session.persona.briefing.situation = next.description;
+            session.persona.softSkill = next.softSkill;
             session.messages = []; // Clear messages for new scenario — metrics carry over unchanged
 
             // NOTE: No new metrics injected. The same 3 metrics from simulationConfig

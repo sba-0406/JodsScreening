@@ -29,6 +29,11 @@ router.post('/:id/regenerate-scenarios', jobController.regenerateScenarios);
 router.post('/:id/approve-all', jobController.approveAllQuestions);
 router.put('/:id/questions/:questionId', jobController.moderateQuestion);
 
+// Manual overrides & AI Refinement
+router.post('/:id/manual-question', jobController.addManualQuestion);
+router.post('/:id/manual-scenario', jobController.addManualScenario);
+router.post('/refine-content', jobController.refineContent);
+
 // Analytics
 router.get('/:id/analytics', jobController.getJobAnalytics);
 router.get('/:id/candidates', jobController.getJobCandidates);

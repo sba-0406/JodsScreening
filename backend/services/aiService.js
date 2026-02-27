@@ -329,6 +329,8 @@ class SmartMockAIService {
                 }
             ]);
         }
+        /* 
+        // DEPRECATED: Static MCQ Options are replaced by free-text evaluation
         if (lower.includes('leadership approaches') || lower.includes('mcq options') || lower.includes('leadership options') || lower.includes('generate 3 options')) {
             return JSON.stringify([
                 {
@@ -351,6 +353,7 @@ class SmartMockAIService {
                 }
             ]);
         }
+        */
         return JSON.stringify({
             competency1: 75,
             competency2: 70,
@@ -512,6 +515,7 @@ class ResilientAIService {
     }
 
     async generateCandidateSummary(candidateName, jobTitle, assessmentResults) {
+        // ... (existing code omitted for brevity in chunk but I'll write it out properly)
         const resultsJson = JSON.stringify(assessmentResults, null, 2);
         const p = `Generate a professional, concise executive summary (3-4 sentences) for a candidate named ${candidateName} who applied for the ${jobTitle} position. 
         Focus on their technical proficiency, soft skills fit, and overall suitability based on these assessment results:
@@ -524,6 +528,82 @@ class ResilientAIService {
             return res.trim();
         } catch (e) {
             return "Candidate demonstrated required technical competencies and professional demeanor throughout the assessment.";
+        }
+    }
+
+    /**
+     * Refine rough text from HR into professional, polished content.
+     * @param {string} text - The rough input from HR
+     * @param {string} type - 'question' or 'scenario'
+     */
+    async refineHRContent(text, type) {
+        const p = `You are a professional HR assessment designer. 
+        Refine the following rough ${type} text into a clear, professional, and high-impact version for a candidate assessment.
+        
+        Rough Text: "${text}"
+        
+        Rules:
+        1. Maintain the original intent and core topic.
+        2. Improve clarity, grammar, and professional tone.
+        3. If it's a "question", ensure it follows standard MCQ phrasing.
+        4. If it's a "scenario", make it sound immersive and realistic.
+        
+        Return ONLY the polished text. No explanations.`;
+
+        try {
+            const res = await this.generateContent(p);
+            if (this.activeSource.provider === 'Smart Mock') return `[Polished] ${text}`;
+            return res.trim();
+        } catch (e) {
+            return text; // Fallback to raw text
+        }
+    }
+
+    /**
+     * Dynamically evaluate a behavioral response and return metric deltas.
+     */
+    async evaluateBehavioralResponse(scenario, response, currentMetrics) {
+        const p = `You are an AI Behavioral Judge for a professional simulation.
+        
+        SCENARIO: "${scenario.prompt}"
+        TARGET SKILL: "${scenario.softSkill || scenario.theme}"
+        CANDIDATE RESPONSE: "${response}"
+        CURRENT WORLD METRICS: ${JSON.stringify(currentMetrics)}
+        
+        YOUR TASK:
+        1. Analyze the candidate's response in the context of the scenario and target skill.
+        2. Calculate how this response affects the 3 metrics below.
+        3. Provide concise behavioral feedback.
+        
+        METRICS TO EVALUATE: ${currentMetrics.map(m => m.name).join(', ')}
+        
+        Return ONLY valid JSON:
+        {
+          "deltas": {
+            "MetricName1": number (-15 to +15),
+            "MetricName2": number,
+            "MetricName3": number
+          },
+          "feedback": "Concise feedback directly to the candidate about their choice.",
+          "justification": "Internal reasoning for HR (why the metrics changed)."
+        }
+        
+        SCORING RULES:
+        - Be critical. Only give +10 or higher for exceptional responses.
+        - Give negative scores for unprofessional, evasive, or risky behaviors.
+        - Ensure all 3 metrics are listed in deltas.`;
+
+        try {
+            const res = await this.generateContent(p, true);
+            if (this.activeSource.provider === 'Smart Mock') {
+                const mockDeltas = {};
+                currentMetrics.forEach(m => mockDeltas[m.name] = 5);
+                return { deltas: mockDeltas, feedback: "Good effort!", justification: "Mock evaluation" };
+            }
+            return extractJSON(res);
+        } catch (e) {
+            console.error("[AI EVALUATE ERROR]", e);
+            throw e;
         }
     }
 }

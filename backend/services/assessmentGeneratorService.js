@@ -52,12 +52,19 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
         // STEP 3: Scenario Template Creation
         // We generate one situational scenario for each soft skill identified.
         console.log('[GENERATE] Step 3: Generating Situational Scenarios...');
+
+        // Fetch the job title for role-specific scenario prompts
+        const Job = require('../models/Job');
+        const jobDoc = await Job.findById(jobId);
+        const jobTitle = jobDoc?.title || '';
+
         const scenarios = await generateScenarioTemplates(
             analysis.softSkills,
             analysis.roleCategory,
             analysis.roleType,
             analysis.softSkills.length, // Explicitly one per soft skill
-            jobDescription
+            jobDescription,
+            jobTitle
         );
 
         // STEP 4: Assessment Persistence
@@ -76,7 +83,7 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
             simulationConfig: {
                 metrics: scenarios.physics.metrics,
                 metricPolarity: scenarios.physics.polarity,
-                approachEffects: scenarios.physics.effects
+                // approachEffects: scenarios.physics.effects // DEPRECATED: Physics is now dynamic
             },
             minTechnicalScore: analysis.minTechnicalScore,
             minSoftSkillScore: analysis.minSoftSkillScore,
@@ -113,19 +120,28 @@ async function regenerateScenarios(assessmentId) {
     const jobDescription = assessment.job?.description || '';
     const scenarioCount = assessment.softSkills?.length || 3;
 
+    // Preserve manual scenarios
+    const manualScenarios = assessment.scenarioTemplates.filter(s => s.isManual);
+
     const result = await generateScenarioTemplates(
         assessment.softSkills,
         assessment.roleCategory,
         assessment.roleType,
         scenarioCount,
-        jobDescription
+        jobDescription,
+        assessment.job?.title || ''
     );
 
-    assessment.scenarioTemplates = result.scenarios;
+    // Combine manual with newly generated ones
+    assessment.scenarioTemplates = [...manualScenarios, ...result.scenarios];
+
+    // Update count
+    assessment.questionCounts.scenarios = assessment.scenarioTemplates.length;
+
     assessment.simulationConfig = {
         metrics: result.physics.metrics,
         metricPolarity: result.physics.polarity,
-        approachEffects: result.physics.effects
+        // approachEffects: result.physics.effects // DEPRECATED
     };
     await assessment.save();
 
@@ -187,6 +203,9 @@ async function regenerateTechnicalQuestions(assessmentId, config = {}) {
         });
     }
 
+    // Preserve manual questions
+    const manualQuestions = assessment.technicalQuestions.filter(q => q.isManual);
+
     // For shuffling/regeneration, exclude currently used questions
     const excludeIds = assessment.technicalQuestions.map(q => q.questionId);
 
@@ -198,10 +217,11 @@ async function regenerateTechnicalQuestions(assessmentId, config = {}) {
         excludeIds
     );
 
-    assessment.technicalQuestions = questions;
+    // Combine manual with newly source/generated ones
+    assessment.technicalQuestions = [...manualQuestions, ...questions];
     assessment.missingSkills = missingSkills;
     assessment.skillMappings = skillMappings;
-    assessment.questionCounts.technical = questions.length;
+    assessment.questionCounts.technical = assessment.technicalQuestions.length;
 
     // Update status if needed
     assessment.status = (missingSkills.length > 0 || questions.some(q => q.status === 'pending_review')) ? 'pending_review' : 'active';

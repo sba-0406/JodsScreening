@@ -1,5 +1,6 @@
 const ChatSession = require('../models/ChatSession');
 const chatService = require('../services/chatService');
+const aiService = require('../services/aiService');
 const { roleConfigs } = require('../config/simulationConfig');
 
 /**
@@ -101,75 +102,68 @@ exports.respondToScenario = async (req, res) => {
     let userMessage = String(message || '').trim();
     let approach = 'Results'; // Default
 
-    // Logic for initial MCQ generation (Hack for frontend)
+    /* 
+    // DEPRECATED: Initial MCQ generation is no longer used
     if (!userMessage && !mcqChoice) {
-      const mcqOptions = await chatService.generateMCQOptions(
-        session.messages,
-        currentScenario.description,
-        Object.fromEntries(session.worldState),
-        role
-      );
-      return res.status(200).json({
-        success: true,
-        data: {
-          message: session.messages.length > 0 ? session.messages[session.messages.length - 1].text : null,
-          worldState: Object.fromEntries(session.worldState),
-          mcqOptions,
-          isResolved: false,
-          isLastScenario: false,
-          scenario: currentScenario
-        }
-      });
+      const mcqOptions = await chatService.generateMCQOptions(...);
+      return res.status(200).json({ ... });
     }
+    */
 
-    if (mcqChoice) {
-      userMessage = mcqChoice.text;
-      approach = mcqChoice.approach || 'Results';
+    /*
+    // DEPRECATED: MCQ Choice handling
+    if (mcqChoice) { ... }
+    */
 
-      // Apply hardcoded effects from config
-      const effects = config.approachEffects[approach];
-      if (effects) {
-        for (const [metric, delta] of Object.entries(effects)) {
-          const currentVal = session.worldState.get(metric) || 0;
-          session.worldState.set(metric, Math.max(0, Math.min(100, currentVal + delta)));
+    // --- NEW DYNAMIC EVALUATION ---
+    // 1. Analyze user response using AI Judge
+    const currentMetrics = Array.from(session.worldState.entries()).map(([name, value]) => ({ name, value }));
+    const evaluation = await aiService.evaluateBehavioralResponse(
+      { prompt: currentScenario.description, softSkill: session.persona.name },
+      userMessage,
+      currentMetrics
+    );
+
+    console.log(`[AI JUDGE] Evaluation for ${session._id}:`, evaluation);
+
+    // 2. Apply deltas to worldState
+    if (evaluation.deltas) {
+      for (const [metric, delta] of Object.entries(evaluation.deltas)) {
+        const currentVal = session.worldState.get(metric) || 50;
+        session.worldState.set(metric, Math.max(0, Math.min(100, currentVal + delta)));
+
+        // Track skill scores (using the target soft skill for this scenario)
+        // We'll give a fraction of the delta to the skill score if it's positive
+        const targetSkill = session.persona.name; // In Dojo, theme/skill is stored in persona.name/role for now
+        if (delta > 0) {
+          const currentSkillScore = session.skillScores.get(targetSkill) || 0;
+          session.skillScores.set(targetSkill, currentSkillScore + delta);
         }
       }
-
-      // Track Skill Scores
-      const skillName = config.skills[approach];
-      if (skillName) {
-        const currentSkillScore = session.skillScores.get(skillName) || 0;
-        session.skillScores.set(skillName, currentSkillScore + 10);
-      }
-    } else {
-      // For free-text, we'd ideally analyze the approach, but for demo let's assume 'Results'
-      // or implement a quick analysis in chatService.
-      approach = 'Results';
     }
 
-    // Update session state
+    const aiResponseText = evaluation.feedback || "I understand. Let's see how this plays out.";
+
+    // 3. Update session state
     session.turnCount += 1;
     session.messageCount += 1;
     session.messages.push({ sender: 'user', text: userMessage });
+    session.messages.push({ sender: 'ai', text: aiResponseText });
 
-    // AI Response (Reacting to updated worldState)
+    // Optional: Still generate the persona-voiced response if we want it to feel more immersive
+    /*
     const history = session.messages.map(m => ({ sender: m.sender, text: m.text }));
-    const aiResponse = await chatService.generateResponse(history, {
+    const personaResponse = await chatService.generateResponse(history, {
       name: currentScenario.stakeholder,
       role: currentScenario.stakeholder,
       context: currentScenario.description,
       worldState: Object.fromEntries(session.worldState)
     }, role);
+    session.messages.push({ sender: 'ai', text: personaResponse });
+    */
 
-    session.messages.push({ sender: 'ai', text: aiResponse });
-
-    // Generate MCQs for next turn (including worldState)
-    const mcqOptions = await chatService.generateMCQOptions(
-      session.messages,
-      currentScenario.description,
-      Object.fromEntries(session.worldState),
-      role
-    );
+    // DEPRECATED: MCQ generation
+    const mcqOptions = [];
 
     // Scenario Transition Logic
     // For demo: 4 turns per scenario, or based on mood? 
@@ -186,9 +180,9 @@ exports.respondToScenario = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        message: aiResponse,
+        message: aiResponseText,
         worldState: Object.fromEntries(session.worldState),
-        mcqOptions,
+        mcqOptions: [], // DEPRECATED
         isResolved: isScenarioOver,
         isLastScenario: isLastScenario && isScenarioOver,
         scenario: currentScenario

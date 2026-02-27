@@ -1,6 +1,8 @@
 const Job = require('../models/Job');
 const Assessment = require('../models/Assessment');
 const Application = require('../models/Application');
+const Question = require('../models/Question');
+const aiService = require('../services/aiService');
 const { generateAssessment } = require('../services/assessmentGeneratorService');
 
 // ==========================================
@@ -515,6 +517,86 @@ exports.getJobCandidates = async (req, res) => {
     } catch (error) {
         console.error('[CONTROLLER ERROR] getJobCandidates:', error);
         res.status(500).json({ success: false, error: 'Fetch failed' });
+    }
+};
+// @desc    Add a manual technical question to an assessment
+// @route   POST /api/jobs/:id/manual-question
+// @access  Private (HR/Admin)
+exports.addManualQuestion = async (req, res) => {
+    try {
+        const { question, options, correctAnswer, skill, difficulty } = req.body;
+        const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+
+        const assessment = await Assessment.findById(job.assessmentId);
+        if (!assessment) return res.status(404).json({ success: false, error: 'Assessment not found' });
+
+        // Generate a new Question document
+        const newQuestion = await Question.create({
+            question,
+            options,
+            correctAnswer,
+            skill,
+            difficulty,
+            isAI: false
+        });
+
+        assessment.technicalQuestions.push({
+            questionId: newQuestion._id,
+            skill,
+            difficulty,
+            isManual: true
+        });
+
+        await assessment.save();
+        res.status(201).json({ success: true, data: newQuestion });
+    } catch (error) {
+        console.error('Error adding manual question:', error);
+        res.status(500).json({ success: false, error: 'Failed to add question' });
+    }
+};
+
+// @desc    Add a manual scenario to an assessment
+// @route   POST /api/jobs/:id/manual-scenario
+// @access  Private (HR/Admin)
+exports.addManualScenario = async (req, res) => {
+    try {
+        const { softSkill, theme, stakeholder, prompt } = req.body;
+        const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+
+        const assessment = await Assessment.findById(job.assessmentId);
+        if (!assessment) return res.status(404).json({ success: false, error: 'Assessment not found' });
+
+        assessment.scenarioTemplates.push({
+            softSkill,
+            theme,
+            stakeholder,
+            prompt,
+            isManual: true
+        });
+
+        await assessment.save();
+        res.status(201).json({ success: true, data: assessment.scenarioTemplates[assessment.scenarioTemplates.length - 1] });
+    } catch (error) {
+        console.error('Error adding manual scenario:', error);
+        res.status(500).json({ success: false, error: 'Failed to add scenario' });
+    }
+};
+
+// @desc    Refine HR rough draft using AI
+// @route   POST /api/jobs/refine-content
+// @access  Private (HR/Admin)
+exports.refineContent = async (req, res) => {
+    try {
+        const { text, type } = req.body;
+        if (!text) return res.status(400).json({ success: false, error: 'Text is required' });
+
+        const refinedText = await aiService.refineHRContent(text, type || 'general');
+        res.json({ success: true, data: refinedText });
+    } catch (error) {
+        console.error('Error refining content:', error);
+        res.status(500).json({ success: false, error: 'Failed to refine content' });
     }
 };
 

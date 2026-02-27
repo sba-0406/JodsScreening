@@ -103,9 +103,10 @@ Guidelines:
  * @param {string} roleType - IC, Manager, etc.
  * @param {number} count - Number of scenarios to generate
  * @param {string} jobDescription - Full job description for context
+ * @param {string} jobTitle - Actual job title (e.g. "Senior Backend Engineer")
  * @returns {Promise<Array>} - Array of scenario templates
  */
-async function generateScenarioTemplates(softSkills, roleCategory, roleType, count = 3, jobDescription = '') {
+async function generateScenarioTemplates(softSkills, roleCategory, roleType, count = 3, jobDescription = '', jobTitle = '') {
   try {
     const prompt = `Generate exactly ${softSkills.length} realistic workplace scenario templates for a ${roleType} in ${roleCategory}.
 
@@ -123,7 +124,9 @@ EXACT STRUCTURE (no extra fields):
 {
   "scenarios": [
     {
-      "theme": "The EXACT name of the soft skill being tested (e.g. '${softSkills[0]}')",
+      "softSkill": "The EXACT name of the soft skill from the list (e.g. '${softSkills[0]}')",
+      "theme": "A short, catchy title for the situation",
+      "stakeholder": "The specific job title of the person the candidate is speaking with (e.g. 'Project Manager', 'Lead Designer', 'VP of Sales')",
       "prompt": "A specific, realistic workplace challenge explicitly designed to test THIS skill. Be detailed and role-specific.",
       "applicableRoles": ["${roleType}"]
     }
@@ -134,30 +137,31 @@ EXACT STRUCTURE (no extra fields):
       "MetricA": "high",
       "MetricB": "high",
       "MetricC": "low"
-    },
-    "effects": {
-      "Results":      { "MetricA": 10, "MetricB": -8, "MetricC": 5 },
-      "Relationship": { "MetricA": -5, "MetricB": 10, "MetricC": -8 },
-      "Boundary":     { "MetricA": 5,  "MetricB": -5, "MetricC": -10 }
     }
+    // "effects": { // DEPRECATED: Physics is now dynamic
+    //   "Results":      { "MetricA": 10, "MetricB": -8, "MetricC": 5 },
+    //   "Relationship": { "MetricA": -5, "MetricB": 10, "MetricC": -8 },
+    //   "Boundary":     { "MetricA": 5,  "MetricB": -5, "MetricC": -10 }
+    // }
   }
 }
 
 RULES — follow exactly:
 1. QUANTITY: Return exactly ${softSkills.length} scenarios. One for each skill.
-2. THEME: The 'theme' field MUST be the exact name of the soft skill from the list provided.
-3. METRICS: Choose exactly 3 metrics that are critical success factors for THIS specific job role.
+2. SOFTSKILL: The 'softSkill' field MUST be the exact name of the soft skill from the list provided.
+3. THEME: A creative title related to the situation (e.g. "The Midnight Deadline").
+4. METRICS: Choose exactly 3 metrics that are critical success factors for THIS specific job role.
    - Use clear, professional names (e.g. "Stakeholder Trust", "Delivery Speed", "Compliance Risk")
    - Do NOT use generic names like "TeamMorale", "Trust", "Productivity"
 
-4. POLARITY: "high" = higher is better. "low" = higher is worse (use for Risk, Stress, Debt, Friction).
+5. POLARITY: "high" = higher is better. "low" = higher is worse (use for Risk, Stress, Debt, Friction).
 
-5. EFFECTS — CRITICAL RULES:
-   - Every effect object MUST contain ALL 3 metric keys.
-   - Every approach MUST have at least one positive AND one negative value.
-   - Range: -15 to +15. Use real numbers, not zeros.
+// 6. EFFECTS — DEPRECATED: These are now calculated dynamically by a separate AI judge.
+//    Do NOT include the "effects" key in the "physics" object.
 
-6. SCENARIOS: Be specific to the job. Each prompt should describe a concrete stakeholder, their complaint/demand, and the stakes related to the specific soft skill being tested.`;
+7. SCENARIOS: Be specific to the job. Each prompt should describe a concrete stakeholder, their complaint/demand, and the stakes related to the specific soft skill being tested.
+8. ROLE: The candidate's role in the scenario should be exactly '${jobTitle || roleType}'. Do NOT just say 'IC' if a more specific title like 'Senior Marketing Manager' is appropriate.
+9. STAKEHOLDER: The 'stakeholder' field must be a professional job title, NEVER the name of the soft skill.`;
 
     const response = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],

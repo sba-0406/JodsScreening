@@ -112,11 +112,21 @@
             </div>
             <div class="interaction-zone"
                 style="background: #ffffff; border-top: 1px solid var(--border); padding: 20px; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                <!-- 
                 <div
                     style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">
                     Choose your response</div>
                 <div class="option-group" id="scenarioMcqContainer">
-                    <!-- Scenario MCQ options -->
+                </div>
+                -->
+                <div
+                    style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">
+                    Type your response</div>
+                <div style="display: flex; gap: 15px; align-items: stretch;">
+                    <textarea id="scenarioCustomInput" placeholder="Describe how you would handle this situation..."
+                        style="flex: 1; border: 1.5px solid var(--border); border-radius: 12px; padding: 15px; font-family: inherit; font-size: 1rem; resize: none; min-height: 100px;"></textarea>
+                    <button id="scenarioSendBtn" class="btn"
+                        style="width: 60px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; padding: 0;">➤</button>
                 </div>
             </div>
         </div>
@@ -248,69 +258,39 @@
 
             updateMetrics(data.worldState);
 
-            // Only generate MCQs on the true first load of a scenario (no messages yet)
-            // After that, MCQs come back with each respond call
+            // Setup input handlers
+            const customInput = document.getElementById('scenarioCustomInput');
+            const sendBtn = document.getElementById('scenarioSendBtn');
+            sendBtn.onclick = () => { if (!isSubmitting) submitScenarioResponse(customInput.value); };
+            customInput.onkeypress = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!isSubmitting) submitScenarioResponse(customInput.value);
+                }
+            };
+
+            // DEPRECATED: fetchInitialScenarioMCQs() is no longer needed
+            /*
             if (data.messages.length === 0) {
                 fetchInitialScenarioMCQs();
             }
+            */
         }
 
-        async function fetchInitialScenarioMCQs() {
-            try {
-                const res = await fetch('/api/assessment/respond', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId, message: '' })
-                });
-                const { success, data } = await res.json();
-                if (success) renderScenarioMCQs(data.mcqOptions);
-            } catch (err) { console.error(err); }
-        }
+        /*
+        // DEPRECATED: fetchInitialScenarioMCQs and renderScenarioMCQs
+        async function fetchInitialScenarioMCQs() { ... }
+        function renderScenarioMCQs(options) { ... }
+        */
 
-        function renderScenarioMCQs(options) {
-            console.log(`[FRONTEND MCQ] Received ${options?.length || 0} options:`, options);
-            const container = document.getElementById('scenarioMcqContainer');
-            container.innerHTML = '';
-            if (!options || options.length === 0) {
-                container.innerHTML = '<p style="color:red">No options generated. Please wait or reload.</p>';
-                return;
-            }
-            options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.className = 'assessment-option-btn';
-                btn.disabled = false; // always enable fresh buttons
-
-                let insightHtml = '';
-                if (opt.satisfies || opt.violates) {
-                    insightHtml = `
-                        <div style="font-size: 0.75rem; margin-top: 0.8rem; display: flex; gap: 0.8rem; border-top: 1px solid var(--border); padding-top: 0.8rem;">
-                            ${opt.satisfies ? `<span style="color:var(--success); font-weight: 600;">✓ ${opt.satisfies}</span>` : ''}
-                            ${opt.violates ? `<span style="color:var(--danger); font-weight: 600;">⚠ ${opt.violates}</span>` : ''}
-                        </div>
-                    `;
-                }
-
-                btn.innerHTML = `
-                    <div style="width: 100%;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-                            <span class="badge" style="background: #eff6ff; color: var(--primary-color); padding: 4px 8px; font-weight: 700;">${opt.approach.toUpperCase()}</span>
-                        </div>
-                        <div style="font-weight: 500; line-height: 1.4;">${opt.text}</div>
-                        ${insightHtml}
-                    </div>
-                `;
-                btn.onclick = () => { if (!isSubmitting) submitScenarioResponse(opt); };
-                container.appendChild(btn);
-            });
-        }
-
-        async function submitScenarioResponse(opt) {
+        async function submitScenarioResponse(text) {
+            if (!text || !text.trim()) return;
             toggleLoading(true);
             try {
                 const res = await fetch('/api/assessment/respond', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId, mcqChoice: opt })
+                    body: JSON.stringify({ sessionId, message: text })
                 });
                 const { success, data } = await res.json();
                 if (success) {
@@ -330,7 +310,7 @@
                             const feed = document.getElementById('chatFeed');
                             const userDiv = document.createElement('div');
                             userDiv.className = 'chat-bubble user';
-                            userDiv.innerHTML = `<span class="chat-bubble-label">You</span><div>${opt.text}</div>`;
+                            userDiv.innerHTML = `<span class="chat-bubble-label">You</span><div>${text}</div>`;
                             feed.appendChild(userDiv);
 
                             const aiDiv = document.createElement('div');
@@ -338,6 +318,7 @@
                             aiDiv.innerHTML = `<span class="chat-bubble-label">${currentStakeholderName}</span><div>${data.message}</div>`;
                             feed.appendChild(aiDiv);
 
+                            document.getElementById('scenarioCustomInput').value = '';
                             setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 100);
                         }
 
@@ -345,7 +326,7 @@
                         if (data.worldState) updateMetrics(data.worldState);
 
                         // Render the new MCQ options returned from this turn
-                        if (data.mcqOptions) renderScenarioMCQs(data.mcqOptions);
+                        // if (data.mcqOptions) renderScenarioMCQs(data.mcqOptions); // DEPRECATED
                     }
                 }
             } catch (err) { console.error(err); } finally {

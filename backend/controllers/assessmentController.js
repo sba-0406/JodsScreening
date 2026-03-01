@@ -542,7 +542,8 @@ exports.finalizeAssessment = async (req, res) => {
 
         // 5. Update Application
         application.assessmentStatus = 'completed';
-        application.status = weightedScore >= (assessment.minTechnicalScore || 60) ? 'assessment_completed' : 'applied';
+        // Keep status as 'applied' (or current lifecycle status) to avoid confusion in HR view
+        // application.status = weightedScore >= (assessment.minTechnicalScore || 60) ? 'assessment_completed' : 'applied';
         application.assessmentResults = {
             technicalScore: Math.round(techScore),
             softSkillScore: Math.round(softScore),

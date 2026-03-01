@@ -26,7 +26,8 @@
                 </div>
 
                 <!-- Recruiter Actions (HR/Admin only) -->
-                <% if (user.role==='hr' || user.role==='admin' ) { %>
+                <% if ((user.role==='hr' || user.role==='admin' ) && application.status !=='rejected' &&
+                    application.status !=='hired' ) { %>
                     <div class="details-header-card" style="background: var(--text-main); color: #fff; border: none;">
                         <div
                             style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
@@ -36,18 +37,28 @@
                                     candidate's application status.</p>
                             </div>
                             <div style="display: flex; gap: 10px;">
-                                <% if (application.status !=='shortlisted' && application.status
-                                    !=='interview_scheduled' ) { %>
+                                <% if (application.status==='applied' || application.status==='assessment_pending' ||
+                                    application.status==='assessment_completed' ) { %>
                                     <button onclick="updateStatus('shortlisted')" class="btn">Shortlist</button>
                                     <% } %>
-                                        <button onclick="scheduleInterview()" class="btn btn-secondary"
-                                            style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff;">
-                                            Schedule Interview
-                                        </button>
-                                        <% if (application.status !=='rejected' ) { %>
-                                            <button onclick="updateStatus('rejected')"
-                                                class="btn btn-danger">Reject</button>
+
+                                        <% if (application.status==='applied' || application.status==='shortlisted' ) {
+                                            %>
+                                            <button onclick="scheduleInterview()" class="btn btn-secondary"
+                                                style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff;">
+                                                Schedule Interview
+                                            </button>
                                             <% } %>
+
+                                                <% if (application.status==='interview_scheduled' ) { %>
+                                                    <button onclick="updateStatus('hired')" class="btn"
+                                                        style="background: #22c55e; border-color: #16a34a;">
+                                                        Hire Candidate
+                                                    </button>
+                                                    <% } %>
+
+                                                        <button onclick="updateStatus('rejected')"
+                                                            class="btn btn-danger">Reject</button>
                             </div>
                         </div>
                     </div>
@@ -253,13 +264,16 @@
                                                     <% } %>
 
                                                         <!-- Step 3: Interview -->
-                                                        <% let interviewClass='' ; if
+                                                        <% let interviewClass='' ; let interviewIcon='3' ; if
                                                             (application.status==='interview_scheduled' ||
-                                                            application.status==='offered' ) interviewClass='completed'
-                                                            ; else if (application.status==='shortlisted' )
-                                                            interviewClass='active' ; %>
+                                                            application.status==='hired' ) { interviewClass='completed'
+                                                            ; interviewIcon='✓' ; } else if
+                                                            (application.status==='shortlisted' ) {
+                                                            interviewClass='active' ; } %>
                                                             <div class="step-v-item <%= interviewClass %>">
-                                                                <div class="step-v-icon">3</div>
+                                                                <div class="step-v-icon">
+                                                                    <%= interviewIcon %>
+                                                                </div>
                                                                 <div class="step-v-content">
                                                                     <h4>Interview</h4>
                                                                     <p>Shortlisted candidates will be invited for a
@@ -276,15 +290,37 @@
                                                             </div>
 
                                                             <!-- Step 4: Decision -->
-                                                            <div
-                                                                class="step-v-item <%= (application.status === 'rejected' || application.status === 'offered') ? 'completed' : '' %>">
-                                                                <div class="step-v-icon">4</div>
-                                                                <div class="step-v-content">
-                                                                    <h4>Final Decision</h4>
-                                                                    <p>We'll notify you of the final outcome after all
-                                                                        rounds are complete.</p>
+                                                            <% let decisionClass='' ; let decisionIcon='4' ; if
+                                                                (application.status==='rejected' ||
+                                                                application.status==='hired' ) {
+                                                                decisionClass='completed' ; decisionIcon='✓' ; } %>
+                                                                <div class="step-v-item <%= decisionClass %>">
+                                                                    <div class="step-v-icon">
+                                                                        <%= decisionIcon %>
+                                                                    </div>
+                                                                    <div class="step-v-content">
+                                                                        <h4>Final Decision</h4>
+                                                                        <% if (application.status==='rejected' ) { %>
+                                                                            <p
+                                                                                style="color: #ef4444; font-weight: 600;">
+                                                                                Application Declined. We appreciate your
+                                                                                interest and wish you the best in your
+                                                                                search.</p>
+                                                                            <% } else if (application.status==='hired' )
+                                                                                { %>
+                                                                                <p
+                                                                                    style="color: #22c55e; font-weight: 600;">
+                                                                                    Congratulations! We are excited to
+                                                                                    offer you the position. Our team
+                                                                                    will reach out with the next steps.
+                                                                                </p>
+                                                                                <% } else { %>
+                                                                                    <p>We'll notify you of the final
+                                                                                        outcome after all rounds are
+                                                                                        complete.</p>
+                                                                                    <% } %>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
                                         </div>
                                     </div>
                         </div>
@@ -317,7 +353,10 @@
             }
 
             async function updateStatus(newStatus) {
-                const msg = newStatus === 'shortlisted' ? 'Shortlist this candidate?' : 'Reject this application?';
+                let msg = 'Update application status?';
+                if (newStatus === 'shortlisted') msg = 'Shortlist this candidate?';
+                if (newStatus === 'rejected') msg = 'Reject this application?';
+                if (newStatus === 'hired') msg = 'Mark this candidate as HIRED? (This will extend an offer)';
                 if (!confirm(msg)) return;
                 try {
                     const response = await fetch(`/api/applications/application/<%= application._id %>/status`, {

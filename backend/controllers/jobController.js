@@ -600,6 +600,48 @@ exports.refineContent = async (req, res) => {
     }
 };
 
+// @desc    Delete a specific scenario from an assessment
+// @route   DELETE /api/jobs/:id/scenario/:scenarioId
+// @access  Private (HR/Admin)
+exports.deleteScenario = async (req, res) => {
+    try {
+        const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+
+        const assessment = await Assessment.findById(job.assessmentId);
+        if (!assessment) return res.status(404).json({ success: false, error: 'Assessment not found' });
+
+        assessment.scenarioTemplates = assessment.scenarioTemplates.filter(
+            s => s._id.toString() !== req.params.scenarioId
+        );
+        assessment.questionCounts.scenarios = assessment.scenarioTemplates.length;
+
+        await assessment.save();
+        res.json({ success: true, data: assessment });
+    } catch (error) {
+        console.error('Error deleting scenario:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete scenario' });
+    }
+};
+
+// @desc    Regenerate a single specific scenario
+// @route   POST /api/jobs/:id/scenario/:scenarioId/regenerate
+// @access  Private (HR/Admin)
+exports.regenerateSingleScenario = async (req, res) => {
+    try {
+        const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+
+        const { regenerateSingleScenario } = require('../services/assessmentGeneratorService');
+        const assessment = await regenerateSingleScenario(job.assessmentId, req.params.scenarioId);
+
+        res.json({ success: true, data: assessment });
+    } catch (error) {
+        console.error('Error regenerating single scenario:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 // ==========================================
 // VIEW CONTROLLERS (HTML Rendering)
 // ==========================================

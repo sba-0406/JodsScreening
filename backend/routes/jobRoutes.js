@@ -29,6 +29,10 @@ router.post('/:id/regenerate-scenarios', jobController.regenerateScenarios);
 router.post('/:id/approve-all', jobController.approveAllQuestions);
 router.put('/:id/questions/:questionId', jobController.moderateQuestion);
 
+// Granular Scenario Control
+router.delete('/:id/scenario/:scenarioId', jobController.deleteScenario);
+router.post('/:id/scenario/:scenarioId/regenerate', jobController.regenerateSingleScenario);
+
 // Manual overrides & AI Refinement
 router.post('/:id/manual-question', jobController.addManualQuestion);
 router.post('/:id/manual-scenario', jobController.addManualScenario);

@@ -333,9 +333,9 @@
                                 <div class="info-item">
                                     <label class="info-label">Difficulty</label>
                                     <select id="mq-diff" class="form-control">
-                                        <option value="Beginner">Beginner</option>
-                                        <option value="Intermediate" selected>Intermediate</option>
-                                        <option value="Advanced">Advanced</option>
+                                        <option value="Easy">Easy</option>
+                                        <option value="Medium" selected>Medium</option>
+                                        <option value="Hard">Hard</option>
                                     </select>
                                 </div>
                             </div>
@@ -476,9 +476,33 @@
 
                                 <% job.assessmentId.scenarioTemplates.forEach(function(scenario) { %>
                                     <div class="question-preview">
-                                        <div class="question-header">
-                                            <span class="question-skill">
-                                                <%= scenario.theme %>
+                                        <div class="question-header"
+                                            style="align-items: flex-start; flex-direction: column; gap: 4px;">
+                                            <div
+                                                style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                                <span class="question-skill"
+                                                    style="font-size: 1rem; color: var(--text-main);">
+                                                    <%= scenario.softSkill ? scenario.theme : 'Behavioral Scenario' %>
+                                                </span>
+                                                <div style="display: flex; gap: 8px; align-items: center;">
+                                                    <% if (scenario.isManual) { %>
+                                                        <span
+                                                            style="font-size: 0.65rem; background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 700;">MANUAL</span>
+                                                        <% } %>
+                                                            <button
+                                                                onclick="regenerateSingleScenario('<%= scenario._id %>')"
+                                                                class="btn-sm btn-secondary"
+                                                                style="padding: 2px 6px; font-size: 0.75rem;"
+                                                                title="Regenerate this scenario">🔄</button>
+                                                            <button onclick="deleteScenario('<%= scenario._id %>')"
+                                                                class="btn-sm btn-secondary"
+                                                                style="padding: 2px 6px; font-size: 0.75rem; color: #dc2626;"
+                                                                title="Delete scenario">🗑️</button>
+                                                </div>
+                                            </div>
+                                            <span
+                                                style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">
+                                                Tests: <%= scenario.softSkill || scenario.theme %>
                                             </span>
                                         </div>
                                         <div style="color: var(--text-muted); font-size: 0.875rem; margin-top: 6px;">
@@ -859,6 +883,42 @@
                     }
                 } catch (err) {
                     alert('Error saving scenario');
+                }
+            }
+
+            async function deleteScenario(scenarioId) {
+                if (!confirm('Are you sure you want to delete this scenario?')) return;
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/scenario/${scenarioId}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    }
+                } catch (err) {
+                    alert('Error deleting scenario');
+                }
+            }
+
+            async function regenerateSingleScenario(scenarioId) {
+                const btn = event.currentTarget;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '...';
+                btn.disabled = true;
+
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/scenario/${scenarioId}/regenerate`, {
+                        method: 'POST'
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    }
+                } catch (err) {
+                    alert('Error regenerating scenario');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                 }
             }
         </script>

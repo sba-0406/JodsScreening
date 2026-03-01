@@ -149,6 +149,52 @@ async function regenerateScenarios(assessmentId) {
 }
 
 /**
+ * Regenerate a single scenario within an assessment
+ * @param {string} assessmentId - Assessment ID
+ * @param {string} scenarioId - Scenario Template ID
+ * @returns {Promise<Object>} - Updated assessment
+ */
+async function regenerateSingleScenario(assessmentId, scenarioId) {
+    const assessment = await Assessment.findById(assessmentId).populate('job', 'description title');
+    if (!assessment) throw new Error('Assessment not found');
+
+    const scenarioIdx = assessment.scenarioTemplates.findIndex(s => s._id.toString() === scenarioId);
+    if (scenarioIdx === -1) throw new Error('Scenario not found');
+
+    const scenario = assessment.scenarioTemplates[scenarioIdx];
+    const softSkill = scenario.softSkill;
+
+    console.log(`[GENERATE] Regenerating single scenario for skill: ${softSkill}`);
+
+    const result = await generateScenarioTemplates(
+        [softSkill],
+        assessment.roleCategory,
+        assessment.roleType,
+        1,
+        assessment.job?.description || '',
+        assessment.job?.title || ''
+    );
+
+    if (result.scenarios && result.scenarios.length > 0) {
+        // Replace just that one scenario
+        assessment.scenarioTemplates[scenarioIdx] = result.scenarios[0];
+
+        // Note: We don't update global physics/metrics here to avoid disrupting other scenarios
+        // unless they are empty.
+        if (!assessment.simulationConfig || !assessment.simulationConfig.metrics || assessment.simulationConfig.metrics.length === 0) {
+            assessment.simulationConfig = {
+                metrics: result.physics.metrics,
+                metricPolarity: result.physics.polarity
+            };
+        }
+
+        await assessment.save();
+    }
+
+    return assessment;
+}
+
+/**
  * Update assessment configuration (weights, thresholds, etc.)
  * @param {string} assessmentId - Assessment ID
  * @param {Object} updates - Fields to update
@@ -231,8 +277,8 @@ async function regenerateTechnicalQuestions(assessmentId, config = {}) {
 }
 
 module.exports = {
-    generateAssessment,
     regenerateScenarios,
+    regenerateSingleScenario,
     regenerateTechnicalQuestions,
     updateAssessmentConfig
 };

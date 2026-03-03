@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %> | ScenarioSim
+    </title>
+    <link rel="stylesheet" href="/css/style.css?v=11">
+</head>
+
+<body class="has-sidebar">
+    <%- include('partials/_navbar') %>
+
+        <div class="main-wrapper">
+            <div class="container">
+                <div class="dashboard-header mb-30"
+                    style="display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div>
+                        <h1>Notifications Hub</h1>
+                        <p style="color: var(--text-muted);">Manage your application updates and simulation alerts</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="markAllAsRead()">Mark all as read</button>
+                </div>
+
+                <div class="card">
+                    <div class="section-header mb-20"
+                        style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="filter-tabs" style="display: flex; gap: 10px;">
+                            <button class="btn btn-secondary active" data-filter="all">All Messages</button>
+                            <button class="btn btn-secondary" data-filter="unread">Unread</button>
+                        </div>
+                    </div>
+
+                    <div id="notifications-list" class="notifications-container">
+                        <div class="empty-state">
+                            <p>Loading your messages...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let currentFilter = 'all';
+
+            async function loadNotifications() {
+                try {
+                    const res = await fetch('/api/notifications');
+                    const data = await res.json();
+                    if (data.success) {
+                        renderNotifications(data.data);
+                    }
+                } catch (err) {
+                    console.error('Error loading notifications:', err);
+                }
+            }
+
+            function renderNotifications(notifications) {
+                const container = document.getElementById('notifications-list');
+
+                let filtered = notifications;
+                if (currentFilter === 'unread') {
+                    filtered = notifications.filter(n => !n.isRead);
+                }
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">📥</div>
+                        <p>No ${currentFilter === 'unread' ? 'unread ' : ''}notifications found.</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                container.innerHTML = filtered.map(n => `
+                <div class="notification-full-item ${n.isRead ? '' : 'unread'}" 
+                     onclick="handleNotificationItemClick(event, '${n._id}', '${n.actionUrl}')"
+                     style="padding: 24px; border-bottom: 1px solid var(--border); transition: all 0.2s; cursor: pointer; position: relative; display: flex; gap: 20px; align-items: flex-start;">
+                    
+                    <div class="noti-indicator" style="width: 10px; height: 10px; border-radius: 50%; background: ${n.isRead ? 'transparent' : 'var(--primary-color)'}; margin-top: 8px; flex-shrink: 0;"></div>
+                    
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main);">${n.title}</h4>
+                            <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">
+                                ${new Date(n.createdAt).toLocaleDateString()} at ${new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                        <p style="margin: 0; color: var(--text-muted); line-height: 1.6; font-size: 0.95rem;">${n.message}</p>
+                        
+                        ${n.actionUrl ? `
+                            <div style="margin-top: 15px;">
+                                <a href="${n.actionUrl}" class="btn btn-outline btn-sm" onclick="event.stopPropagation()">View Details</a>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+            }
+
+            async function handleNotificationItemClick(e, id, actionUrl) {
+                try {
+                    // Mark as read API
+                    await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
+
+                    // If there's an action URL, navigate
+                    if (actionUrl) {
+                        window.location.href = actionUrl;
+                    } else {
+                        loadNotifications(); // Refresh list to show as read
+                    }
+                } catch (err) {
+                    console.error('Error marking as read:', err);
+                }
+            }
+
+            async function markAllAsRead() {
+                try {
+                    // We'll need a bulk endpoint for full UX, but for now we'll do sequential or just reload
+                    // For MVP, letting user click individual is fine, but "Mark all" is standard
+                    // Let's implement individual marks for now as we don't have a bulk API yet
+                    const res = await fetch('/api/notifications');
+                    const data = await res.json();
+                    if (data.success) {
+                        const unread = data.data.filter(n => !n.isRead);
+                        for (const n of unread) {
+                            await fetch(`/api/notifications/${n._id}/read`, { method: 'PATCH' });
+                        }
+                        loadNotifications();
+                    }
+                } catch (err) {
+                    console.error('Bulk mark error:', err);
+                }
+            }
+
+            // Filter functionality
+            document.querySelectorAll('.filter-tabs button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    loadNotifications();
+                });
+            });
+
+            loadNotifications();
+        </script>
+
+        <style>
+            .notification-full-item:hover {
+                background-color: #f8fafc;
+            }
+
+            .notification-full-item.unread {
+                background-color: #f0f9ff;
+            }
+
+            .notification-full-item:last-child {
+                border-bottom: none;
+            }
+        </style>
+</body>
+
+</html>

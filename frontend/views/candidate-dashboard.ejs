@@ -32,6 +32,15 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="card mt-20">
+                    <h2 class="section-title mb-20">🔔 Recent Notifications</h2>
+                    <div id="dashboard-notifications">
+                        <div class="empty-state">
+                            <p>Loading notifications...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -43,12 +52,45 @@
                     renderApplications(data.data);
                 } catch (error) {
                     console.error('Error loading applications:', error);
-                    document.getElementById('application-list').innerHTML = `<p>Error loading applications.</p>`;
+                    const list = document.getElementById('application-list');
+                    if (list) list.innerHTML = `<p>Error loading applications.</p>`;
                 }
+            }
+
+            async function loadDashboardNotifications() {
+                try {
+                    const res = await fetch('/api/notifications');
+                    const data = await res.json();
+                    if (data.success) {
+                        renderDashboardNotifications(data.data.slice(0, 3));
+                    }
+                } catch (err) {
+                    console.error('Error loading notifs:', err);
+                }
+            }
+
+            function renderDashboardNotifications(notifications) {
+                const container = document.getElementById('dashboard-notifications');
+                if (!container) return;
+                if (!notifications || notifications.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><p>No messages yet.</p></div>`;
+                    return;
+                }
+
+                container.innerHTML = notifications.map(n => `
+                    <div class="notification-item ${n.isRead ? '' : 'unread'}" style="border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;" onclick="handleNotiClick(event, '${n._id}', '${n.actionUrl}')">
+                        <div style="display: flex; justify-content: space-between; padding: 10px 10px 5px;">
+                            <div class="noti-title">${n.title}</div>
+                            <div class="noti-time" style="font-size: 0.7rem; color: var(--text-muted);">${new Date(n.createdAt).toLocaleDateString()}</div>
+                        </div>
+                        <div class="noti-message" style="padding: 0 10px 10px; font-size: 0.8rem; color: var(--text-muted);">${n.message}</div>
+                    </div>
+                `).join('');
             }
 
             function renderApplications(applications) {
                 const list = document.getElementById('application-list');
+                if (!list) return;
                 if (!applications || applications.length === 0) {
                     list.innerHTML = `<div class="empty-state"><p>No applications yet.</p></div>`;
                     return;
@@ -56,7 +98,6 @@
 
                 list.innerHTML = applications.map(app => {
                     const job = app.job;
-                    // Robust date handling
                     const dateVal = app.appliedAt || app.createdAt;
                     const appliedDate = dateVal ? new Date(dateVal).toLocaleDateString() : 'Recent';
 
@@ -64,7 +105,7 @@
                     if (app.status === 'applied') statusBadge = 'badge-info';
                     else if (app.status === 'shortlisted' || app.status === 'hired') statusBadge = 'badge-success';
                     else if (app.status === 'rejected') statusBadge = 'badge-danger';
-                    else statusBadge = 'badge-warning'; // assessment_completed, interview_scheduled
+                    else statusBadge = 'badge-warning';
 
                     let assessmentAction = '';
                     if (app.assessmentStatus === 'pending') {
@@ -104,7 +145,9 @@
                 </div>`;
                 }).join('');
             }
+
             loadApplications();
+            loadDashboardNotifications();
         </script>
 </body>
 

@@ -1,39 +1,73 @@
 <nav class="navbar">
-    <a href="/" class="nav-logo">
-        <h2 style="margin: 0;">ScenarioSim</h2>
-    </a>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/" class="nav-logo">
+            <h2 style="margin: 0;">ScenarioSim</h2>
+        </a>
+
+        <% if (user) { %>
+            <div class="nav-notification" id="noti-bell" onclick="toggleNotiTray()">
+                <span style="font-size: 1.4rem;">🔔</span>
+                <span class="notification-badge" id="noti-badge" style="display: none;">0</span>
+
+                <div class="notification-tray" id="noti-tray">
+                    <div class="tray-header">
+                        <h4 style="display: flex; align-items: center; gap: 8px;">
+                            Notifications
+                            <a href="/api/notifications/view"
+                                style="font-size: 0.7rem; color: var(--primary-color); font-weight: 600; text-decoration: underline;">See
+                                All</a>
+                        </h4>
+                        <span style="font-size: 0.8rem; cursor: pointer; color: var(--primary-color);"
+                            onclick="markAllRead(event)">Mark all as read</span>
+                    </div>
+                    <div id="noti-list">
+                        <div class="empty-state" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                            No notifications yet.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <% } %>
+    </div>
 
     <div class="nav-links">
         <% if (user) { %>
             <% if (user.role==='hr' ) { %>
-                <a href="/api/jobs/dashboard" class="<%= currentPath === '/api/jobs/dashboard' ? 'active' : '' %>">
+                <a href="/api/jobs/dashboard"
+                    class="<%= typeof currentPath !== 'undefined' && currentPath === '/api/jobs/dashboard' ? 'active' : '' %>">
                     <span class="nav-icon">📊</span> HR Dashboard
                 </a>
-                <a href="/api/jobs/create/view" class="<%= currentPath === '/api/jobs/create/view' ? 'active' : '' %>">
+                <a href="/api/jobs/create/view"
+                    class="<%= typeof currentPath !== 'undefined' && currentPath === '/api/jobs/create/view' ? 'active' : '' %>">
                     <span class="nav-icon">➕</span> Post a Job
                 </a>
                 <% } %>
 
                     <% if (user.role==='admin' ) { %>
                         <a href="/api/admin/dashboard"
-                            class="<%= currentPath === '/api/admin/dashboard' ? 'active' : '' %>">
+                            class="<%= typeof currentPath !== 'undefined' && currentPath === '/api/admin/dashboard' ? 'active' : '' %>">
                             <span class="nav-icon">🛡️</span> Admin Dashboard
                         </a>
                         <% } %>
 
                             <% if (user.role==='candidate' ) { %>
                                 <a href="/api/applications/jobs-portal"
-                                    class="<%= currentPath === '/api/applications/jobs-portal' ? 'active' : '' %>">
+                                    class="<%= typeof currentPath !== 'undefined' && currentPath === '/api/applications/jobs-portal' ? 'active' : '' %>">
                                     <span class="nav-icon">💼</span> Browse Jobs
                                 </a>
                                 <a href="/api/applications/my-dashboard"
-                                    class="<%= currentPath === '/api/applications/my-dashboard' ? 'active' : '' %>">
+                                    class="<%= typeof currentPath !== 'undefined' && currentPath === '/api/applications/my-dashboard' ? 'active' : '' %>">
                                     <span class="nav-icon">📁</span> My Applications
                                 </a>
                                 <% } %>
 
                                     <div class="user-section"
                                         style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
+                                        <a href="/api/notifications/view"
+                                            class="sidebar-link <%= typeof title !== 'undefined' && title === 'Notifications' ? 'active' : '' %>"
+                                            style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; text-decoration: none; color: var(--text-main); margin-bottom: 10px; font-weight: 500;">
+                                            <span class="nav-icon">🔔</span> Notifications
+                                        </a>
                                         <div class="user-info" style="margin-bottom: 15px;">
                                             <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">
                                                 <%= user.name %>
@@ -74,5 +108,74 @@
         } catch (err) {
             console.error('Logout failed:', err);
         }
+    }
+
+    // --- Notification Logic ---
+    let notiTrayOpen = false;
+
+    async function fetchNotifications() {
+        try {
+            const res = await fetch('/api/notifications');
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (data.success) {
+                const badge = document.getElementById('noti-badge');
+                if (badge) {
+                    if (data.unreadCount > 0) {
+                        badge.textContent = data.unreadCount > 9 ? '9+' : data.unreadCount;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+
+                const list = document.getElementById('noti-list');
+                if (list) {
+                    if (data.data.length === 0) {
+                        list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">No notifications yet.</div>';
+                    } else {
+                        list.innerHTML = data.data.map(n => `
+                            <div class="notification-item ${n.isRead ? '' : 'unread'}" onclick="handleNotiClick(event, '${n._id}', '${n.actionUrl}')">
+                                <div class="noti-title">${n.title}</div>
+                                <div class="noti-message">${n.message}</div>
+                                <div class="noti-time">${new Date(n.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                        `).join('');
+                    }
+                }
+            }
+        } catch (err) { console.error('Noti Error:', err); }
+    }
+
+    function toggleNotiTray() {
+        const tray = document.getElementById('noti-tray');
+        if (!tray) return;
+        notiTrayOpen = !notiTrayOpen;
+        tray.classList.toggle('active', notiTrayOpen);
+        if (notiTrayOpen) fetchNotifications();
+    }
+
+    async function handleNotiClick(e, id, url) {
+        e.stopPropagation();
+        try {
+            await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
+            if (url && url !== 'undefined' && url !== '') window.location.href = url;
+            else fetchNotifications();
+        } catch (err) { console.error('Mark Read Error:', err); }
+    }
+
+    function markAllRead(e) {
+        e.stopPropagation();
+        alert('Bulk mark as read coming soon!');
+    }
+
+    document.addEventListener('click', (e) => {
+        const bell = document.getElementById('noti-bell');
+        if (notiTrayOpen && bell && !bell.contains(e.target)) toggleNotiTray();
+    });
+
+    if (document.getElementById('noti-bell')) {
+        fetchNotifications();
+        setInterval(fetchNotifications, 60000);
     }
 </script>

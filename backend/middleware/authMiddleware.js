@@ -67,6 +67,22 @@ exports.authorizeAdmin = (req, res, next) => {
 };
 
 /**
+ * @desc    RBAC Gate: Restricts access to specific roles.
+ *          Usage: authorize('hr', 'admin')
+ */
+exports.authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user?.role)) {
+      return res.status(403).json({
+        success: false,
+        error: `Restricted: ${roles.join(' or ')} permissions required.`
+      });
+    }
+    next();
+  };
+};
+
+/**
  * @desc    Context Loader: Optionally loads user info without blocking.
  *          Useful for the landing page (showing 'My Profile' vs 'Login').
  */

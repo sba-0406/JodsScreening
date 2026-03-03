@@ -47,6 +47,21 @@
                     </div>
                 </div>
 
+                <!-- Recent Alerts Hub -->
+                <div class="card mb-20" style="background: #fff; border-color: var(--primary-color);">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+                            <span>🔔</span> Recent Alerts
+                        </h2>
+                        <span id="unread-count-label" class="badge badge-danger" style="display: none;">0 New</span>
+                    </div>
+                    <div id="hr-alerts-list" class="grid-adaptive"
+                        style="grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 12px;">
+                        <div class="empty-state" style="padding: 20px;">Loading alerts...</div>
+                    </div>
+                </div>
+
                 <!-- Jobs List -->
                 <div class="card">
                     <div class="section-header mb-20"
@@ -113,6 +128,48 @@
                     </div>
                 `;
                 }
+            }
+
+            // Fetch and render HR alerts
+            async function loadHRAlerts() {
+                try {
+                    const res = await fetch('/api/notifications');
+                    const data = await res.json();
+                    if (data.success) {
+                        renderHRAlerts(data.data.slice(0, 3), data.unreadCount);
+                    }
+                } catch (err) {
+                    console.error('Failed to load HR alerts:', err);
+                }
+            }
+
+            function renderHRAlerts(notifications, unreadCount) {
+                const list = document.getElementById('hr-alerts-list');
+                const badge = document.getElementById('unread-count-label');
+
+                if (unreadCount > 0) {
+                    badge.textContent = `${unreadCount} New`;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+
+                if (!notifications || notifications.length === 0) {
+                    list.innerHTML = '<div class="empty-state" style="grid-column: 1/-1; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">No recent alerts.</div>';
+                    return;
+                }
+
+                list.innerHTML = notifications.map(n => `
+                    <div class="notification-item ${n.isRead ? '' : 'unread'}" 
+                         style="border: 1px solid var(--border); border-radius: 10px; padding: 12px 15px; cursor: pointer; transition: all 0.2s;"
+                         onclick="handleNotiClick(event, '${n._id}', '${n.actionUrl}')">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <div class="noti-title" style="font-size: 0.85rem; font-weight: 700; color: var(--text-main);">${n.title}</div>
+                            <div class="noti-time" style="font-size: 0.7rem; color: var(--text-muted);">${new Date(n.createdAt).toLocaleDateString()}</div>
+                        </div>
+                        <div class="noti-message" style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">${n.message}</div>
+                    </div>
+                `).join('');
             }
 
             function renderJobs(jobs, totalCount) {
@@ -195,8 +252,12 @@
                 });
             });
 
-            // Load jobs on page load
+            // Load data on page load
             loadJobs();
+            loadHRAlerts();
+
+            // Refresh alerts periodically
+            setInterval(loadHRAlerts, 60000);
         </script>
 </body>
 

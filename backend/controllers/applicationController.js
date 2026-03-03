@@ -1,6 +1,8 @@
 const Job = require('../models/Job');
 const Application = require('../models/Application');
 const ai = require('../services/aiService');
+const notificationService = require('../services/notificationService');
+const User = require('../models/User');
 
 // ==========================================
 // PUBLIC CONTROLLERS (No Login Required)
@@ -137,6 +139,36 @@ exports.submitApplication = async (req, res) => {
         // 3. Increment Stats using $inc for reliability
         await Job.findByIdAndUpdate(jobId, { $inc: { applications: 1 } });
         console.log(`[METRICS] Incremented applications for job: ${jobId}`);
+
+        // 4. Send Notifications
+        // To Candidate
+        await notificationService.sendNotification({
+            recipientId: req.user._id,
+            templateName: 'application_received',
+            data: { candidateName: req.user.name, jobTitle: job.title },
+            type: 'SYSTEM'
+        });
+
+        // To HR (Target the specific HR who posted the job, with fallback)
+        let hrId = job.postedBy;
+        if (!hrId) {
+            const fallbackHr = await User.findOne({ role: 'hr', department: job.department }) || await User.findOne({ role: 'hr' });
+            hrId = fallbackHr ? fallbackHr._id : null;
+        }
+
+        if (hrId) {
+            await notificationService.sendNotification({
+                recipientId: hrId,
+                senderId: req.user._id,
+                templateName: 'hr_new_application',
+                data: {
+                    candidateName: req.user.name,
+                    jobTitle: job.title,
+                    yearsExperience: yearsExperience
+                },
+                type: 'HR'
+            });
+        }
 
         res.status(201).json({ success: true, data: application });
     } catch (error) {
@@ -280,6 +312,37 @@ exports.updateApplicationStatus = async (req, res) => {
         }
 
         await application.save();
+
+        // 5. Send Status Notifications to Candidate
+        const templateMap = {
+            'shortlisted': 'shortlisted',
+            'rejected': 'rejected',
+            'interview_scheduled': 'interview_scheduled'
+        };
+
+        if (templateMap[status]) {
+            const job = await Job.findById(application.job);
+            const notificationData = {
+                candidateName: application.candidateName,
+                jobTitle: job.title
+            };
+
+            // Add interview details if applicable
+            if (status === 'interview_scheduled' && application.interviewDate) {
+                const dateObj = new Date(application.interviewDate);
+                notificationData.date = dateObj.toLocaleDateString();
+                notificationData.time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            await notificationService.sendNotification({
+                recipientId: application.candidate,
+                senderId: req.user._id,
+                templateName: templateMap[status],
+                data: notificationData,
+                type: 'HR'
+            });
+        }
+
         res.json({ success: true, data: application });
     } catch (error) {
         console.error('[CONTROLLER ERROR] updateApplicationStatus:', error);

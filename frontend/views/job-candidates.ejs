@@ -277,6 +277,14 @@
                                                     <td>
                                                         <a href="/api/applications/application/<%= candidate._id %>/view"
                                                             class="btn btn-sm">View Profile</a>
+                                                        <% if (candidate.status !=='rejected' && candidate.status
+                                                            !=='hired' && candidate.assessmentStatus !=='completed' &&
+                                                            job.requireAssessment) { %>
+                                                            <button class="btn btn-sm btn-secondary"
+                                                                onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>')">
+                                                                Invite to Assessment
+                                                            </button>
+                                                            <% } %>
                                                     </td>
                                                 </tr>
                                                 <% }); %>
@@ -287,6 +295,108 @@
 
             </div>
         </div>
+
+        <!-- Assessment Invitation Modal -->
+        <div id="message-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Send Assessment Invite: <span id="modal-candidate-name"></span></h2>
+                    <button class="close-btn" onclick="closeInviteModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 15px; font-size: 0.9rem; color: var(--text-muted);">
+                        This will send a notification to the candidate with instructions to start their scenario
+                        assessment.
+                    </p>
+                    <input type="hidden" id="template-select" value="assessment_invite">
+                </div>
+                <div class="form-group">
+                    <label>Message Preview</label>
+                    <div id="message-preview" class="template-preview">
+                        Select a template to see a preview...
+                    </div>
+                </div>
+                <div class="modal-actions"
+                    style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
+                    <button class="btn btn-block" id="send-btn" onclick="sendMessage()" disabled>Send
+                        Invitation</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let currentCandidateId = null;
+            let currentCandidateName = null;
+            let templates = [];
+            const jobTitle = "<%= job.title %>";
+
+            async function openInviteModal(candidateId, candidateName) {
+                currentCandidateId = candidateId;
+                currentCandidateName = candidateName;
+                document.getElementById('modal-candidate-name').textContent = candidateName;
+                document.getElementById('message-modal').classList.add('active');
+
+                // Load template for preview
+                if (templates.length === 0) {
+                    try {
+                        const res = await fetch('/api/notifications/templates');
+                        const data = await res.json();
+                        if (data.success) {
+                            templates = data.data;
+                        }
+                    } catch (err) { console.error(err); }
+                }
+
+                const template = templates.find(t => t.name === 'assessment_invite');
+                if (template) {
+                    let body = template.body;
+                    body = body.replace(/{{candidateName}}/g, currentCandidateName);
+                    body = body.replace(/{{jobTitle}}/g, jobTitle);
+                    document.getElementById('message-preview').textContent = body;
+                    document.getElementById('send-btn').disabled = false;
+                }
+            }
+
+            function closeInviteModal() {
+                document.getElementById('message-modal').classList.remove('active');
+            }
+
+            async function sendMessage() {
+                const sendBtn = document.getElementById('send-btn');
+                try {
+                    sendBtn.disabled = true;
+                    sendBtn.textContent = 'Sending...';
+
+                    const response = await fetch('/api/notifications/send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recipientId: currentCandidateId,
+                            templateName: 'assessment_invite',
+                            data: {
+                                candidateName: currentCandidateName,
+                                jobTitle: jobTitle
+                            }
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Notification sent successfully!');
+                        closeMessageModal();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                } catch (err) {
+                    console.error('Failed to send notification:', err);
+                    alert('Failed to send notification.');
+                } finally {
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send Message';
+                }
+            }
+        </script>
 </body>
 
 </html>

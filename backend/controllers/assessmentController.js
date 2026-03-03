@@ -4,6 +4,9 @@ const Question = require('../models/Question');
 const ChatSession = require('../models/ChatSession');
 const chatService = require('../services/chatService');
 const aiService = require('../services/aiService');
+const notificationService = require('../services/notificationService');
+const User = require('../models/User');
+const Job = require('../models/Job');
 
 // Helper to sanitize skill names for Mongoose Map keys (no dots allowed)
 const sanitizeSkill = (skill) => {
@@ -549,6 +552,27 @@ exports.finalizeAssessment = async (req, res) => {
         session.status = 'completed';
         session.completedAt = new Date();
         await session.save();
+
+        // 7. Send Notification to HR (Target the specific HR who posted the job, with fallback)
+        let hrId = application.job ? application.job.postedBy : null;
+        if (!hrId) {
+            const fallbackHr = await User.findOne({ role: 'hr', department: application.job?.department }) || await User.findOne({ role: 'hr' });
+            hrId = fallbackHr ? fallbackHr._id : null;
+        }
+
+        if (hrId) {
+            await notificationService.sendNotification({
+                recipientId: hrId,
+                senderId: session.user,
+                templateName: 'hr_assessment_complete',
+                data: {
+                    candidateName: application.candidateName,
+                    jobTitle: application.job.title,
+                    score: Math.round(weightedScore)
+                },
+                type: 'HR'
+            });
+        }
 
         res.json({
             success: true,

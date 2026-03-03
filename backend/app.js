@@ -60,12 +60,15 @@ app.use((req, res, next) => {
     next();
 });
 
+const notificationRoutes = require('./routes/notificationRoutes');
+
 // Mount routers
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // View Routes
 app.get('/', (req, res) => res.redirect('/login'));

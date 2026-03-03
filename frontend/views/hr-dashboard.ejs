@@ -63,24 +63,47 @@
                             <p>Loading jobs...</p>
                         </div>
                     </div>
+
+                    <!-- Pagination -->
+                    <div id="pagination-container" class="pagination-wrapper mt-40"
+                        style="display: flex; justify-content: center; gap: 10px; align-items: center;">
+                        <!-- Buttons will be injected here -->
+                    </div>
                 </div>
             </div>
         </div>
 
         <script>
-            let allJobs = [];
+            let currentPage = 1;
+            const limit = 6;
+            let totalPages = 1;
             let currentFilter = 'all';
 
             // Fetch jobs on load
-            async function loadJobs() {
+            async function loadJobs(page = 1) {
                 try {
-                    const response = await fetch('/api/jobs');
+                    currentPage = page;
+                    const params = new URLSearchParams({
+                        page,
+                        limit,
+                        status: currentFilter === 'all' ? '' : currentFilter
+                    });
+
+                    const response = await fetch(`/api/jobs?${params.toString()}`);
                     const data = await response.json();
 
                     if (data.success) {
-                        allJobs = data.data;
-                        updateStats();
-                        renderJobs();
+                        totalPages = data.totalPages;
+                        // Special: We need all jobs for the stats overview, or a separate stats endpoint
+                        // Since stats are global, we might need to fetch them once elsewhere
+                        // For now, let's just update the list results
+                        renderJobs(data.data, data.totalJobs);
+                        renderPagination();
+
+                        document.getElementById('total-jobs').textContent = data.totalJobs;
+                        document.getElementById('active-jobs').textContent = data.overview.activeCount;
+                        document.getElementById('total-applications').textContent = data.overview.totalApplications;
+                        document.getElementById('pending-reviews').textContent = data.overview.totalAssessmentsCompleted;
                     }
                 } catch (error) {
                     console.error('Error loading jobs:', error);
@@ -92,26 +115,10 @@
                 }
             }
 
-            function updateStats() {
-                const totalJobs = allJobs.length;
-                const activeJobs = allJobs.filter(j => j.status === 'active').length;
-                const totalApplications = allJobs.reduce((sum, j) => sum + (j.applications || 0), 0);
-                const pendingReviews = allJobs.reduce((sum, j) => sum + (j.assessmentsCompleted || 0), 0);
-
-                document.getElementById('total-jobs').textContent = totalJobs;
-                document.getElementById('active-jobs').textContent = activeJobs;
-                document.getElementById('total-applications').textContent = totalApplications;
-                document.getElementById('pending-reviews').textContent = pendingReviews;
-            }
-
-            function renderJobs() {
-                const filteredJobs = currentFilter === 'all'
-                    ? allJobs
-                    : allJobs.filter(j => j.status === currentFilter);
-
+            function renderJobs(jobs, totalCount) {
                 const jobList = document.getElementById('job-list');
 
-                if (filteredJobs.length === 0) {
+                if (jobs.length === 0) {
                     jobList.innerHTML = `
                     <div class="empty-state">
                         <p>No jobs found. Create your first job posting!</p>
@@ -120,7 +127,7 @@
                     return;
                 }
 
-                jobList.innerHTML = filteredJobs.map(job => `
+                jobList.innerHTML = jobs.map(job => `
                 <div class="job-card">
                     <div class="job-card-header">
                         <span class="job-status status-${job.status}">${job.status.toUpperCase()}</span>
@@ -153,13 +160,38 @@
             `).join('');
             }
 
+            function renderPagination() {
+                const container = document.getElementById('pagination-container');
+                if (totalPages <= 1) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                let html = `
+                    <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})">
+                        <span>←</span> Prev
+                    </button>
+                    <div class="pagination-info">Page ${currentPage} of ${totalPages}</div>
+                    <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})">
+                        Next <span>→</span>
+                    </button>
+                `;
+                container.innerHTML = html;
+            }
+
+            function changePage(page) {
+                if (page < 1 || page > totalPages) return;
+                loadJobs(page);
+                window.scrollTo({ top: 300, behavior: 'smooth' }); // Scroll to table
+            }
+
             // Filter tabs
             document.querySelectorAll('.filter-tabs button').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentFilter = btn.dataset.status;
-                    renderJobs();
+                    loadJobs(1); // Reset to first page
                 });
             });
 

@@ -16,7 +16,7 @@
     "express",
     "mongodb"
   ],
-  "author": "Antigravity",
+  "author": "SBASP Team",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",

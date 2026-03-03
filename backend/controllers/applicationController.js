@@ -25,10 +25,19 @@ exports.getPublicJobs = async (req, res) => {
         if (department) query.department = department;
         if (location) query.location = { $regex: location, $options: 'i' };
 
-        // 2. Fetch Jobs
+        // 2. Fetch Jobs with Pagination
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 6;
+        const skip = (page - 1) * limit;
+
+        const totalJobs = await Job.countDocuments(query);
+        const totalPages = Math.ceil(totalJobs / limit);
+
         const jobs = await Job.find(query)
             .select('-description -companyDescription') // Keep network payload small
             .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
             .lean();
 
         // 3. Application State (If user is logged in, show 'Applied' status)
@@ -45,7 +54,14 @@ exports.getPublicJobs = async (req, res) => {
             }));
         }
 
-        res.json({ success: true, count: results.length, data: results });
+        res.json({
+            success: true,
+            count: results.length,
+            totalJobs,
+            totalPages,
+            currentPage: page,
+            data: results
+        });
     } catch (error) {
         console.error('[CONTROLLER ERROR] getPublicJobs:', error);
         res.status(500).json({ success: false, error: 'Internal Server Error' });

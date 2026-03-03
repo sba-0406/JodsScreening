@@ -147,8 +147,42 @@ exports.getJobs = async (req, res) => {
         // Identity filter: HR sees only their jobs
         if (req.user.role === 'hr') query.postedBy = req.user._id;
 
-        const jobs = await Job.find(query).populate('assessmentId').sort({ createdAt: -1 });
-        res.json({ success: true, count: jobs.length, data: jobs });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 6;
+        const skip = (page - 1) * limit;
+
+        const totalJobs = await Job.countDocuments(query);
+        const totalPages = Math.ceil(totalJobs / limit);
+
+        // Fetch Overview Stats (Total for the current HR user)
+        const statsQuery = req.user.role === 'hr' ? { postedBy: req.user._id } : {};
+        const overview = await Job.aggregate([
+            { $match: statsQuery },
+            {
+                $group: {
+                    _id: null,
+                    activeCount: { $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] } },
+                    totalApplications: { $sum: "$applications" },
+                    totalAssessmentsCompleted: { $sum: "$assessmentsCompleted" }
+                }
+            }
+        ]);
+
+        const jobs = await Job.find(query)
+            .populate('assessmentId')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        res.json({
+            success: true,
+            count: jobs.length,
+            totalJobs,
+            totalPages,
+            currentPage: page,
+            overview: overview[0] || { activeCount: 0, totalApplications: 0, totalAssessmentsCompleted: 0 },
+            data: jobs
+        });
     } catch (error) {
         console.error('[CONTROLLER ERROR] getJobs:', error);
         res.status(500).json({ success: false, error: 'Fetch failed' });

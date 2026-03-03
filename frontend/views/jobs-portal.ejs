@@ -47,20 +47,42 @@
                         <p>Loading jobs...</p>
                     </div>
                 </div>
+
+                <!-- Pagination -->
+                <div id="pagination-container" class="pagination-wrapper mt-40 mb-40"
+                    style="display: flex; justify-content: center; gap: 10px; align-items: center;">
+                    <!-- Buttons will be injected here -->
+                </div>
             </div>
         </div>
 
         <script>
-            let allJobs = [];
+            let currentPage = 1;
+            const limit = 6;
+            let totalPages = 1;
 
-            async function loadJobs() {
+            async function loadJobs(page = 1) {
                 try {
-                    const response = await fetch('/api/applications/jobs');
+                    currentPage = page;
+                    const search = document.getElementById('search').value;
+                    const location = document.getElementById('location').value;
+                    const department = document.getElementById('department').value;
+
+                    const params = new URLSearchParams({
+                        page,
+                        limit,
+                        search,
+                        location,
+                        department
+                    });
+
+                    const response = await fetch(`/api/applications/jobs?${params.toString()}`);
                     const data = await response.json();
 
                     if (data.success) {
-                        allJobs = data.data;
-                        renderJobs(allJobs);
+                        totalPages = data.totalPages;
+                        renderJobs(data.data, data.totalJobs);
+                        renderPagination();
                     }
                 } catch (error) {
                     console.error('Error loading jobs:', error);
@@ -73,11 +95,11 @@
                 }
             }
 
-            function renderJobs(jobs) {
+            function renderJobs(jobs, totalCount) {
                 const grid = document.getElementById('jobs-grid');
                 const count = document.getElementById('jobs-count');
 
-                count.textContent = `${jobs.length} job${jobs.length !== 1 ? 's' : ''} found`;
+                count.textContent = `${totalCount} job${totalCount !== 1 ? 's' : ''} found`;
 
                 if (jobs.length === 0) {
                     grid.innerHTML = `
@@ -116,26 +138,33 @@
             `).join('');
             }
 
+            function renderPagination() {
+                const container = document.getElementById('pagination-container');
+                if (totalPages <= 1) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                let html = `
+                    <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})">
+                        <span>←</span> Prev
+                    </button>
+                    <div class="pagination-info">Page ${currentPage} of ${totalPages}</div>
+                    <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})">
+                        Next <span>→</span>
+                    </button>
+                `;
+                container.innerHTML = html;
+            }
+
+            function changePage(page) {
+                if (page < 1 || page > totalPages) return;
+                loadJobs(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
             function searchJobs() {
-                const search = document.getElementById('search').value.toLowerCase();
-                const location = document.getElementById('location').value.toLowerCase();
-                const department = document.getElementById('department').value;
-
-                const filtered = allJobs.filter(job => {
-                    const matchesSearch = !search ||
-                        job.title.toLowerCase().includes(search) ||
-                        (job.description && job.description.toLowerCase().includes(search));
-
-                    const matchesLocation = !location ||
-                        job.location.toLowerCase().includes(location);
-
-                    const matchesDepartment = !department ||
-                        job.department === department;
-
-                    return matchesSearch && matchesLocation && matchesDepartment;
-                });
-
-                renderJobs(filtered);
+                loadJobs(1); // Reset to first page on new search
             }
 
             // Search on Enter key

@@ -41,5 +41,6 @@ router.post('/refine-content', jobController.refineContent);
 // Analytics
 router.get('/:id/analytics', jobController.getJobAnalytics);
 router.get('/:id/candidates', jobController.getJobCandidates);
+router.get('/:id/pool-insights', jobController.getPoolInsights);
 
 module.exports = router;

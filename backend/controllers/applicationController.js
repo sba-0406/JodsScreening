@@ -5,6 +5,41 @@ const notificationService = require('../services/notificationService');
 const User = require('../models/User');
 
 // ==========================================
+// UTILITY FUNCTIONS (Internal)
+// ==========================================
+
+/**
+ * @desc Calculate a weighted match score for a candidate
+ * @param {Object} application - Application model instance
+ * @param {Object} job - Job model instance with rankingWeights
+ * @returns {Number} - Score from 0-100
+ */
+const calculateMatchScore = (application, job) => {
+    const weights = job.rankingWeights || { technicalWeight: 0.4, softSkillWeight: 0.3, experienceWeight: 0.3 };
+
+    // 1. Technical Score (0-100)
+    const techScore = application.assessmentResults?.technicalScore || 0;
+
+    // 2. Soft Skill Score (0-100)
+    const softScore = application.assessmentResults?.softSkillScore || 0;
+
+    // 3. Experience Score (0-100)
+    // Formula: (Experience / Job Max Experience) * 100, capped at 100
+    // If Job Max Experience is not set, use a fixed ceiling of 10 years
+    const maxExp = job.experienceMax || 10;
+    const expScore = Math.min((application.yearsExperience / maxExp) * 100, 100);
+
+    // 4. Final Weighted Calculation
+    const finalScore =
+        (techScore * weights.technicalWeight) +
+        (softScore * weights.softSkillWeight) +
+        (expScore * weights.experienceWeight);
+
+    return Math.round(finalScore);
+};
+exports.calculateMatchScore = calculateMatchScore;
+
+// ==========================================
 // PUBLIC CONTROLLERS (No Login Required)
 // ==========================================
 

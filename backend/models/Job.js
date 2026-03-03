@@ -65,6 +65,12 @@ const JobSchema = new mongoose.Schema({
             default: false
         }
     },
+    // Ranking Weights (for Backend Intelligence)
+    rankingWeights: {
+        technicalWeight: { type: Number, default: 0.4 }, // 40%
+        softSkillWeight: { type: Number, default: 0.3 }, // 30%
+        experienceWeight: { type: Number, default: 0.3 }  // 30%
+    },
 
     // Assessment Reference
     assessmentId: {

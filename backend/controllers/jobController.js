@@ -4,6 +4,7 @@ const Application = require('../models/Application');
 const Question = require('../models/Question');
 const aiService = require('../services/aiService');
 const { generateAssessment } = require('../services/assessmentGeneratorService');
+const { calculateMatchScore } = require('./applicationController');
 
 // ==========================================
 // JOB MANAGEMENT (HR Actions)
@@ -528,22 +529,25 @@ exports.getJobAnalytics = async (req, res) => {
 };
 
 /**
- * @desc    Fetch and sort candidates for a specific job
+ * @desc    Fetch, rank, and sort candidates for a specific job
  * @route   GET /api/jobs/:id/candidates
  */
 exports.getJobCandidates = async (req, res) => {
     try {
-        const { status, sort } = req.query;
+        const { status } = req.query;
         const query = { job: req.params.id };
         if (status) query.status = status;
 
-        const sortOption = sort === 'score' ? { 'assessmentResults.weightedScore': -1 } :
-            sort === 'name' ? { candidateName: 1 } : { appliedAt: -1 };
+        const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
 
-        const candidates = await Application.find(query).sort(sortOption).populate('job', 'title');
+        // Fetch all candidates and compute match scores
+        const rawCandidates = await Application.find(query).lean();
+        const candidates = rawCandidates
+            .map(c => ({ ...c, matchScore: calculateMatchScore(c, job) }))
+            .sort((a, b) => b.matchScore - a.matchScore); // Rank by score by default
 
         if (req.headers.accept?.includes('text/html')) {
-            const job = await Job.findById(req.params.id);
             return res.render('job-candidates.ejs', { title: 'Candidates', job, candidates, user: req.user });
         }
 
@@ -551,6 +555,64 @@ exports.getJobCandidates = async (req, res) => {
     } catch (error) {
         console.error('[CONTROLLER ERROR] getJobCandidates:', error);
         res.status(500).json({ success: false, error: 'Fetch failed' });
+    }
+};
+
+/**
+ * @desc    Get statistical pool insights for a job using aggregation
+ * @route   GET /api/jobs/:id/pool-insights
+ */
+exports.getPoolInsights = async (req, res) => {
+    try {
+        const jobId = req.params.id;
+
+        const insights = await Application.aggregate([
+            { $match: { job: require('mongoose').Types.ObjectId.createFromHexString(jobId), assessmentStatus: 'completed' } },
+            {
+                $group: {
+                    _id: null,
+                    totalCandidates: { $sum: 1 },
+                    avgTechScore: { $avg: '$assessmentResults.technicalScore' },
+                    avgSoftScore: { $avg: '$assessmentResults.softSkillScore' },
+                    avgWeightedScore: { $avg: '$assessmentResults.weightedScore' },
+                    avgExperience: { $avg: '$yearsExperience' },
+                    highPotentialCount: {
+                        $sum: { $cond: [{ $eq: ['$assessmentResults.overallFit', 'High Potential'] }, 1, 0] }
+                    },
+                    strongFitCount: {
+                        $sum: { $cond: [{ $eq: ['$assessmentResults.overallFit', 'Strong Fit'] }, 1, 0] }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    totalCandidates: 1,
+                    avgTechScore: { $round: ['$avgTechScore', 1] },
+                    avgSoftScore: { $round: ['$avgSoftScore', 1] },
+                    avgWeightedScore: { $round: ['$avgWeightedScore', 1] },
+                    avgExperience: { $round: ['$avgExperience', 1] },
+                    highPotentialCount: 1,
+                    strongFitCount: 1
+                }
+            }
+        ]);
+
+        const statusBreakdown = await Application.aggregate([
+            { $match: { job: require('mongoose').Types.ObjectId.createFromHexString(jobId) } },
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                poolStats: insights[0] || { totalCandidates: 0 },
+                statusBreakdown: statusBreakdown.reduce((acc, s) => ({ ...acc, [s._id]: s.count }), {})
+            }
+        });
+    } catch (error) {
+        console.error('[CONTROLLER ERROR] getPoolInsights:', error);
+        res.status(500).json({ success: false, error: 'Aggregation failed' });
     }
 };
 // @desc    Add a manual technical question to an assessment

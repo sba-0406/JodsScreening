@@ -207,6 +207,31 @@
                     <a href="/api/jobs/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
                 </div>
 
+                <!-- Pool Insights Bar -->
+                <div id="pool-insights-bar" class="card"
+                    style="padding: 16px 24px; margin-bottom: 20px; display: none;">
+                    <p
+                        style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;">
+                        📊 Pool Intelligence — Candidates Who Completed Assessment</p>
+                    <div style="display: flex; gap: 32px; flex-wrap: wrap;">
+                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--primary-color);"
+                                id="pi-avg-score">—</span><br><small style="color:var(--text-muted)">Avg. Weighted
+                                Score</small></div>
+                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--secondary-color);"
+                                id="pi-avg-tech">—</span><br><small style="color:var(--text-muted)">Avg. Technical
+                                Score</small></div>
+                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--success);"
+                                id="pi-avg-soft">—</span><br><small style="color:var(--text-muted)">Avg. Soft Skill
+                                Score</small></div>
+                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--warning);"
+                                id="pi-avg-exp">—</span><br><small style="color:var(--text-muted)">Avg. Experience
+                                (yrs)</small></div>
+                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--info);"
+                                id="pi-high-pot">—</span><br><small style="color:var(--text-muted)">High
+                                Potential</small></div>
+                    </div>
+                </div>
+
                 <!-- Candidates Table -->
                 <div class="card" style="padding: 0; overflow: hidden;">
                     <table class="candidates-table">
@@ -219,13 +244,15 @@
                                 <th><a href="?sort=score" style="color: inherit; text-decoration: none;">Score ↕</a>
                                 </th>
                                 <th>Fit</th>
+                                <th title="Weighted by Tech (40%), Soft Skills (30%), Experience (30%)">Match Rank 🎯
+                                </th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% if (candidates.length===0) { %>
                                 <tr>
-                                    <td colspan="6" class="empty-state" style="color: var(--text-muted);">
+                                    <td colspan="7" class="empty-state" style="color: var(--text-muted);">
                                         No candidates found for this position yet.
                                     </td>
                                 </tr>
@@ -272,6 +299,25 @@
                                                             </span>
                                                             <% } else { %>
                                                                 <span style="color: var(--text-muted);">—</span>
+                                                                <% } %>
+                                                    </td>
+                                                    <td>
+                                                        <% if (candidate.matchScore> 0) { %>
+                                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                                <div
+                                                                    style="flex:1; background: var(--border); border-radius: 4px; height: 6px; overflow:hidden;">
+                                                                    <div
+                                                                        style="width:<%= candidate.matchScore %>%; height:100%; background: <%= candidate.matchScore >= 70 ? 'var(--success)' : candidate.matchScore >= 50 ? 'var(--warning)' : 'var(--danger)' %>; border-radius: 4px;">
+                                                                    </div>
+                                                                </div>
+                                                                <span
+                                                                    style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); min-width: 32px;">
+                                                                    <%= candidate.matchScore %>%
+                                                                </span>
+                                                            </div>
+                                                            <% } else { %>
+                                                                <span
+                                                                    style="color: var(--text-muted); font-size: 0.8rem;">Pending</span>
                                                                 <% } %>
                                                     </td>
                                                     <td>
@@ -330,6 +376,24 @@
             let currentCandidateName = null;
             let templates = [];
             const jobTitle = "<%= job.title %>";
+            const jobId = "<%= job._id %>";
+
+            // Auto-fetch pool insights on page load
+            (async () => {
+                try {
+                    const res = await fetch(`/api/jobs/${jobId}/pool-insights`);
+                    const data = await res.json();
+                    if (data.success && data.data.poolStats.totalCandidates > 0) {
+                        const s = data.data.poolStats;
+                        document.getElementById('pi-avg-score').textContent = `${s.avgWeightedScore || '—'}%`;
+                        document.getElementById('pi-avg-tech').textContent = `${s.avgTechScore || '—'}%`;
+                        document.getElementById('pi-avg-soft').textContent = `${s.avgSoftScore || '—'}%`;
+                        document.getElementById('pi-avg-exp').textContent = `${s.avgExperience || '—'} yrs`;
+                        document.getElementById('pi-high-pot').textContent = `${s.highPotentialCount || 0} / ${s.totalCandidates}`;
+                        document.getElementById('pool-insights-bar').style.display = 'block';
+                    }
+                } catch (e) { console.warn('Pool insights unavailable'); }
+            })();
 
             async function openInviteModal(candidateId, candidateName) {
                 currentCandidateId = candidateId;

@@ -1,69 +1,5 @@
 const aiService = require('./aiService');
 
-// 1. ARCHETYPES (Hardcoded Goals)
-const ARCHETYPES = {
-  MANAGER: [
-    { type: 'CRISIS', goal: 'De-escalate panic and provide a clear recovery plan.', intensity: 'High' },
-    { type: 'NEGOTIATION', goal: 'Retain a high-value employee who wants to resign.', intensity: 'Medium' },
-    { type: 'PERFORMANCE', goal: 'Deliver negative feedback to a defensive employee.', intensity: 'Medium' }
-  ],
-  DEVELOPER: [
-    { type: 'TECHNICAL_DISPUTE', goal: 'Advocate for a technical decision against a stubborn senior.', intensity: 'High' },
-    { type: 'SAVING_PROJECT', goal: 'Convince a PM to cut scope to meet a deadline.', intensity: 'Medium' }
-  ]
-};
-
-// 2. Persona Generator
-exports.generatePersona = async (role) => {
-  const archetype = { type: 'GENERAL', goal: `Excel as a ${role}`, intensity: 'Medium', role };
-
-  const prompt = `System Design: Persona Generation.
-Create a detailed persona for a professional simulation.
-Target User Role: ${role}
-
-Generate a character who will OPPOSE the user.
-- Name: A realistic corporate name.
-- Role: Who are they?
-- Mood: Their initial emotional state.
-- Mission Briefing:
-    - Situation: A specific challenge relevant to ${role}.
-    - Objective: What must the user achieve?
-    - Stakes: Consequences of failure.
-- FirstMessage: An opening line that establishes the problem.
-
-Return ONLY valid JSON:
-{
-  "name": "Name",
-  "role": "Job Title",
-  "mood": "Adjective",
-  "briefing": {
-    "situation": "Context description",
-    "objective": "Clear goal",
-    "stakes": "Consequences"
-  },
-  "firstMessage": "Opening line"
-}`;
-
-  const fallback = {
-    name: "Alex Reed",
-    role: "Stakeholder",
-    mood: "Concerned",
-    briefing: {
-      situation: "There is a misunderstanding regarding project priorities.",
-      objective: "Clarify the situation and regain alignment.",
-      stakes: "Project delay and loss of trust."
-    },
-    firstMessage: "I'm not sure we're on the same page about this deadline."
-  };
-
-  try {
-    const text = await aiService.generateContent(prompt);
-    const data = aiService.extractJSON(text);
-    return { ...data, archetype };
-  } catch (e) {
-    return fallback;
-  }
-};
 
 // 3. The Actor (Chat Response)
 exports.generateResponse = async (history, persona, userRole) => {
@@ -135,7 +71,7 @@ Return ONLY valid JSON:
 // MULTI-SCENARIO DOJO SYSTEM
 // ========================================
 
-const { getCompetenciesForRole } = require('../config/roleCompetencies');
+
 
 // Scenario templates for each role (3 scenarios per role)
 const SCENARIO_TEMPLATES = {

@@ -44,7 +44,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../frontend/views'));
 
-const dojoRoutes = require('./routes/dojoRoutes');
+
 const authRoutes = require('./routes/authRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
@@ -66,7 +66,6 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/dojo', dojoRoutes);
 
 // View Routes
 app.get('/', (req, res) => res.redirect('/login'));

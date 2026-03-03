@@ -88,12 +88,13 @@ exports.startAssessment = async (req, res) => {
                             'Sales': 'Sales Director',
                             'Customer Success': 'Client Success Manager'
                         };
-                        const stakeholderRole = s.stakeholder || themeToRole[s.softSkill] || `${s.softSkill} Lead`;
+                        const skillName = s.softSkill || s.theme || 'General';
+                        const stakeholderRole = s.stakeholder || themeToRole[skillName] || `${skillName} Lead`;
                         return {
                             scenarioNumber: i + 1,
                             stakeholder: stakeholderRole,
                             theme: s.theme,
-                            softSkill: s.softSkill,
+                            softSkill: skillName,
                             description: s.prompt,
                             status: 'pending'
                         };
@@ -334,20 +335,8 @@ exports.respondToScenario = async (req, res) => {
         const currentScenario = session.scenarioProgress.scenarios[currentScenarioIndex];
 
         let userMessage = String(message || '').trim();
-        let approach = 'Results';
+        //let approach = 'Results';
 
-        /*
-        // DEPRECATED: Initial MCQ fetch for scenario
-        if (!userMessage && !mcqChoice) {
-            const mcqOptions = await chatService.generateMCQOptions(...);
-            return res.json({ ... });
-        }
-        */
-
-        /*
-        // DEPRECATED: MCQ Choice handling
-        if (mcqChoice) { ... }
-        */
 
         // --- NEW DYNAMIC EVALUATION ---
         // 1. Analyze user response using AI Judge
@@ -382,12 +371,6 @@ exports.respondToScenario = async (req, res) => {
         session.messages.push({ sender: 'user', text: userMessage });
         session.messages.push({ sender: 'ai', text: aiResponseText });
 
-        /*
-        // DEPRECATED: Persona response and MCQ generation
-        const history = ...
-        const personaResponse = ...
-        const mcqOptions = ...
-        */
 
         // Turn limit per scenario in assessment
         const MAX_TURNS = 3;
@@ -403,7 +386,6 @@ exports.respondToScenario = async (req, res) => {
             data: {
                 message: aiResponseText,
                 worldState: Object.fromEntries(session.worldState),
-                mcqOptions: [], // DEPRECATED
                 isResolved: isScenarioOver,
                 isLastScenario: isLastScenario && isScenarioOver
             }

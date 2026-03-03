@@ -277,6 +277,7 @@ async function regenerateTechnicalQuestions(assessmentId, config = {}) {
 }
 
 module.exports = {
+    generateAssessment,
     regenerateScenarios,
     regenerateSingleScenario,
     regenerateTechnicalQuestions,

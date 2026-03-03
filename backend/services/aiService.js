@@ -1,25 +1,5 @@
 const Groq = require('groq-sdk');
 
-// Advanced Prompt Templates
-const SUMMARIZE_TEMPLATE = `
-Analyze the following professional simulation transcript. 
-Extract 3-5 concise, evidence-based bullet points of what the user DID.
-Focus on actions, specific decisions, and tone.
-Example: 'Used a collaborative tone when unblocking developers.'
-Transcript:
-`;
-
-const IMPACT_ANALYZE_TEMPLATE = (role) => `
-You are a Senior Executive evaluating a ${role}. Analyse the transcript.
-Return ONLY a JSON object:
-{
-  "scores": [
-    { "competency": "string", "score": number, "evidence": "string" }
-  ],
-  "overallFeedback": "string"
-}
-Transcript:
-`;
 
 const extractJSON = (text) => {
     try {
@@ -329,67 +309,13 @@ class SmartMockAIService {
                 }
             ]);
         }
-        /* 
-        // DEPRECATED: Static MCQ Options are replaced by free-text evaluation
-        if (lower.includes('leadership approaches') || lower.includes('mcq options') || lower.includes('leadership options') || lower.includes('generate 3 options')) {
-            return JSON.stringify([
-                {
-                    text: "I understand your perspective and want to collaborate on a solution.",
-                    approach: "Relationship",
-                    moodDelta: 10,
-                    scores: { competency1: 85, competency2: 80, competency3: 75, competency4: 70, competency5: 80, competency6: 75 }
-                },
-                {
-                    text: "Let's focus on the data and project milestones to resolve this efficiently.",
-                    approach: "Results",
-                    moodDelta: 5,
-                    scores: { competency1: 70, competency2: 85, competency3: 80, competency4: 90, competency5: 75, competency6: 80 }
-                },
-                {
-                    text: "We need to maintain professional standards and clear boundaries in this situation.",
-                    approach: "Boundary",
-                    moodDelta: 15,
-                    scores: { competency1: 75, competency2: 70, competency3: 90, competency4: 80, competency5: 85, competency6: 90 }
-                }
-            ]);
-        }
-        */
         return JSON.stringify({
-            competency1: 75,
-            competency2: 70,
-            competency3: 80,
-            competency4: 65,
-            competency5: 70,
-            competency6: 75,
             totalScore: 7,
             reasoning: "Mock evaluation.",
             confidence: 0.8,
             evidence: ["Maintained a constructive tone."],
             overallFeedback: "Solid foundation shown."
         });
-    }
-
-    async summarize(text) {
-        return ["Communicated clearly with stakeholders.", "Identified root cause effectively.", "Balanced technical needs with business goals."];
-    }
-
-    async analyzeImpact(transcript, role) {
-        return {
-            scores: [
-                { competency: "Decision Making", score: 8, evidence: "Promptly chose a path forward." },
-                { competency: "Communication", score: 7, evidence: "Professional tone throughout." }
-            ],
-            overallFeedback: "Strong performance with clear leadership potential."
-        };
-    }
-
-    async scoreTextResponse(userText, prompt, rubricCriteria) {
-        return {
-            totalScore: 7,
-            confidence: 0.8,
-            evidence: ["Demonstrated clarity in communication."],
-            breakdown: []
-        };
     }
 }
 
@@ -483,35 +409,6 @@ class ResilientAIService {
             fallback[skill] = await this.mock.generateTechnicalQuestions(skill, count, difficulty);
         }
         return fallback;
-    }
-
-    async summarize(text) {
-        try {
-            const res = await this.generateContent(SUMMARIZE_TEMPLATE + text);
-            if (this.activeSource.provider === 'Smart Mock') return this.mock.summarize(text);
-            return res.split('\n').filter(l => l.trim().length > 0).map(s => s.replace(/^[- \d.]+/, '').trim());
-        } catch (e) { return this.mock.summarize(text); }
-    }
-
-    async analyzeImpact(transcript, role) {
-        try {
-            const res = await this.generateContent(IMPACT_ANALYZE_TEMPLATE(role) + transcript, true);
-            if (this.activeSource.provider === 'Smart Mock') return this.mock.analyzeImpact(transcript, role);
-            const data = extractJSON(res);
-            if (!data.scores) data.scores = [];
-            return data;
-        } catch (e) { return this.mock.analyzeImpact(transcript, role); }
-    }
-
-    async scoreTextResponse(userText, prompt, rubricCriteria) {
-        const criteriaText = rubricCriteria.map(c => `- ${c.criterion} (${c.maxPoints} pts)`).join('\n');
-        const p = `Score this response:\nPROMPT: ${prompt}\nRESPONSE: ${userText}\nRUBRIC:\n${criteriaText}\nReturn JSON with totalScore, confidence, evidence, breakdown.`;
-
-        try {
-            const res = await this.generateContent(p, true);
-            if (this.activeSource.provider === 'Smart Mock') return this.mock.scoreTextResponse(userText, prompt, rubricCriteria);
-            return extractJSON(res);
-        } catch (e) { return this.mock.scoreTextResponse(userText, prompt, rubricCriteria); }
     }
 
     async generateCandidateSummary(candidateName, jobTitle, assessmentResults) {

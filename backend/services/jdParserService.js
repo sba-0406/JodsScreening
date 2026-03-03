@@ -47,6 +47,7 @@ Guidelines:
 - Domain skills: Industry knowledge (HR, Finance, Healthcare, etc.)
 - Business skills: Sales, analytics, strategy
 - Weights must sum to 1.0
+-seniorityLevel: Junior, Mid, Senior, Lead (Based on the job description,experience required)
 - For IC roles: higher technical weight (0.7-0.8)
 - For Manager roles: balanced (0.4-0.5 technical, 0.3-0.4 soft)
 - For Sales/CS roles: lower technical (0.1-0.2), higher soft (0.6-0.8)`;
@@ -126,7 +127,7 @@ EXACT STRUCTURE (no extra fields):
     {
       "softSkill": "The EXACT name of the soft skill from the list (e.g. '${softSkills[0]}')",
       "theme": "A short, catchy title for the situation",
-      "stakeholder": "The specific job title of the person the candidate is speaking with (e.g. 'Project Manager', 'Lead Designer', 'VP of Sales')",
+      "stakeholder": "The specific job title of the person the candidate of job title or role type ${jobTitle || roleType} is speaking with (e.g. 'Project Manager', 'Lead Designer', 'VP of Sales')",
       "prompt": "A specific, realistic workplace challenge explicitly designed to test THIS skill. Be detailed and role-specific.",
       "applicableRoles": ["${roleType}"]
     }

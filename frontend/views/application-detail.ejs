@@ -107,22 +107,26 @@
                                     </div>
                                     <div class="cbar-item">
                                         <span class="cbar-label">Experience</span>
-                                        <span class="cbar-value">
+                                        <span
+                                            class="cbar-value <%= (application.job.experienceMin !== undefined && application.yearsExperience < application.job.experienceMin) ? 'text-danger' : '' %>">
                                             <%= application.yearsExperience || 0 %> Years
                                                 <% if (application.job.experienceMin !==undefined) { %>
                                                     <% if (application.yearsExperience < application.job.experienceMin)
                                                         { %>
-                                                        <span class="elig-no">⚠️ Under Min (<%=
-                                                                application.job.experienceMin %>y)</span>
+                                                        <span class="elig-no"
+                                                            style="color: var(--danger); font-size: 0.75rem; margin-left: 8px;">⚠️
+                                                            Under Min (<%= application.job.experienceMin %>y)</span>
                                                         <% } else { %>
-                                                            <span class="elig-yes">✓ Meets Requirement</span>
+                                                            <span class="elig-yes"
+                                                                style="color: var(--success); font-size: 0.75rem; margin-left: 8px;">✓
+                                                                Meets Requirement</span>
                                                             <% } %>
                                                                 <% } %>
                                         </span>
                                     </div>
                                     <div style="margin-left: auto;">
                                         <% if (application.resume) { %>
-                                            <a href="/<%= application.resume %>" target="_blank"
+                                            <a href="<%= application.resume %>" target="_blank"
                                                 class="btn-sm btn-secondary">
                                                 📄 View Resume
                                             </a>
@@ -137,198 +141,292 @@
 
                                     <!-- Progress Steps Section -->
                                     <div style="padding: 40px 32px;">
-                                        <h2 class="details-section-title" style="margin-bottom: 32px;">Application
-                                            Progress</h2>
+                                        <!-- Performance Benchmarking (Candidate Only) -->
+                                        <% if (user.role==='candidate' && application.assessmentStatus==='completed' ) {
+                                            %>
+                                            <div id="benchmark-panel"
+                                                style="margin-bottom: 40px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 16px; padding: 32px; display: none;">
+                                                <div
+                                                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                                                    <div>
+                                                        <h3
+                                                            style="color: #0369a1; margin: 0 0 8px; font-size: 1.25rem;">
+                                                            🚀 Performance Insight</h3>
+                                                        <p style="color: #0c4a6e; margin: 0; font-size: 0.95rem;">See
+                                                            how you rank against the applicant pool for this role.</p>
+                                                    </div>
+                                                    <span
+                                                        style="background: #0ea5e9; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Real-time
+                                                        Data</span>
+                                                </div>
 
-                                        <div class="steps-vertical">
-                                            <!-- Step 1: Application Submitted -->
-                                            <div class="step-v-item completed">
-                                                <div class="step-v-icon">✓</div>
-                                                <div class="step-v-content">
-                                                    <h4>Application Submitted</h4>
-                                                    <p>We've received your application and resume. Our team has been
-                                                        notified.</p>
+                                                <div class="grid-adaptive"
+                                                    style="grid-template-columns: 1fr 1.5fr; gap: 32px; align-items: center;">
+                                                    <div
+                                                        style="text-align: center; border-right: 1px solid #bae6fd; padding-right: 32px;">
+                                                        <div style="font-size: 3rem; font-weight: 900; color: #0284c7; line-height: 1;"
+                                                            id="bench-percentile">—</div>
+                                                        <div
+                                                            style="font-size: 0.75rem; font-weight: 700; color: #0369a1; text-transform: uppercase; margin-top: 8px;">
+                                                            Percentile Rank</div>
+                                                    </div>
+                                                    <div>
+                                                        <p
+                                                            style="color: #0c4a6e; font-size: 0.95rem; line-height: 1.6; margin: 0;">
+                                                            You performed better than <strong
+                                                                id="bench-percent-text">—</strong> of candidates who
+                                                            completed this assessment.
+                                                            Your score of <strong>
+                                                                <%= application.assessmentResults.weightedScore %>%
+                                                            </strong> is
+                                                            <span id="bench-vs-avg">—</span> the pool average (<span
+                                                                id="bench-avg-score">—</span>%).
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <% } %>
 
-                                            <!-- Step 2: Assessment -->
-                                            <% if (application.job.requireAssessment) { %>
-                                                <% let assessmentStatusClass='' ; let assessmentIcon='2' ; if
-                                                    (application.assessmentStatus==='completed' ) {
-                                                    assessmentStatusClass='completed' ; assessmentIcon='✓' ; } else if
-                                                    (application.assessmentStatus==='pending' ||
-                                                    application.assessmentStatus==='in_progress' ) {
-                                                    assessmentStatusClass='active' ; } %>
-                                                    <div class="step-v-item <%= assessmentStatusClass %>">
-                                                        <div class="step-v-icon">
-                                                            <%= assessmentIcon %>
-                                                        </div>
+                                                <h2 class="details-section-title" style="margin-bottom: 32px;">
+                                                    Application
+                                                    Progress</h2>
+
+                                                <div class="steps-vertical">
+                                                    <!-- Step 1: Application Submitted -->
+                                                    <div class="step-v-item completed">
+                                                        <div class="step-v-icon">✓</div>
                                                         <div class="step-v-content">
-                                                            <h4>Skills Assessment</h4>
-                                                            <p>Evaluate your technical and role-specific competencies
-                                                                through our AI simulation.</p>
-
-                                                            <% if (application.assessmentStatus==='pending' ||
-                                                                application.assessmentStatus==='in_progress' ) { %>
-                                                                <div
-                                                                    style="margin-top: 20px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 24px;">
-                                                                    <h5
-                                                                        style="color: var(--primary-color); margin: 0 0 10px; font-size: 1.1rem;">
-                                                                        Assessment Ready</h5>
-                                                                    <p style="margin-bottom: 20px;">This simulation will
-                                                                        take approximately 30-45 minutes. You can resume
-                                                                        if you get interrupted.</p>
-                                                                    <a href="/api/assessment/assessment/<%= application._id %>"
-                                                                        class="btn">
-                                                                        <%= application.assessmentStatus==='in_progress'
-                                                                            ? 'Resume Assessment' : 'Start Assessment'
-                                                                            %>
-                                                                    </a>
-                                                                </div>
-                                                                <% } else if (application.assessmentStatus==='completed'
-                                                                    ) { %>
-                                                                    <div class="details-section-card"
-                                                                        style="margin-top: 24px; background: #f8fafc; padding: 24px;">
-                                                                        <div
-                                                                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                                                                            <h5
-                                                                                style="margin: 0; font-size: 1.1rem; color: var(--text-main);">
-                                                                                Assessment Scorecard</h5>
-                                                                            <div style="text-align: right;">
-                                                                                <div
-                                                                                    style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
-                                                                                    Overall Fit</div>
-                                                                                <div
-                                                                                    style="font-size: 1.25rem; font-weight: 800; color: var(--primary-color);">
-                                                                                    <%= application.assessmentResults.overallFit
-                                                                                        %>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div class="grid-adaptive"
-                                                                            style="grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
-                                                                            <div
-                                                                                style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-                                                                                <div
-                                                                                    style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">
-                                                                                    TECHNICAL</div>
-                                                                                <div
-                                                                                    style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
-                                                                                    <%= application.assessmentResults.technicalScore
-                                                                                        %>%
-                                                                                </div>
-                                                                            </div>
-                                                                            <div
-                                                                                style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-                                                                                <div
-                                                                                    style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">
-                                                                                    SOFT SKILLS</div>
-                                                                                <div
-                                                                                    style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
-                                                                                    <%= application.assessmentResults.softSkillScore
-                                                                                        %>%
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <!-- AI Summary (HR/Admin only) -->
-                                                                        <% if (user.role==='hr' || user.role==='admin' )
-                                                                            { %>
-                                                                            <div
-                                                                                style="border-top: 1px solid var(--border); padding-top: 20px;">
-                                                                                <div id="ai-summary-container"
-                                                                                    style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px;">
-                                                                                    <% if (application.reviewNotes) { %>
-                                                                                        <p
-                                                                                            style="color: #78350f; font-size: 0.88rem; line-height: 1.6; margin: 0;">
-                                                                                            <strong>AI Performance
-                                                                                                Insight:</strong>
-                                                                                            <%= application.reviewNotes
-                                                                                                %>
-                                                                                        </p>
-                                                                                        <% } else { %>
-                                                                                            <p
-                                                                                                style="color: var(--text-muted); font-style: italic; font-size: 0.88rem; margin: 0;">
-                                                                                                Click below to generate
-                                                                                                a detailed AI
-                                                                                                performance summary.</p>
-                                                                                            <% } %>
-                                                                                </div>
-                                                                                <button onclick="generateAISummary()"
-                                                                                    class="btn-sm btn-secondary"
-                                                                                    id="btn-ai-summary"
-                                                                                    style="margin-top: 12px; width: 100%;">
-                                                                                    ✨ Generate AI Performance Summary
-                                                                                </button>
-                                                                            </div>
-                                                                            <% } %>
-                                                                    </div>
-                                                                    <% } %>
+                                                            <h4>Application Submitted</h4>
+                                                            <p>We've received your application and resume. Our team has
+                                                                been
+                                                                notified.</p>
                                                         </div>
                                                     </div>
-                                                    <% } %>
 
-                                                        <!-- Step 3: Interview -->
-                                                        <% let interviewClass='' ; let interviewIcon='3' ; if
-                                                            (application.status==='interview_scheduled' ||
-                                                            application.status==='hired' ) { interviewClass='completed'
-                                                            ; interviewIcon='✓' ; } else if
-                                                            (application.status==='shortlisted' ) {
-                                                            interviewClass='active' ; } %>
-                                                            <div class="step-v-item <%= interviewClass %>">
+                                                    <!-- Step 2: Assessment -->
+                                                    <% if (application.job.requireAssessment) { %>
+                                                        <% let assessmentStatusClass='' ; let assessmentIcon='2' ; if
+                                                            (application.assessmentStatus==='completed' ) {
+                                                            assessmentStatusClass='completed' ; assessmentIcon='✓' ; }
+                                                            else if (application.assessmentStatus==='pending' ||
+                                                            application.assessmentStatus==='in_progress' ) {
+                                                            assessmentStatusClass='active' ; } %>
+                                                            <div class="step-v-item <%= assessmentStatusClass %>">
                                                                 <div class="step-v-icon">
-                                                                    <%= interviewIcon %>
+                                                                    <%= assessmentIcon %>
                                                                 </div>
                                                                 <div class="step-v-content">
-                                                                    <h4>Interview</h4>
-                                                                    <p>Shortlisted candidates will be invited for a
-                                                                        face-to-face or virtual interview with the team.
-                                                                    </p>
-                                                                    <% if (application.interviewDate) { %>
+                                                                    <h4>Skills Assessment</h4>
+                                                                    <p>Evaluate your technical and role-specific
+                                                                        competencies
+                                                                        through our AI simulation.</p>
+
+                                                                    <% if (application.assessmentStatus==='pending' ||
+                                                                        application.assessmentStatus==='in_progress' ) {
+                                                                        %>
                                                                         <div
-                                                                            style="margin-top: 10px; background: #f0fdf4; border: 1px solid #bcfecb; color: #16a34a; padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; font-weight: 600;">
-                                                                            📅 Scheduled for: <%=
-                                                                                application.interviewDate %>
+                                                                            style="margin-top: 20px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 24px;">
+                                                                            <h5
+                                                                                style="color: var(--primary-color); margin: 0 0 10px; font-size: 1.1rem;">
+                                                                                Assessment Ready</h5>
+                                                                            <p style="margin-bottom: 20px;">This
+                                                                                simulation will
+                                                                                take approximately 30-45 minutes. You
+                                                                                can resume
+                                                                                if you get interrupted.</p>
+                                                                            <a href="/api/assessment/assessment/<%= application._id %>"
+                                                                                class="btn">
+                                                                                <%= application.assessmentStatus==='in_progress'
+                                                                                    ? 'Resume Assessment'
+                                                                                    : 'Start Assessment' %>
+                                                                            </a>
                                                                         </div>
-                                                                        <% } %>
+                                                                        <% } else if
+                                                                            (application.assessmentStatus==='completed'
+                                                                            ) { %>
+                                                                            <div class="details-section-card"
+                                                                                style="margin-top: 24px; background: #f8fafc; padding: 24px;">
+                                                                                <div
+                                                                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                                                                                    <h5
+                                                                                        style="margin: 0; font-size: 1.1rem; color: var(--text-main);">
+                                                                                        Assessment Scorecard</h5>
+                                                                                    <div style="text-align: right;">
+                                                                                        <div
+                                                                                            style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
+                                                                                            Overall Fit</div>
+                                                                                        <div
+                                                                                            style="font-size: 1.25rem; font-weight: 800; color: var(--primary-color);">
+                                                                                            <%= application.assessmentResults.overallFit
+                                                                                                %>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div class="grid-adaptive"
+                                                                                    style="grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                                                                                    <div
+                                                                                        style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                                                                                        <div
+                                                                                            style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">
+                                                                                            TECHNICAL</div>
+                                                                                        <div
+                                                                                            style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
+                                                                                            <%= application.assessmentResults.technicalScore
+                                                                                                %>%
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div
+                                                                                        style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                                                                                        <div
+                                                                                            style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">
+                                                                                            SOFT SKILLS</div>
+                                                                                        <div
+                                                                                            style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
+                                                                                            <%= application.assessmentResults.softSkillScore
+                                                                                                %>%
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <!-- AI Summary (HR/Admin only) -->
+                                                                                <% if (user.role==='hr' ||
+                                                                                    user.role==='admin' ) { %>
+                                                                                    <div
+                                                                                        style="border-top: 1px solid var(--border); padding-top: 20px;">
+                                                                                        <div id="ai-summary-container"
+                                                                                            style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px;">
+                                                                                            <% if
+                                                                                                (application.reviewNotes)
+                                                                                                { %>
+                                                                                                <p
+                                                                                                    style="color: #78350f; font-size: 0.88rem; line-height: 1.6; margin: 0;">
+                                                                                                    <strong>AI
+                                                                                                        Performance
+                                                                                                        Insight:</strong>
+                                                                                                    <%= application.reviewNotes
+                                                                                                        %>
+                                                                                                </p>
+                                                                                                <% } else { %>
+                                                                                                    <p
+                                                                                                        style="color: var(--text-muted); font-style: italic; font-size: 0.88rem; margin: 0;">
+                                                                                                        Click below to
+                                                                                                        generate
+                                                                                                        a detailed AI
+                                                                                                        performance
+                                                                                                        summary.</p>
+                                                                                                    <% } %>
+                                                                                        </div>
+                                                                                        <button
+                                                                                            onclick="generateAISummary()"
+                                                                                            class="btn-sm btn-secondary"
+                                                                                            id="btn-ai-summary"
+                                                                                            style="margin-top: 12px; width: 100%;">
+                                                                                            ✨ Generate AI Performance
+                                                                                            Summary
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    <% } %>
+                                                                            </div>
+                                                                            <% } %>
                                                                 </div>
                                                             </div>
+                                                            <% } %>
 
-                                                            <!-- Step 4: Decision -->
-                                                            <% let decisionClass='' ; let decisionIcon='4' ; if
-                                                                (application.status==='rejected' ||
-                                                                application.status==='hired' ) {
-                                                                decisionClass='completed' ; decisionIcon='✓' ; } %>
-                                                                <div class="step-v-item <%= decisionClass %>">
-                                                                    <div class="step-v-icon">
-                                                                        <%= decisionIcon %>
+                                                                <!-- Step 3: Interview -->
+                                                                <% let interviewClass='' ; let interviewIcon='3' ; if
+                                                                    (application.status==='interview_scheduled' ||
+                                                                    application.status==='hired' ) {
+                                                                    interviewClass='completed' ; interviewIcon='✓' ; }
+                                                                    else if (application.status==='shortlisted' ) {
+                                                                    interviewClass='active' ; } %>
+                                                                    <div class="step-v-item <%= interviewClass %>">
+                                                                        <div class="step-v-icon">
+                                                                            <%= interviewIcon %>
+                                                                        </div>
+                                                                        <div class="step-v-content">
+                                                                            <h4>Interview</h4>
+                                                                            <p>Shortlisted candidates will be invited
+                                                                                for a
+                                                                                face-to-face or virtual interview with
+                                                                                the team.
+                                                                            </p>
+                                                                            <% if (application.interviewDate) { %>
+                                                                                <div
+                                                                                    style="margin-top: 10px; background: #f0fdf4; border: 1px solid #bcfecb; color: #16a34a; padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; font-weight: 600;">
+                                                                                    📅 Scheduled for: <%=
+                                                                                        application.interviewDate %>
+                                                                                </div>
+                                                                                <% } %>
+                                                                        </div>
                                                                     </div>
-                                                                    <div class="step-v-content">
-                                                                        <h4>Final Decision</h4>
-                                                                        <% if (application.status==='rejected' ) { %>
-                                                                            <p
-                                                                                style="color: #ef4444; font-weight: 600;">
-                                                                                Application Declined. We appreciate your
-                                                                                interest and wish you the best in your
-                                                                                search.</p>
-                                                                            <% } else if (application.status==='hired' )
-                                                                                { %>
-                                                                                <p
-                                                                                    style="color: #22c55e; font-weight: 600;">
-                                                                                    Congratulations! We are excited to
-                                                                                    offer you the position. Our team
-                                                                                    will reach out with the next steps.
-                                                                                </p>
-                                                                                <% } else { %>
-                                                                                    <p>We'll notify you of the final
-                                                                                        outcome after all rounds are
-                                                                                        complete.</p>
-                                                                                    <% } %>
-                                                                    </div>
-                                                                </div>
-                                        </div>
+
+                                                                    <!-- Step 4: Decision -->
+                                                                    <% let decisionClass='' ; let decisionIcon='4' ; if
+                                                                        (application.status==='rejected' ||
+                                                                        application.status==='hired' ) {
+                                                                        decisionClass='completed' ; decisionIcon='✓' ; }
+                                                                        %>
+                                                                        <div class="step-v-item <%= decisionClass %>">
+                                                                            <div class="step-v-icon">
+                                                                                <%= decisionIcon %>
+                                                                            </div>
+                                                                            <div class="step-v-content">
+                                                                                <h4>Final Decision</h4>
+                                                                                <% if (application.status==='rejected' )
+                                                                                    { %>
+                                                                                    <p
+                                                                                        style="color: #ef4444; font-weight: 600;">
+                                                                                        Application Declined. We
+                                                                                        appreciate your
+                                                                                        interest and wish you the best
+                                                                                        in your
+                                                                                        search.</p>
+                                                                                    <% } else if
+                                                                                        (application.status==='hired' )
+                                                                                        { %>
+                                                                                        <p
+                                                                                            style="color: #22c55e; font-weight: 600;">
+                                                                                            Congratulations! We are
+                                                                                            excited to
+                                                                                            offer you the position. Our
+                                                                                            team
+                                                                                            will reach out with the next
+                                                                                            steps.
+                                                                                        </p>
+                                                                                        <% } else { %>
+                                                                                            <p>We'll notify you of the
+                                                                                                final
+                                                                                                outcome after all rounds
+                                                                                                are
+                                                                                                complete.</p>
+                                                                                            <% } %>
+                                                                            </div>
+                                                                        </div>
+                                                </div>
                                     </div>
+
+                                    <!-- Lifecycle Audit (HR/Admin Only) -->
+                                    <% if (user.role==='hr' || user.role==='admin' ) { %>
+                                        <div
+                                            style="padding: 0 32px 40px; border-top: 1px solid var(--border); margin-top: 40px;">
+                                            <h3
+                                                style="margin: 40px 0 20px; font-size: 1.1rem; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                                                📜 Application Lifecycle Audit
+                                                <span
+                                                    style="font-size: 0.7rem; background: var(--border); padding: 2px 8px; border-radius: 4px; color: var(--text-muted); font-weight: 700;">Immutable
+                                                    Log</span>
+                                            </h3>
+                                            <div id="audit-trail-container"
+                                                style="background: #fcfcfc; border: 1px solid var(--border); border-radius: 12px; max-height: 400px; overflow-y: auto;">
+                                                <div style="padding: 20px; text-align: center; color: var(--text-muted);"
+                                                    id="audit-loading">
+                                                    Fetching security logs...
+                                                </div>
+                                                <div id="audit-trail-list"></div>
+                                            </div>
+                                        </div>
+                                        <% } %>
                         </div>
 
                         <!-- Back link -->
@@ -464,6 +562,73 @@
                     else alert('Error: ' + data.error);
                 } catch (e) { alert('Failed to send.'); }
                 finally { btn.disabled = false; btn.innerText = 'Send Invitation'; }
+            }
+
+            // --- BENCHMARKING LOGIC ---
+            if ("<%= user.role %>" === 'candidate' && "<%= application.assessmentStatus %>" === 'completed') {
+                (async function loadBenchmark() {
+                    try {
+                        const res = await fetch(`/api/applications/application/<%= application._id %>/benchmark`);
+                        const data = await res.json();
+                        if (data.success) {
+                            const { percentile, avgScore, myScore } = data.data;
+                            document.getElementById('bench-percentile').textContent = `${percentile}th`;
+                            document.getElementById('bench-percent-text').textContent = `${percentile}%`;
+                            document.getElementById('bench-avg-score').textContent = avgScore;
+
+                            const panel = document.getElementById('benchmark-panel');
+                            const vsAvg = document.getElementById('bench-vs-avg');
+
+                            if (myScore > avgScore) {
+                                vsAvg.innerHTML = `<span style="color: #16a34a; font-weight: 700;">${myScore - avgScore}% above</span>`;
+                            } else if (myScore < avgScore) {
+                                vsAvg.innerHTML = `<span style="color: #dc2626; font-weight: 700;">${avgScore - myScore}% below</span>`;
+                            } else {
+                                vsAvg.innerHTML = `<span style="color: var(--text-muted); font-weight: 700;">equal to</span>`;
+                            }
+
+                            panel.style.display = 'block';
+                        }
+                    } catch (e) { console.error('Benchmark failed to load:', e); }
+                })();
+            }
+
+            // --- AUDIT TRAIL LOGIC (HR/Admin) ---
+            if ("<%= user.role %>" === 'hr' || "<%= user.role %>" === 'admin') {
+                (async function loadAuditTrail() {
+                    try {
+                        const res = await fetch(`/api/system/audit?entityId=<%= application._id %>&entityType=application`);
+                        const data = await res.json();
+                        const container = document.getElementById('audit-trail-list');
+                        const loader = document.getElementById('audit-loading');
+
+                        if (data.success) {
+                            loader.style.display = 'none';
+                            if (data.data.length === 0) {
+                                container.innerHTML = '<div style="padding: 20px; text-align: center; font-size: 0.9rem; color: var(--text-muted);">No recorded audit events.</div>';
+                                return;
+                            }
+
+                            container.innerHTML = data.data.map(log => `
+                            <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 15px; align-items: flex-start;">
+                                <div style="min-width: 45px; height: 45px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                                    ${log.action === 'create' ? '✨' : log.action === 'status_change' ? '🔄' : '🤖'}
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main);">
+                                        ${log.action.replace(/_/g, ' ').toUpperCase()}
+                                    </div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 6px;">
+                                        Performed by <b>${log.performer?.name || 'System'}</b> (${log.performerRole}) • ${new Date(log.timestamp).toLocaleString()}
+                                    </div>
+                                    ${log.newState ? `<div style="font-size: 0.8rem; background: #f8fafc; padding: 4px 8px; border-radius: 4px; display: inline-block; border: 1px solid #e2e8f0;">New State: <b>${log.newState}</b></div>` : ''}
+                                    ${log.metadata?.notes ? `<div style="font-size: 0.8rem; margin-top: 6px; color: var(--text-muted); font-style: italic;">"${log.metadata.notes}"</div>` : ''}
+                                </div>
+                            </div>
+                        `).join('');
+                        }
+                    } catch (e) { console.error('Audit trail failed:', e); }
+                })();
             }
         </script>
 </body>

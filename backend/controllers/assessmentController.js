@@ -7,6 +7,7 @@ const aiService = require('../services/aiService');
 const notificationService = require('../services/notificationService');
 const User = require('../models/User');
 const Job = require('../models/Job');
+const { logAction } = require('../utils/auditLogger');
 
 // Helper to sanitize skill names for Mongoose Map keys (no dots allowed)
 const sanitizeSkill = (skill) => {
@@ -110,6 +111,15 @@ exports.startAssessment = async (req, res) => {
             // Update application status
             application.assessmentStatus = 'in_progress';
             await application.save();
+
+            // Audit Log: assessment started
+            await logAction({
+                entityType: 'application',
+                entityId: application._id,
+                action: 'assessment_started',
+                req,
+                metadata: { sessionId: session._id }
+            });
         }
 
         res.render('dojo-assessment', {
@@ -246,32 +256,35 @@ exports.submitMCQAnswer = async (req, res) => {
         // Update question statistics (usageCount, avgScore)
         await question.recordUsage(isCorrect);
 
-        // Save answer with skill
-        session.mcqAnswers.push({
-            questionId: question._id,
-            answerIndex: parseInt(answerIndex),
-            isCorrect,
-            skill: question.skill
-        });
+        // Atomic Update to prevent race conditions during rapid clicking
+        const updatedSession = await ChatSession.findByIdAndUpdate(
+            sessionId,
+            {
+                $push: {
+                    mcqAnswers: {
+                        questionId: question._id,
+                        answerIndex: parseInt(answerIndex),
+                        isCorrect,
+                        skill: question.skill
+                    }
+                },
+                $inc: { currentMCQIndex: 1 },
+                $set: {
+                    [`skillScores.${sanitizeSkill(question.skill)}`]: (session.skillScores.get(sanitizeSkill(question.skill)) || 0) + (isCorrect ? 10 : 0)
+                }
+            },
+            { new: true }
+        );
 
-        // Track technical score with sanitized skill
-        if (isCorrect) {
-            const skillName = sanitizeSkill(question.skill);
-            const currentScore = session.skillScores.get(skillName) || 0;
-            session.skillScores.set(skillName, currentScore + 10); // Points per correct answer
-        }
-
-        session.currentMCQIndex += 1;
-
-        const totalMCQs = availableQuestions.length; // only count questions the candidate can answer
+        // Check if phase is complete
         let phaseComplete = false;
-        if (session.currentMCQIndex >= totalMCQs) {
-            session.assessmentPhase = 'SCENARIO';
+        if (updatedSession.currentMCQIndex >= totalMCQs) {
+            updatedSession.assessmentPhase = 'SCENARIO';
             phaseComplete = true;
 
-            // Initialize first scenario persona with a real stakeholder name
-            const firstScenario = session.scenarioProgress.scenarios[0];
-            session.persona = {
+            // Initialize first scenario persona
+            const firstScenario = updatedSession.scenarioProgress.scenarios[0];
+            updatedSession.persona = {
                 name: firstScenario.stakeholder,
                 role: firstScenario.stakeholder,
                 mood: 'Professional',
@@ -281,27 +294,29 @@ exports.submitMCQAnswer = async (req, res) => {
                     stakes: 'High'
                 }
             };
-            // Initialize worldState from simulationConfig.metrics (single source of truth)
-            const config = assessment.simulationConfig;
-            const metrics = (config && config.metrics && config.metrics.length > 0)
-                ? config.metrics
-                : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
-            const polarity = (config && config.metricPolarity)
-                ? Object.fromEntries(config.metricPolarity)
-                : Object.fromEntries(metrics.map(m => [m, 'high']));
 
-            // Set exactly these metrics at 50 — they stay fixed for ALL scenarios
-            const initialState = {};
-            metrics.forEach(m => initialState[m] = 50);
+            // Set initial world state if not already set
+            if (!updatedSession.worldState || updatedSession.worldState.size === 0) {
+                const config = assessment.simulationConfig;
+                const metrics = (config && config.metrics && config.metrics.length > 0)
+                    ? config.metrics
+                    : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
 
-            session.worldState = initialState;
-            session.metricPolarity = polarity;
+                const initialState = {};
+                metrics.forEach(m => initialState[m] = 50);
+                updatedSession.worldState = initialState;
+            }
+
+            await updatedSession.save(); // Phase change is okay as a save
         }
 
-        session.markModified('skillScores');
-        session.markModified('mcqAnswers');
-        session.markModified('worldState');
-        await session.save();
+        res.json({
+            success: true,
+            data: {
+                phaseComplete,
+                nextPhase: updatedSession.assessmentPhase
+            }
+        });
 
         res.json({
             success: true,
@@ -369,20 +384,41 @@ exports.respondToScenario = async (req, res) => {
 
         const aiResponseText = evaluation.feedback || "I understand. Let's see how this plays out.";
 
-        // Update session state
-        session.turnCount += 1;
-        session.messages.push({ sender: 'user', text: userMessage });
-        session.messages.push({ sender: 'ai', text: aiResponseText });
+        // Atomic update for message history and metrics
+        const updatedSession = await ChatSession.findByIdAndUpdate(
+            sessionId,
+            {
+                $push: {
+                    messages: {
+                        $each: [
+                            { sender: 'user', text: userMessage },
+                            { sender: 'ai', text: aiResponseText }
+                        ]
+                    }
+                },
+                $inc: { turnCount: 1 },
+                $set: {
+                    worldState: session.worldState // Already updated in-memory for simpler logic, but we could do more complex $inc here
+                }
+            },
+            { new: true }
+        );
 
+        // Map modified metrics back to session for UI logic
+        if (evaluation.deltas) {
+            for (const [metric, delta] of Object.entries(evaluation.deltas)) {
+                if (delta > 0) {
+                    const approach = 'Behavioral';
+                    updatedSession.skillScores.set(approach, (updatedSession.skillScores.get(approach) || 0) + delta);
+                }
+            }
+            await updatedSession.save(); // Save the skillScore update
+        }
 
         // Turn limit per scenario in assessment
         const MAX_TURNS = 3;
-        const isScenarioOver = (session.messages.length / 2) >= MAX_TURNS;
-        const isLastScenario = session.scenarioProgress.currentScenario >= session.scenarioProgress.totalScenarios;
-
-        session.markModified('worldState');
-        session.markModified('skillScores');
-        await session.save();
+        const isScenarioOver = (updatedSession.messages.length / 2) >= MAX_TURNS;
+        const isLastScenario = updatedSession.scenarioProgress.currentScenario >= updatedSession.scenarioProgress.totalScenarios;
 
         res.json({
             success: true,
@@ -540,6 +576,18 @@ exports.finalizeAssessment = async (req, res) => {
         };
         await application.save();
 
+        // Audit Log: assessment completed
+        await logAction({
+            entityType: 'application',
+            entityId: application._id,
+            action: 'assessment_completed',
+            req: { user: { _id: session.user, role: 'candidate' } }, // Manual req object for systemic log
+            metadata: {
+                weightedScore: application.assessmentResults.weightedScore,
+                overallFit: application.assessmentResults.overallFit
+            }
+        });
+
         // 6. Update Job Stats
         if (application.job) {
             const Job = require('../models/Job');
@@ -568,9 +616,11 @@ exports.finalizeAssessment = async (req, res) => {
                 data: {
                     candidateName: application.candidateName,
                     jobTitle: application.job.title,
-                    score: Math.round(weightedScore)
+                    score: Math.round(weightedScore),
+                    fit: overallFit
                 },
-                type: 'HR'
+                type: 'HR',
+                actionUrl: `/api/applications/application/${application._id}/view`
             });
         }
 

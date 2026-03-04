@@ -77,7 +77,7 @@
 
                 container.innerHTML = filtered.map(n => `
                 <div class="notification-full-item ${n.isRead ? '' : 'unread'}" 
-                     onclick="handleNotificationItemClick(event, '${n._id}', '${n.actionUrl}')"
+                     onclick="handleNotificationItemClick(event, '${n._id}', '${n.actionUrl || ''}')"
                      style="padding: 24px; border-bottom: 1px solid var(--border); transition: all 0.2s; cursor: pointer; position: relative; display: flex; gap: 20px; align-items: flex-start;">
                     
                     <div class="noti-indicator" style="width: 10px; height: 10px; border-radius: 50%; background: ${n.isRead ? 'transparent' : 'var(--primary-color)'}; margin-top: 8px; flex-shrink: 0;"></div>
@@ -107,7 +107,7 @@
                     await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
 
                     // If there's an action URL, navigate
-                    if (actionUrl) {
+                    if (actionUrl && actionUrl !== 'undefined' && actionUrl !== '') {
                         window.location.href = actionUrl;
                     } else {
                         loadNotifications(); // Refresh list to show as read

@@ -152,22 +152,25 @@ exports.getJobs = async (req, res) => {
         const limit = parseInt(req.query.limit) || 6;
         const skip = (page - 1) * limit;
 
-        const totalJobs = await Job.countDocuments(query);
-        const totalPages = Math.ceil(totalJobs / limit);
-
-        // Fetch Overview Stats (Total for the current HR user)
         const statsQuery = req.user.role === 'hr' ? { postedBy: req.user._id } : {};
-        const overview = await Job.aggregate([
-            { $match: statsQuery },
-            {
-                $group: {
-                    _id: null,
-                    activeCount: { $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] } },
-                    totalApplications: { $sum: "$applications" },
-                    totalAssessmentsCompleted: { $sum: "$assessmentsCompleted" }
+
+        // Parallelize total count and overview aggregation
+        const [totalJobs, overview] = await Promise.all([
+            Job.countDocuments(query),
+            Job.aggregate([
+                { $match: statsQuery },
+                {
+                    $group: {
+                        _id: null,
+                        activeCount: { $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] } },
+                        totalApplications: { $sum: "$applications" },
+                        totalAssessmentsCompleted: { $sum: "$assessmentsCompleted" }
+                    }
                 }
-            }
+            ])
         ]);
+
+        const totalPages = Math.ceil(totalJobs / limit);
 
         const jobs = await Job.find(query)
             .populate('assessmentId')
@@ -513,10 +516,55 @@ exports.getJobAnalytics = async (req, res) => {
                 });
             }
         });
-
         Object.keys(skillTotals).forEach(skill => {
             analyticsData.skillGapAnalysis[skill] = (skillTotals[skill] / skillCounts[skill]).toFixed(1);
         });
+
+        // --- Heuristic Insight Engine ---
+        const insights = [];
+        const rates = analyticsData.conversionRates;
+
+        // 1. Abandonment Heuristic
+        if (total > 3 && rates.applyToComplete < 40) {
+            insights.push({
+                type: 'warning',
+                title: 'High Abandonment Detected',
+                message: `Only ${rates.applyToComplete}% of applicants are completing the assessment. Consider reducing the number of scenarios or technical questions.`
+            });
+        }
+
+        // 2. High Quality Heuristic
+        if (completed > 2 && analyticsData.avgWeightedScore > 75) {
+            insights.push({
+                type: 'success',
+                title: 'High-Caliber Pool',
+                message: 'The current candidate pool is performing significantly above average. You may want to expedite the interview process for top scorers.'
+            });
+        }
+
+        // 3. Competency Gap Heuristic
+        const lowSkills = Object.entries(analyticsData.skillGapAnalysis)
+            .filter(([_, avg]) => avg < 50)
+            .map(([skill]) => skill);
+        if (lowSkills.length > 0) {
+            insights.push({
+                type: 'info',
+                title: 'Skill Gaps Identified',
+                message: `Candidates are struggling with: ${lowSkills.join(', ')}. You might need to provide extra training support or adjust role expectations.`
+            });
+        }
+
+        // 4. Volume Heuristic
+        const daysOpen = Math.floor((new Date() - new Date(job.createdAt)) / (1000 * 60 * 60 * 24));
+        if (daysOpen > 7 && total < 5 && job.status === 'active') {
+            insights.push({
+                type: 'info',
+                title: 'Low Applicant Volume',
+                message: 'This job has been open for over a week with fewer than 5 applications. Consider broadening the "Required Experience" or promoting the job on more channels.'
+            });
+        }
+
+        analyticsData.insights = insights;
 
         if (req.headers.accept?.includes('text/html')) {
             return res.render('job-analytics.ejs', { title: 'Analytics', job, analytics: analyticsData, user: req.user });
@@ -544,7 +592,10 @@ exports.getJobCandidates = async (req, res) => {
         // Fetch all candidates and compute match scores
         const rawCandidates = await Application.find(query).lean();
         const candidates = rawCandidates
-            .map(c => ({ ...c, matchScore: calculateMatchScore(c, job) }))
+            .map(c => {
+                const rank = calculateMatchScore(c, job);
+                return { ...c, matchScore: rank.score, matchMeta: rank };
+            })
             .sort((a, b) => b.matchScore - a.matchScore); // Rank by score by default
 
         if (req.headers.accept?.includes('text/html')) {

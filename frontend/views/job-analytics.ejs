@@ -294,116 +294,152 @@
                     </div>
                 </div>
 
-                <!-- Skill Proficiency -->
-                <div class="chart-section">
-                    <h2 class="chart-title">📊 Skill Proficiency Analysis <span
-                            style="font-weight:400; font-size:0.85rem; color: var(--text-muted);">(Aggregated across all
-                            candidates)</span></h2>
-                    <% if (analytics.skillGapAnalysis && Object.keys(analytics.skillGapAnalysis).length> 0) { %>
-                        <div class="skill-gap-list">
-                            <% Object.entries(analytics.skillGapAnalysis).forEach(([skill, avg])=> { %>
-                                <div class="skill-gap-item">
-                                    <div class="skill-name">
-                                        <%= skill %>
+                <!-- Actionable Pool Insights -->
+                <% if (analytics.insights && analytics.insights.length> 0) { %>
+                    <div class="chart-section"
+                        style="background: #f8fafc; border-left: 5px solid var(--primary-color);">
+                        <h2 class="chart-title" style="display: flex; align-items: center; gap: 10px;">
+                            <span>💡</span> Pool Recommendations & Key Findings
+                        </h2>
+                        <div
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                            <% analytics.insights.forEach(insight=> { %>
+                                <div
+                                    style="padding: 15px; border-radius: 10px; border: 1px solid var(--border); background: white;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <% if (insight.type==='warning' ) { %>
+                                            <span style="color: #f59e0b; font-size: 1.2rem;">⚠️</span>
+                                            <% } else if (insight.type==='success' ) { %>
+                                                <span style="color: #10b981; font-size: 1.2rem;">✅</span>
+                                                <% } else { %>
+                                                    <span
+                                                        style="color: var(--primary-color); font-size: 1.2rem;">ℹ️</span>
+                                                    <% } %>
+                                                        <b style="font-size: 0.95rem; color: var(--text-main);">
+                                                            <%= insight.title %>
+                                                        </b>
                                     </div>
-                                    <div class="skill-performance-bar">
-                                        <div class="skill-performance-fill" data-pct="<%= avg %>"></div>
-                                    </div>
-                                    <div class="skill-avg-label">
-                                        <%= avg %>%
-                                    </div>
+                                    <p
+                                        style="margin: 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                                        <%= insight.message %>
+                                    </p>
                                 </div>
                                 <% }) %>
                         </div>
-                        <% } else { %>
-                            <p style="color: var(--text-muted); text-align: center; padding: 2rem;">
-                                No skill data available yet. Data appears once candidates complete assessments.
-                            </p>
-                            <% } %>
-                </div>
-
-                <!-- Bottom: Score Distribution + Conversion -->
-                <div class="bottom-grid">
-
-                    <!-- Score Distribution -->
-                    <div class="chart-section">
-                        <h2 class="chart-title">📈 Score Distribution <span
-                                style="font-weight:400; font-size:0.85rem; color: var(--text-muted);">(Weighted)</span>
-                        </h2>
-                        <% const distro=analytics.scoreDistribution || {}; const values=Object.values(distro); const
-                            maxCount=values.length> 0 ? Math.max(...values, 1) : 1;
-                            %>
-                            <div class="bar-chart">
-                                <div class="bar-wrapper">
-                                    <div class="bar"
-                                        data-pct="<%= Math.max(((distro['<50'] || 0) / maxCount) * 100, 2) %>"
-                                        data-value="<%= distro['<50'] || 0 %>"></div>
-                                    <div class="bar-label">&lt;50</div>
-                                </div>
-                                <div class="bar-wrapper">
-                                    <div class="bar"
-                                        data-pct="<%= Math.max(((distro['50-70'] || 0) / maxCount) * 100, 2) %>"
-                                        data-value="<%= distro['50-70'] || 0 %>"></div>
-                                    <div class="bar-label">50–70</div>
-                                </div>
-                                <div class="bar-wrapper">
-                                    <div class="bar"
-                                        data-pct="<%= Math.max(((distro['70-85'] || 0) / maxCount) * 100, 2) %>"
-                                        data-value="<%= distro['70-85'] || 0 %>"></div>
-                                    <div class="bar-label">70–85</div>
-                                </div>
-                                <div class="bar-wrapper">
-                                    <div class="bar"
-                                        data-pct="<%= Math.max(((distro['>85'] || 0) / maxCount) * 100, 2) %>"
-                                        data-value="<%= distro['>85'] || 0 %>"></div>
-                                    <div class="bar-label">&gt;85</div>
-                                </div>
-                            </div>
                     </div>
+                    <% } %>
 
-                    <!-- Conversion Rates -->
-                    <div class="chart-section">
-                        <h2 class="chart-title">🔄 Conversion Rates</h2>
-                        <div class="conversion-funnel">
-                            <div class="funnel-step">
-                                <div class="funnel-label">Apply → Complete</div>
-                                <div class="funnel-bar">
-                                    <div class="funnel-fill"
-                                        data-pct="<%= analytics.conversionRates.applyToComplete %>"></div>
+                        <!-- Skill Proficiency -->
+                        <div class="chart-section">
+                            <h2 class="chart-title">📊 Skill Proficiency Analysis <span
+                                    style="font-weight:400; font-size:0.85rem; color: var(--text-muted);">(Aggregated
+                                    across all
+                                    candidates)</span></h2>
+                            <% if (analytics.skillGapAnalysis && Object.keys(analytics.skillGapAnalysis).length> 0) { %>
+                                <div class="skill-gap-list">
+                                    <% Object.entries(analytics.skillGapAnalysis).forEach(([skill, avg])=> { %>
+                                        <div class="skill-gap-item">
+                                            <div class="skill-name">
+                                                <%= skill %>
+                                            </div>
+                                            <div class="skill-performance-bar">
+                                                <div class="skill-performance-fill" data-pct="<%= avg %>"></div>
+                                            </div>
+                                            <div class="skill-avg-label">
+                                                <%= avg %>%
+                                            </div>
+                                        </div>
+                                        <% }) %>
                                 </div>
-                                <div class="funnel-value">
-                                    <%= analytics.conversionRates.applyToComplete %>%
-                                </div>
-                            </div>
-                            <div class="funnel-step">
-                                <div class="funnel-label">Complete → Shortlist</div>
-                                <div class="funnel-bar">
-                                    <div class="funnel-fill"
-                                        data-pct="<%= analytics.conversionRates.completeToShortlist %>"></div>
-                                </div>
-                                <div class="funnel-value">
-                                    <%= analytics.conversionRates.completeToShortlist %>%
-                                </div>
-                            </div>
+                                <% } else { %>
+                                    <p style="color: var(--text-muted); text-align: center; padding: 2rem;">
+                                        No skill data available yet. Data appears once candidates complete assessments.
+                                    </p>
+                                    <% } %>
                         </div>
 
-                        <div class="mini-metrics">
-                            <div class="mini-card">
-                                <div class="metric-label">Avg Tech Score</div>
-                                <div class="metric-value">
-                                    <%= analytics.avgTechnicalScore %>%
-                                </div>
-                            </div>
-                            <div class="mini-card">
-                                <div class="metric-label">Avg Soft Skill</div>
-                                <div class="metric-value">
-                                    <%= analytics.avgSoftSkillScore %>%
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        <!-- Bottom: Score Distribution + Conversion -->
+                        <div class="bottom-grid">
 
-                </div>
+                            <!-- Score Distribution -->
+                            <div class="chart-section">
+                                <h2 class="chart-title">📈 Score Distribution <span
+                                        style="font-weight:400; font-size:0.85rem; color: var(--text-muted);">(Weighted)</span>
+                                </h2>
+                                <% const distro=analytics.scoreDistribution || {}; const values=Object.values(distro);
+                                    const maxCount=values.length> 0 ? Math.max(...values, 1) : 1;
+                                    %>
+                                    <div class="bar-chart">
+                                        <div class="bar-wrapper">
+                                            <div class="bar"
+                                                data-pct="<%= Math.max(((distro['<50'] || 0) / maxCount) * 100, 2) %>"
+                                                data-value="<%= distro['<50'] || 0 %>"></div>
+                                            <div class="bar-label">&lt;50</div>
+                                        </div>
+                                        <div class="bar-wrapper">
+                                            <div class="bar"
+                                                data-pct="<%= Math.max(((distro['50-70'] || 0) / maxCount) * 100, 2) %>"
+                                                data-value="<%= distro['50-70'] || 0 %>"></div>
+                                            <div class="bar-label">50–70</div>
+                                        </div>
+                                        <div class="bar-wrapper">
+                                            <div class="bar"
+                                                data-pct="<%= Math.max(((distro['70-85'] || 0) / maxCount) * 100, 2) %>"
+                                                data-value="<%= distro['70-85'] || 0 %>"></div>
+                                            <div class="bar-label">70–85</div>
+                                        </div>
+                                        <div class="bar-wrapper">
+                                            <div class="bar"
+                                                data-pct="<%= Math.max(((distro['>85'] || 0) / maxCount) * 100, 2) %>"
+                                                data-value="<%= distro['>85'] || 0 %>"></div>
+                                            <div class="bar-label">&gt;85</div>
+                                        </div>
+                                    </div>
+                            </div>
+
+                            <!-- Conversion Rates -->
+                            <div class="chart-section">
+                                <h2 class="chart-title">🔄 Conversion Rates</h2>
+                                <div class="conversion-funnel">
+                                    <div class="funnel-step">
+                                        <div class="funnel-label">Apply → Complete</div>
+                                        <div class="funnel-bar">
+                                            <div class="funnel-fill"
+                                                data-pct="<%= analytics.conversionRates.applyToComplete %>"></div>
+                                        </div>
+                                        <div class="funnel-value">
+                                            <%= analytics.conversionRates.applyToComplete %>%
+                                        </div>
+                                    </div>
+                                    <div class="funnel-step">
+                                        <div class="funnel-label">Complete → Shortlist</div>
+                                        <div class="funnel-bar">
+                                            <div class="funnel-fill"
+                                                data-pct="<%= analytics.conversionRates.completeToShortlist %>"></div>
+                                        </div>
+                                        <div class="funnel-value">
+                                            <%= analytics.conversionRates.completeToShortlist %>%
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mini-metrics">
+                                    <div class="mini-card">
+                                        <div class="metric-label">Avg Tech Score</div>
+                                        <div class="metric-value">
+                                            <%= analytics.avgTechnicalScore %>%
+                                        </div>
+                                    </div>
+                                    <div class="mini-card">
+                                        <div class="metric-label">Avg Soft Skill</div>
+                                        <div class="metric-value">
+                                            <%= analytics.avgSoftSkillScore %>%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
             </div>
         </div>
 </body>

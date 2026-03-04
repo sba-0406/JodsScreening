@@ -3,6 +3,7 @@ const Application = require('../models/Application');
 const ai = require('../services/aiService');
 const notificationService = require('../services/notificationService');
 const User = require('../models/User');
+const { logAction } = require('../utils/auditLogger'); // Added import for auditLogger
 
 // ==========================================
 // UTILITY FUNCTIONS (Internal)
@@ -15,27 +16,50 @@ const User = require('../models/User');
  * @returns {Number} - Score from 0-100
  */
 const calculateMatchScore = (application, job) => {
-    const weights = job.rankingWeights || { technicalWeight: 0.4, softSkillWeight: 0.3, experienceWeight: 0.3 };
+    const weights = job.rankingWeights || { technicalWeight: 0.45, softSkillWeight: 0.40, experienceWeight: 0.15 };
+    const assessmentDone = application.assessmentStatus === 'completed';
 
-    // 1. Technical Score (0-100)
-    const techScore = application.assessmentResults?.technicalScore || 0;
+    // 1. Technical Score (0-100) — only if assessment completed
+    const techScore = assessmentDone ? (application.assessmentResults?.technicalScore || 0) : 0;
 
-    // 2. Soft Skill Score (0-100)
-    const softScore = application.assessmentResults?.softSkillScore || 0;
+    // 2. Soft Skill Score (0-100) — only if assessment completed
+    const softScore = assessmentDone ? (application.assessmentResults?.softSkillScore || 0) : 0;
 
-    // 3. Experience Score (0-100)
-    // Formula: (Experience / Job Max Experience) * 100, capped at 100
-    // If Job Max Experience is not set, use a fixed ceiling of 10 years
+    // 3. Experience Score — uses job's min/max range
+    const rawExp = Math.max(0, parseInt(application.yearsExperience) || 0); // Guard: negative/invalid → 0
+    const minExp = job.experienceMin || 0;
     const maxExp = job.experienceMax || 10;
-    const expScore = Math.min((application.yearsExperience / maxExp) * 100, 100);
+
+    let expScore;
+    if (rawExp >= minExp && rawExp <= maxExp) {
+        expScore = 100; // In range — perfect
+    } else if (rawExp > maxExp) {
+        expScore = 100; // Over-qualified — still valid, will be flagged in view
+    } else if (minExp > 0) {
+        // Under-qualified: proportional penalty (0–80% of max, capped)
+        expScore = Math.round((rawExp / minExp) * 80);
+    } else {
+        expScore = 0;
+    }
 
     // 4. Final Weighted Calculation
-    const finalScore =
-        (techScore * weights.technicalWeight) +
-        (softScore * weights.softSkillWeight) +
-        (expScore * weights.experienceWeight);
+    // If assessment not done, only experience component contributes
+    let finalScore;
+    if (!assessmentDone) {
+        finalScore = expScore * weights.experienceWeight;
+    } else {
+        finalScore =
+            (techScore * weights.technicalWeight) +
+            (softScore * weights.softSkillWeight) +
+            (expScore * weights.experienceWeight);
+    }
 
-    return Math.round(finalScore);
+    return {
+        score: Math.round(finalScore),
+        isPartial: !assessmentDone,
+        isOverQualified: rawExp > maxExp,
+        isUnderQualified: rawExp < minExp
+    };
 };
 exports.calculateMatchScore = calculateMatchScore;
 
@@ -67,22 +91,23 @@ exports.getPublicJobs = async (req, res) => {
         const limit = parseInt(req.query.limit) || 6;
         const skip = (page - 1) * limit;
 
-        const totalJobs = await Job.countDocuments(query);
+        // Fetch total count, jobs, and user's applied status in parallel
+        const [totalJobs, jobs, userApplications] = await Promise.all([
+            Job.countDocuments(query),
+            Job.find(query)
+                .select('-description -companyDescription')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            req.user ? Application.find({ candidate: req.user._id }).select('job').lean() : null
+        ]);
+
         const totalPages = Math.ceil(totalJobs / limit);
 
-        const jobs = await Job.find(query)
-            .select('-description -companyDescription') // Keep network payload small
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean();
-
-        // 3. Application State (If user is logged in, show 'Applied' status)
+        // Map application state
         let results = jobs;
-        if (req.user) {
-            const userApplications = await Application.find({ candidate: req.user._id })
-                .select('job')
-                .lean();
+        if (userApplications) {
             const appliedJobIds = new Set(userApplications.map(app => app.job.toString()));
 
             results = jobs.map(job => ({
@@ -149,6 +174,12 @@ exports.submitApplication = async (req, res) => {
         const { candidateName, candidateEmail, candidatePhone, yearsExperience, coverLetter } = req.body;
         const jobId = req.params.jobId;
 
+        // 1. Validate experience input
+        const parsedExp = parseInt(yearsExperience);
+        if (isNaN(parsedExp) || parsedExp < 0 || parsedExp > 60) {
+            return res.status(400).json({ success: false, error: 'Please enter a valid years of experience (0-60).' });
+        }
+
         // 1. Validation Logic
         const job = await Job.findById(jobId);
         if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
@@ -165,10 +196,25 @@ exports.submitApplication = async (req, res) => {
             candidateEmail,
             candidatePhone,
             yearsExperience: parseInt(yearsExperience),
-            resume: req.file ? req.file.path.replace(/\\/g, '/') : null, // Normalize file path for Windows
+            resume: req.file ? req.file.location : null,
+            // resume: req.file ? req.file.path.replace(/\\/g, '/') : null, // Normalize file path for Windows
             coverLetter,
             status: 'applied',
             assessmentStatus: job.requireAssessment ? 'pending' : 'not_required'
+        });
+        if (req.file) {
+            console.log("S3 Upload Success:", req.file.location);
+        } else {
+            console.log("No file uploaded");
+        }
+
+        // Audit Log: creation
+        await logAction({
+            entityType: 'application',
+            entityId: application._id,
+            action: 'create',
+            req,
+            metadata: { jobTitle: job.title }
         });
 
         // 3. Increment Stats using $inc for reliability
@@ -181,7 +227,8 @@ exports.submitApplication = async (req, res) => {
             recipientId: req.user._id,
             templateName: 'application_received',
             data: { candidateName: req.user.name, jobTitle: job.title },
-            type: 'SYSTEM'
+            type: 'SYSTEM',
+            actionUrl: '/api/applications/my-dashboard'
         });
 
         // To HR (Target the specific HR who posted the job, with fallback)
@@ -201,7 +248,8 @@ exports.submitApplication = async (req, res) => {
                     jobTitle: job.title,
                     yearsExperience: yearsExperience
                 },
-                type: 'HR'
+                type: 'HR',
+                actionUrl: `/api/jobs/${jobId}/candidates`
             });
         }
 
@@ -250,6 +298,63 @@ exports.getApplicationDetail = async (req, res) => {
     } catch (error) {
         console.error('[CONTROLLER ERROR] getApplicationDetail:', error);
         res.status(500).json({ success: false, error: 'Failed' });
+    }
+};
+
+/**
+ * @desc    Get benchmarking data for a candidate compared to the pool
+ * @route   GET /api/applications/application/:id/benchmark
+ */
+exports.getBenchmarkingData = async (req, res) => {
+    try {
+        const application = await Application.findById(req.params.id);
+        if (!application) return res.status(404).json({ success: false, error: 'Application not found' });
+
+        // Security: Only candidate or HR/Admin
+        if (application.candidate.toString() !== req.user._id.toString() && !['hr', 'admin'].includes(req.user.role)) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+
+        if (application.assessmentStatus !== 'completed') {
+            return res.status(400).json({ success: false, error: 'Assessment not completed' });
+        }
+
+        const myScore = application.assessmentResults.weightedScore;
+
+        // Aggregate pool data for the SAME JOB
+        const poolStats = await Application.aggregate([
+            { $match: { job: application.job, assessmentStatus: 'completed' } },
+            {
+                $group: {
+                    _id: null,
+                    avgScore: { $avg: '$assessmentResults.weightedScore' },
+                    total: { $sum: 1 },
+                    betterThan: {
+                        $sum: { $cond: [{ $lt: ['$assessmentResults.weightedScore', myScore] }, 1, 0] }
+                    }
+                }
+            }
+        ]);
+
+        if (!poolStats || poolStats.length === 0) {
+            return res.json({ success: true, data: { percentile: 100, avgScore: myScore, total: 1 } });
+        }
+
+        const stats = poolStats[0];
+        const percentile = stats.total > 1 ? Math.round((stats.betterThan / (stats.total - 1)) * 100) : 100;
+
+        res.json({
+            success: true,
+            data: {
+                percentile,
+                avgScore: Math.round(stats.avgScore),
+                totalPoolSize: stats.total,
+                myScore
+            }
+        });
+    } catch (error) {
+        console.error('[CONTROLLER ERROR] getBenchmarkingData:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch benchmark' });
     }
 };
 
@@ -329,6 +434,9 @@ exports.updateApplicationStatus = async (req, res) => {
         const application = await Application.findById(req.params.id);
         if (!application) return res.status(404).json({ success: false, error: 'Not found' });
 
+        // Store previous status for audit log
+        const prevStatus = application.status;
+
         // Update basic fields
         application.status = status;
         application.reviewNotes = notes || application.reviewNotes;
@@ -347,6 +455,17 @@ exports.updateApplicationStatus = async (req, res) => {
         }
 
         await application.save();
+
+        // Audit Log: status change
+        await logAction({
+            entityType: 'application',
+            entityId: application._id,
+            action: 'status_change',
+            previousState: prevStatus,
+            newState: status,
+            req,
+            metadata: { notes }
+        });
 
         // 5. Send Status Notifications to Candidate
         const templateMap = {
@@ -409,6 +528,15 @@ exports.generateAISummary = async (req, res) => {
         application.reviewNotes = summary;
         application.reviewedBy = req.user._id;
         await application.save();
+
+        // Audit Log: AI summary generated
+        await logAction({
+            entityType: 'application',
+            entityId: application._id,
+            action: 'ai_summary_generated',
+            req,
+            metadata: { length: summary.length }
+        });
 
         res.json({ success: true, summary });
     } catch (error) {

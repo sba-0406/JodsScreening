@@ -135,7 +135,7 @@
                         list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">No notifications yet.</div>';
                     } else {
                         list.innerHTML = data.data.map(n => `
-                            <div class="notification-item ${n.isRead ? '' : 'unread'}" onclick="handleNotiClick(event, '${n._id}', '${n.actionUrl}')">
+                            <div class="notification-item ${n.isRead ? '' : 'unread'}" onclick="handleNotiClick(event, '${n._id}', '${n.actionUrl || ''}')">
                                 <div class="noti-title">${n.title}</div>
                                 <div class="noti-message">${n.message}</div>
                                 <div class="noti-time">${new Date(n.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>

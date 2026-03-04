@@ -87,7 +87,16 @@ const ApplicationSchema = new mongoose.Schema({
         default: Date.now
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
+
+// Virtual for Resume Public URL
+ApplicationSchema.virtual('resumeUrl').get(function () {
+    if (!this.resume) return null;
+    const storageService = require('../services/storageService');
+    return storageService.getPublicUrl(this.resume);
 });
 
 // Update timestamp on save

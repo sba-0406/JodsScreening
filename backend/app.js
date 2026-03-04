@@ -50,6 +50,7 @@ const jobRoutes = require('./routes/jobRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
 const assessmentRoutes = require('./routes/assessmentRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const systemRoutes = require('./routes/systemRoutes');
 const { loadUser } = require('./middleware/authMiddleware');
 
 // Global middleware for templates
@@ -69,6 +70,7 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/system', systemRoutes);
 
 // View Routes
 app.get('/', (req, res) => res.redirect('/login'));

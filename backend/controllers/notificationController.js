@@ -70,7 +70,7 @@ exports.getTemplates = async (req, res) => {
  */
 exports.sendManualNotification = async (req, res) => {
     try {
-        const { recipientId, templateName, data, customTitle, customMessage } = req.body;
+        const { recipientId, templateName, data, customTitle, customMessage, actionUrl } = req.body;
 
         const notification = await notificationService.sendNotification({
             recipientId,
@@ -79,7 +79,8 @@ exports.sendManualNotification = async (req, res) => {
             data,
             type: 'HR',
             customTitle,
-            customMessage
+            customMessage,
+            actionUrl
         });
 
         res.json({ success: true, data: notification });

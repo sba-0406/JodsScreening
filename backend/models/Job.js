@@ -66,10 +66,12 @@ const JobSchema = new mongoose.Schema({
         }
     },
     // Ranking Weights (for Backend Intelligence)
+    // NOTE: Experience is self-reported by candidates, so it gets low weight (15%).
+    // Assessment scores (Tech + Soft) are system-generated and carry 85% of the rank.
     rankingWeights: {
-        technicalWeight: { type: Number, default: 0.4 }, // 40%
-        softSkillWeight: { type: Number, default: 0.3 }, // 30%
-        experienceWeight: { type: Number, default: 0.3 }  // 30%
+        technicalWeight: { type: Number, default: 0.45 }, // 45% — system-generated
+        softSkillWeight: { type: Number, default: 0.40 }, // 40% — system-generated
+        experienceWeight: { type: Number, default: 0.15 }  // 15% — self-reported, unverified
     },
 
     // Assessment Reference

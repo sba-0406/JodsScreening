@@ -162,7 +162,7 @@
                 list.innerHTML = notifications.map(n => `
                     <div class="notification-item ${n.isRead ? '' : 'unread'}" 
                          style="border: 1px solid var(--border); border-radius: 10px; padding: 12px 15px; cursor: pointer; transition: all 0.2s;"
-                         onclick="handleNotiClick(event, '${n._id}', '${n.actionUrl}')">
+                         onclick="handleNotiClick(event, '${n._id}', '${n.actionUrl || ''}')">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                             <div class="noti-title" style="font-size: 0.85rem; font-weight: 700; color: var(--text-main);">${n.title}</div>
                             <div class="noti-time" style="font-size: 0.7rem; color: var(--text-muted);">${new Date(n.createdAt).toLocaleDateString()}</div>

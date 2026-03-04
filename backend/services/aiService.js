@@ -1,5 +1,44 @@
 const Groq = require('groq-sdk');
 
+// AI Governance Monitor: Tracking Success, Latency, and Dependability
+const GovernanceMonitor = {
+    stats: {
+        totalCalls: 0,
+        successCalls: 0,
+        failCalls: 0,
+        retries: 0,
+        fallbackCount: 0,
+        totalLatency: 0,
+        avgLatency: 0,
+        lastError: null,
+        modelUsage: {}
+    },
+    record(model, success, latency, isRetry = false, isFallback = false) {
+        this.stats.totalCalls++;
+        if (success) this.stats.successCalls++;
+        else this.stats.failCalls++;
+
+        if (isRetry) this.stats.retries++;
+        if (isFallback) this.stats.fallbackCount++;
+
+        this.stats.totalLatency += latency;
+        this.stats.avgLatency = Math.round(this.stats.totalLatency / this.stats.totalCalls);
+
+        if (model) {
+            this.stats.modelUsage[model] = (this.stats.modelUsage[model] || 0) + 1;
+        }
+    },
+    getHealth() {
+        const successRate = this.stats.totalCalls > 0 ? (this.stats.successCalls / this.stats.totalCalls) * 100 : 100;
+        return {
+            ...this.stats,
+            successRate: Math.round(successRate * 10) / 10,
+            status: successRate > 90 ? 'Healthy' : successRate > 50 ? 'Degraded' : 'Critical'
+        };
+    }
+};
+
+
 
 const extractJSON = (text) => {
     try {
@@ -351,20 +390,33 @@ class ResilientAIService {
         // Try Groq
         while (this.currentGroqIndex < this.groqPool.length) {
             const service = this.groqPool[this.currentGroqIndex];
+            const startTime = Date.now();
             try {
                 const res = await service[fnName](...args);
+                const latency = Date.now() - startTime;
+                GovernanceMonitor.record(service.activeModel, true, latency, this.currentGroqIndex > 0);
+
                 this.activeSource = { provider: 'Groq Cloud', model: service.activeModel, keyIndex: this.currentGroqIndex + 1, status: 'Active (Free)' };
                 return res;
             } catch (e) {
+                const latency = Date.now() - startTime;
+                GovernanceMonitor.record(service.models[service.currentModelIndex], false, latency);
+                this.stats.lastError = e.message;
+
                 console.warn(`[AI ERROR] Groq Key ${this.currentGroqIndex + 1} Failed for ${fnName}:`, e.message);
                 this.currentGroqIndex++;
             }
         }
 
         // Fallback to Mock
+        const mockStart = Date.now();
         this.activeSource = { provider: 'Smart Mock', model: 'Rule-Based Local Engine', keyIndex: 0, status: 'Fallback' };
-        if (this.mock[fnName]) return await this.mock[fnName](...args);
-        return await this.mock.generateContent(prompt);
+        let mockRes;
+        if (this.mock[fnName]) mockRes = await this.mock[fnName](...args);
+        else mockRes = await this.mock.generateContent(prompt);
+
+        GovernanceMonitor.record('Mock-Local', true, Date.now() - mockStart, false, true);
+        return mockRes;
     }
 
     async generateContent(prompt, isJson = false) { return this.callAI('generateContent', prompt, isJson); }
@@ -502,6 +554,10 @@ class ResilientAIService {
             console.error("[AI EVALUATE ERROR]", e);
             throw e;
         }
+    }
+
+    getGovernanceData() {
+        return GovernanceMonitor.getHealth();
     }
 }
 

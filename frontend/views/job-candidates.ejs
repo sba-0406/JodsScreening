@@ -7,183 +7,106 @@
     <title>
         <%= title %> | ScenarioSim
     </title>
-    <link rel="stylesheet" href="/css/style.css?v=9">
+    <link rel="stylesheet" href="/css/style.css?v=12">
     <style>
-        /* ── Candidates Table ───────────────── */
-        .candidates-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #ffffff;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .candidates-table th,
-        .candidates-table td {
-            padding: 1rem 1.25rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .candidates-table th {
-            background: #f8fafc;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        .candidates-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .candidates-table tbody tr:hover {
-            background: #f8faff;
-        }
-
-        .candidate-name {
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        .candidate-email {
-            font-size: 0.825rem;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
-
-        /* Score badges */
-        .score-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.825rem;
-        }
-
-        .score-high {
-            background: #ecfdf5;
-            color: #16a34a;
-            border: 1px solid #bbf7d0;
-        }
-
-        .score-medium {
-            background: #fffbeb;
-            color: #d97706;
-            border: 1px solid #fde68a;
-        }
-
-        .score-low {
-            background: #fef2f2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
-        }
-
-        /* Application status badges */
-        .status-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .status-applied {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border: 1px solid #bfdbfe;
-        }
-
-        .status-reviewing {
-            background: #f5f3ff;
-            color: #7c3aed;
-            border: 1px solid #ddd6fe;
-        }
-
-        .status-shortlisted {
-            background: #ecfdf5;
-            color: #16a34a;
-            border: 1px solid #bbf7d0;
-        }
-
-        .status-interview_scheduled {
-            background: #f0fdf4;
-            color: #15803d;
-            border: 1px solid #bbf7d0;
-        }
-
-        .status-rejected {
-            background: #fef2f2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
-        }
-
-        .status-hired {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #6ee7b7;
-        }
-
-        /* Assessment status pill */
-        .assessment-pill {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            background: #f1f5f9;
-            color: #475569;
-            border: 1px solid #e2e8f0;
-        }
-
-        .assessment-pill.completed {
-            background: #ecfdf5;
-            color: #16a34a;
-            border-color: #bbf7d0;
-        }
-
-        /* Fit label */
-        .fit-label {
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-
-        .fit-label.strong {
-            color: #16a34a;
-        }
-
-        .fit-label.moderate {
-            color: #d97706;
-        }
-
-        .fit-label.weak {
-            color: #dc2626;
-        }
-
-        /* Page header */
         .page-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1.5rem;
+            align-items: center;
+            margin-bottom: 25px;
         }
 
-        .page-header h1 {
-            font-size: 1.5rem;
-            color: var(--text-main);
-            margin: 0 0 4px;
+        .job-tag {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 10px;
         }
 
-        .page-header p {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            margin: 0;
+        /* ── Pool Stats Grid ───────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── Table Styling ───────────────── */
+        .candidates-table th {
+            white-space: nowrap;
+        }
+
+        .match-score-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .score-bar-mini {
+            width: 80px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .score-fill {
+            height: 100%;
+            border-radius: 10px;
+        }
+
+        .score-high {
+            background: #10b981;
+        }
+
+        .score-mid {
+            background: #f59e0b;
+        }
+
+        .score-low {
+            background: #ef4444;
+        }
+
+        .rank-circle {
+            width: 36px;
+            height: 36px;
+            background: #f1f5f9;
+            color: #64748b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            margin: 0 auto;
+        }
+
+        .rank-top {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
         }
     </style>
 </head>
@@ -194,147 +117,141 @@
         <div class="main-wrapper">
             <div class="container">
 
-                <!-- Page Header -->
+                <!-- Header -->
                 <div class="page-header">
                     <div>
-                        <h1>Candidates for <em>
+                        <h1 style="margin: 0; display: flex; align-items: center;">
+                            Candidates
+                            <span class="job-tag">
                                 <%= job.title %>
-                            </em></h1>
-                        <p>
-                            <%= candidates.length %> total application<%= candidates.length !==1 ? 's' : '' %>
+                            </span>
+                        </h1>
+                        <p style="color: var(--text-muted); margin-top: 5px;">
+                            <%= candidates.length %> Total Applicants
                         </p>
                     </div>
                     <a href="/api/jobs/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
                 </div>
 
-                <!-- Pool Insights Bar -->
-                <div id="pool-insights-bar" class="card"
-                    style="padding: 16px 24px; margin-bottom: 20px; display: none;">
-                    <p
-                        style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;">
-                        📊 Pool Intelligence — Candidates Who Completed Assessment</p>
-                    <div style="display: flex; gap: 32px; flex-wrap: wrap;">
-                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--primary-color);"
-                                id="pi-avg-score">—</span><br><small style="color:var(--text-muted)">Avg. Weighted
-                                Score</small></div>
-                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--secondary-color);"
-                                id="pi-avg-tech">—</span><br><small style="color:var(--text-muted)">Avg. Technical
-                                Score</small></div>
-                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--success);"
-                                id="pi-avg-soft">—</span><br><small style="color:var(--text-muted)">Avg. Soft Skill
-                                Score</small></div>
-                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--warning);"
-                                id="pi-avg-exp">—</span><br><small style="color:var(--text-muted)">Avg. Experience
-                                (yrs)</small></div>
-                        <div><span style="font-size: 1.4rem; font-weight: 800; color: var(--info);"
-                                id="pi-high-pot">—</span><br><small style="color:var(--text-muted)">High
-                                Potential</small></div>
+                <!-- Metrics Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card" style="border-left: 4px solid var(--primary-color);">
+                        <h3>Required Experience</h3>
+                        <div class="stat-value" style="font-size: 1.5rem;">
+                            <%= job.experienceMin %>–<%= job.experienceMax %> yrs
+                        </div>
+                    </div>
+
+                    <div class="stat-card" id="pi-avg-card" style="display: none;">
+                        <h3>Pool Avg. Score</h3>
+                        <div class="stat-value" id="pi-avg-score-val" style="font-size: 1.5rem;">—</div>
+                    </div>
+
+                    <div class="stat-card" id="pi-pot-card" style="display: none;">
+                        <h3>High Potential</h3>
+                        <div class="stat-value" id="pi-high-pot-val" style="font-size: 1.5rem;">—</div>
+                    </div>
+
+                    <div class="stat-card" id="pi-exp-card" style="display: none;">
+                        <h3>Avg. Experience</h3>
+                        <div class="stat-value" id="pi-avg-exp-val" style="font-size: 1.5rem;">—</div>
                     </div>
                 </div>
 
-                <!-- Candidates Table -->
+                <!-- Results Table -->
                 <div class="card" style="padding: 0; overflow: hidden;">
                     <table class="candidates-table">
                         <thead>
                             <tr>
-                                <th><a href="?sort=name" style="color: inherit; text-decoration: none;">Candidate ↕</a>
-                                </th>
-                                <th>Status</th>
+                                <th style="width: 80px; text-align: center;">Rank</th>
+                                <th>Candidate</th>
+                                <th>Experience</th>
                                 <th>Assessment</th>
-                                <th><a href="?sort=score" style="color: inherit; text-decoration: none;">Score ↕</a>
-                                </th>
-                                <th>Fit</th>
-                                <th title="Weighted by Tech (40%), Soft Skills (30%), Experience (30%)">Match Rank 🎯
-                                </th>
-                                <th>Actions</th>
+                                <th>Status</th>
+                                <th>Match Score</th>
+                                <th style="text-align: right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% if (candidates.length===0) { %>
                                 <tr>
-                                    <td colspan="7" class="empty-state" style="color: var(--text-muted);">
-                                        No candidates found for this position yet.
-                                    </td>
+                                    <td colspan="7" class="empty-state">No applications yet for this role.</td>
                                 </tr>
                                 <% } else { %>
-                                    <% candidates.forEach(candidate=> { %>
-                                        <% const score=candidate.assessmentResults?.weightedScore; %>
-                                            <% const fit=candidate.assessmentResults?.overallFit || '' ; %>
-                                                <tr>
-                                                    <td>
-                                                        <div class="candidate-name">
-                                                            <%= candidate.candidateName %>
-                                                        </div>
-                                                        <div class="candidate-email">
-                                                            <%= candidate.candidateEmail %>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <span class="status-badge status-<%= candidate.status %>">
-                                                            <%= candidate.status.replace(/_/g, ' ' ) %>
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span
-                                                            class="assessment-pill <%= candidate.assessmentStatus === 'completed' ? 'completed' : '' %>">
-                                                            <%= candidate.assessmentStatus.replace(/_/g, ' '
-                                                                ).toUpperCase() %>
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <% if (score !==undefined && score !==null) { %>
-                                                            <span
-                                                                class="score-badge <%= score >= 70 ? 'score-high' : score >= 50 ? 'score-medium' : 'score-low' %>">
-                                                                <%= score %>%
-                                                            </span>
-                                                            <% } else { %>
-                                                                <span style="color: var(--text-muted);">—</span>
-                                                                <% } %>
-                                                    </td>
-                                                    <td>
-                                                        <% if (fit) { %>
-                                                            <span
-                                                                class="fit-label <%= fit.toLowerCase().includes('strong') ? 'strong' : fit.toLowerCase().includes('moderate') ? 'moderate' : 'weak' %>">
-                                                                <%= fit %>
-                                                            </span>
-                                                            <% } else { %>
-                                                                <span style="color: var(--text-muted);">—</span>
-                                                                <% } %>
-                                                    </td>
-                                                    <td>
-                                                        <% if (candidate.matchScore> 0) { %>
-                                                            <div style="display: flex; align-items: center; gap: 8px;">
-                                                                <div
-                                                                    style="flex:1; background: var(--border); border-radius: 4px; height: 6px; overflow:hidden;">
-                                                                    <div
-                                                                        style="width:<%= candidate.matchScore %>%; height:100%; background: <%= candidate.matchScore >= 70 ? 'var(--success)' : candidate.matchScore >= 50 ? 'var(--warning)' : 'var(--danger)' %>; border-radius: 4px;">
-                                                                    </div>
-                                                                </div>
-                                                                <span
-                                                                    style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); min-width: 32px;">
-                                                                    <%= candidate.matchScore %>%
-                                                                </span>
-                                                            </div>
-                                                            <% } else { %>
-                                                                <span
-                                                                    style="color: var(--text-muted); font-size: 0.8rem;">Pending</span>
-                                                                <% } %>
-                                                    </td>
-                                                    <td>
-                                                        <a href="/api/applications/application/<%= candidate._id %>/view"
-                                                            class="btn btn-sm">View Profile</a>
-                                                        <% if (candidate.status !=='rejected' && candidate.status
-                                                            !=='hired' && candidate.assessmentStatus !=='completed' &&
-                                                            job.requireAssessment) { %>
-                                                            <button class="btn btn-sm btn-secondary"
-                                                                onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>')">
-                                                                Invite to Assessment
-                                                            </button>
+                                    <% candidates.forEach((candidate, index)=> { %>
+                                        <tr>
+                                            <td style="text-align: center;">
+                                                <div class="rank-circle <%= index < 3 ? 'rank-top' : '' %>">
+                                                    <%= index + 1 %>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style="font-weight: 700; color: var(--text-main);">
+                                                    <%= candidate.candidateName %>
+                                                </div>
+                                                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                                    <%= candidate.candidateEmail %>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <% const expMatch=(candidate.yearsExperience>= job.experienceMin &&
+                                                    candidate.yearsExperience <= job.experienceMax); %>
+                                                        <b class="<%= expMatch ? '' : 'text-danger' %>">
+                                                            <%= candidate.yearsExperience %> Years
+                                                        </b>
+                                            </td>
+                                            <td>
+                                                <% if (candidate.assessmentStatus==='completed' ) { %>
+                                                    <span class="badge badge-success">COMPLETED</span>
+                                                    <div
+                                                        style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; font-weight: 700;">
+                                                        FIT: <%= candidate.assessmentResults?.overallFit ?
+                                                            candidate.assessmentResults.overallFit.toUpperCase() : 'N/A'
+                                                            %>
+                                                    </div>
+                                                    <% } else if (candidate.assessmentStatus==='in_progress' ) { %>
+                                                        <span class="badge badge-warning">IN PROGRESS</span>
+                                                        <% } else { %>
+                                                            <span class="badge"
+                                                                style="background: #f1f5f9; color: #64748b;">PENDING</span>
                                                             <% } %>
-                                                    </td>
-                                                </tr>
-                                                <% }); %>
-                                                    <% } %>
+                                            </td>
+                                            <td>
+                                                <span class="status-badge status-<%= candidate.status %>"
+                                                    style="font-size: 0.75rem; text-transform: uppercase;">
+                                                    <%= candidate.status.replace(/_/g, ' ' ) %>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="match-score-pill">
+                                                    <span>
+                                                        <%= candidate.matchScore %>%
+                                                    </span>
+                                                    <div class="score-bar-mini">
+                                                        <% const scoreColor=candidate.matchScore>= 70 ? 'score-high' :
+                                                            (candidate.matchScore >= 50 ? 'score-mid' : 'score-low'); %>
+                                                            <% const scoreStyle='width: ' + (candidate.matchScore || 0)
+                                                                + '%' ; %>
+                                                                <div class="score-fill <%= scoreColor %>"
+                                                                    style="<%= scoreStyle %>"></div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="action-btns">
+                                                    <a href="/api/applications/application/<%= candidate._id %>/view"
+                                                        class="btn btn-sm btn-secondary">Profile</a>
+                                                    <% if (candidate.assessmentStatus==='pending' &&
+                                                        job.requireAssessment) { %>
+                                                        <button
+                                                            onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>', '<%= candidate._id %>')"
+                                                            class="btn btn-sm">Invite</button>
+                                                        <% } %>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <% }); %>
+                                            <% } %>
                         </tbody>
                     </table>
                 </div>
@@ -342,123 +259,94 @@
             </div>
         </div>
 
-        <!-- Assessment Invitation Modal -->
+        <!-- Invite Modal -->
         <div id="message-modal" class="modal-overlay">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Send Assessment Invite: <span id="modal-candidate-name"></span></h2>
+                    <h2>Invite Candidate</h2>
                     <button class="close-btn" onclick="closeInviteModal()">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <p style="margin-bottom: 15px; font-size: 0.9rem; color: var(--text-muted);">
-                        This will send a notification to the candidate with instructions to start their scenario
-                        assessment.
-                    </p>
-                    <input type="hidden" id="template-select" value="assessment_invite">
-                </div>
-                <div class="form-group">
-                    <label>Message Preview</label>
-                    <div id="message-preview" class="template-preview">
-                        Select a template to see a preview...
+                    <p>Sending invite to <strong id="modal-candidate-name"></strong> for <strong>
+                            <%= job.title %>
+                        </strong>.</p>
+
+                    <div class="form-group mt-20">
+                        <label>Message Preview</label>
+                        <div id="message-preview"
+                            style="background: #f8fafc; border: 1px solid var(--border); padding: 15px; border-radius: 8px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                            Loading template...
+                        </div>
                     </div>
-                </div>
-                <div class="modal-actions"
-                    style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
-                    <button class="btn btn-block" id="send-btn" onclick="sendMessage()" disabled>Send
-                        Invitation</button>
+
+                    <div class="modal-actions mt-20">
+                        <button class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
+                        <button class="btn" id="send-btn" onclick="sendMessage()">Send Invite</button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <script>
-            let currentCandidateId = null;
-            let currentCandidateName = null;
-            let templates = [];
-            const jobTitle = "<%= job.title %>";
             const jobId = "<%= job._id %>";
+            const jobTitle = "<%= job.title %>";
+            let currentCandidateId = null, currentCandidateName = null, currentAppId = null, templates = [];
 
-            // Auto-fetch pool insights on page load
             (async () => {
                 try {
                     const res = await fetch(`/api/jobs/${jobId}/pool-insights`);
                     const data = await res.json();
                     if (data.success && data.data.poolStats.totalCandidates > 0) {
                         const s = data.data.poolStats;
-                        document.getElementById('pi-avg-score').textContent = `${s.avgWeightedScore || '—'}%`;
-                        document.getElementById('pi-avg-tech').textContent = `${s.avgTechScore || '—'}%`;
-                        document.getElementById('pi-avg-soft').textContent = `${s.avgSoftScore || '—'}%`;
-                        document.getElementById('pi-avg-exp').textContent = `${s.avgExperience || '—'} yrs`;
-                        document.getElementById('pi-high-pot').textContent = `${s.highPotentialCount || 0} / ${s.totalCandidates}`;
-                        document.getElementById('pool-insights-bar').style.display = 'block';
+                        document.getElementById('pi-avg-score-val').textContent = `${s.avgWeightedScore}%`;
+                        document.getElementById('pi-high-pot-val').textContent = `${s.highPotentialCount} / ${s.totalCandidates}`;
+                        document.getElementById('pi-avg-exp-val').textContent = `${s.avgExperience} yrs`;
+
+                        ['pi-avg-card', 'pi-pot-card', 'pi-exp-card'].forEach(id => {
+                            document.getElementById(id).style.display = 'block';
+                        });
                     }
-                } catch (e) { console.warn('Pool insights unavailable'); }
+                } catch (e) { console.warn('Insights fail'); }
             })();
 
-            async function openInviteModal(candidateId, candidateName) {
-                currentCandidateId = candidateId;
-                currentCandidateName = candidateName;
-                document.getElementById('modal-candidate-name').textContent = candidateName;
+            async function openInviteModal(id, name, appId) {
+                currentCandidateId = id; currentCandidateName = name; currentAppId = appId;
+                document.getElementById('modal-candidate-name').textContent = name;
                 document.getElementById('message-modal').classList.add('active');
 
-                // Load template for preview
-                if (templates.length === 0) {
-                    try {
-                        const res = await fetch('/api/notifications/templates');
-                        const data = await res.json();
-                        if (data.success) {
-                            templates = data.data;
-                        }
-                    } catch (err) { console.error(err); }
+                if (!templates.length) {
+                    const res = await fetch('/api/notifications/templates');
+                    const d = await res.json();
+                    if (d.success) templates = d.data;
                 }
 
-                const template = templates.find(t => t.name === 'assessment_invite');
-                if (template) {
-                    let body = template.body;
-                    body = body.replace(/{{candidateName}}/g, currentCandidateName);
-                    body = body.replace(/{{jobTitle}}/g, jobTitle);
-                    document.getElementById('message-preview').textContent = body;
-                    document.getElementById('send-btn').disabled = false;
+                const t = templates.find(temp => temp.name === 'assessment_invite');
+                if (t) {
+                    document.getElementById('message-preview').textContent = t.body
+                        .replace(/{{candidateName}}/g, name)
+                        .replace(/{{jobTitle}}/g, jobTitle);
                 }
             }
 
-            function closeInviteModal() {
-                document.getElementById('message-modal').classList.remove('active');
-            }
+            function closeInviteModal() { document.getElementById('message-modal').classList.remove('active'); }
 
             async function sendMessage() {
-                const sendBtn = document.getElementById('send-btn');
+                const btn = document.getElementById('send-btn');
+                btn.disabled = true; btn.textContent = 'Sending...';
                 try {
-                    sendBtn.disabled = true;
-                    sendBtn.textContent = 'Sending...';
-
-                    const response = await fetch('/api/notifications/send', {
+                    const res = await fetch('/api/notifications/send', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             recipientId: currentCandidateId,
                             templateName: 'assessment_invite',
-                            data: {
-                                candidateName: currentCandidateName,
-                                jobTitle: jobTitle
-                            }
+                            data: { candidateName: currentCandidateName, jobTitle: jobTitle },
+                            actionUrl: `/api/assessment/assessment/${currentAppId}`
                         })
                     });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        alert('Notification sent successfully!');
-                        closeMessageModal();
-                    } else {
-                        alert('Error: ' + data.error);
-                    }
-                } catch (err) {
-                    console.error('Failed to send notification:', err);
-                    alert('Failed to send notification.');
-                } finally {
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send Message';
-                }
+                    if ((await res.json()).success) { alert('Invite Sent!'); closeInviteModal(); }
+                } catch (e) { alert('Failed'); }
+                finally { btn.disabled = false; btn.textContent = 'Send Invite'; }
             }
         </script>
 </body>

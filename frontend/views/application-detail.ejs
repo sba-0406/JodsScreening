@@ -406,27 +406,6 @@
                                                 </div>
                                     </div>
 
-                                    <!-- Lifecycle Audit (HR/Admin Only) -->
-                                    <% if (user.role==='hr' || user.role==='admin' ) { %>
-                                        <div
-                                            style="padding: 0 32px 40px; border-top: 1px solid var(--border); margin-top: 40px;">
-                                            <h3
-                                                style="margin: 40px 0 20px; font-size: 1.1rem; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                                                📜 Application Lifecycle Audit
-                                                <span
-                                                    style="font-size: 0.7rem; background: var(--border); padding: 2px 8px; border-radius: 4px; color: var(--text-muted); font-weight: 700;">Immutable
-                                                    Log</span>
-                                            </h3>
-                                            <div id="audit-trail-container"
-                                                style="background: #fcfcfc; border: 1px solid var(--border); border-radius: 12px; max-height: 400px; overflow-y: auto;">
-                                                <div style="padding: 20px; text-align: center; color: var(--text-muted);"
-                                                    id="audit-loading">
-                                                    Fetching security logs...
-                                                </div>
-                                                <div id="audit-trail-list"></div>
-                                            </div>
-                                        </div>
-                                        <% } %>
                         </div>
 
                         <!-- Back link -->
@@ -593,43 +572,6 @@
                 })();
             }
 
-            // --- AUDIT TRAIL LOGIC (HR/Admin) ---
-            if ("<%= user.role %>" === 'hr' || "<%= user.role %>" === 'admin') {
-                (async function loadAuditTrail() {
-                    try {
-                        const res = await fetch(`/api/system/audit?entityId=<%= application._id %>&entityType=application`);
-                        const data = await res.json();
-                        const container = document.getElementById('audit-trail-list');
-                        const loader = document.getElementById('audit-loading');
-
-                        if (data.success) {
-                            loader.style.display = 'none';
-                            if (data.data.length === 0) {
-                                container.innerHTML = '<div style="padding: 20px; text-align: center; font-size: 0.9rem; color: var(--text-muted);">No recorded audit events.</div>';
-                                return;
-                            }
-
-                            container.innerHTML = data.data.map(log => `
-                            <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 15px; align-items: flex-start;">
-                                <div style="min-width: 45px; height: 45px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
-                                    ${log.action === 'create' ? '✨' : log.action === 'status_change' ? '🔄' : '🤖'}
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main);">
-                                        ${log.action.replace(/_/g, ' ').toUpperCase()}
-                                    </div>
-                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 6px;">
-                                        Performed by <b>${log.performer?.name || 'System'}</b> (${log.performerRole}) • ${new Date(log.timestamp).toLocaleString()}
-                                    </div>
-                                    ${log.newState ? `<div style="font-size: 0.8rem; background: #f8fafc; padding: 4px 8px; border-radius: 4px; display: inline-block; border: 1px solid #e2e8f0;">New State: <b>${log.newState}</b></div>` : ''}
-                                    ${log.metadata?.notes ? `<div style="font-size: 0.8rem; margin-top: 6px; color: var(--text-muted); font-style: italic;">"${log.metadata.notes}"</div>` : ''}
-                                </div>
-                            </div>
-                        `).join('');
-                        }
-                    } catch (e) { console.error('Audit trail failed:', e); }
-                })();
-            }
         </script>
 </body>
 

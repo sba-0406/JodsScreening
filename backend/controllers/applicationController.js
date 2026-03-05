@@ -225,6 +225,7 @@ exports.submitApplication = async (req, res) => {
         // To Candidate
         await notificationService.sendNotification({
             recipientId: req.user._id,
+            jobId: jobId,
             templateName: 'application_received',
             data: { candidateName: req.user.name, jobTitle: job.title },
             type: 'SYSTEM',
@@ -241,6 +242,7 @@ exports.submitApplication = async (req, res) => {
         if (hrId) {
             await notificationService.sendNotification({
                 recipientId: hrId,
+                jobId: jobId,
                 senderId: req.user._id,
                 templateName: 'hr_new_application',
                 data: {
@@ -490,6 +492,7 @@ exports.updateApplicationStatus = async (req, res) => {
 
             await notificationService.sendNotification({
                 recipientId: application.candidate,
+                jobId: application.job,
                 senderId: req.user._id,
                 templateName: templateMap[status],
                 data: notificationData,

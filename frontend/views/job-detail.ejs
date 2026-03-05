@@ -224,6 +224,37 @@
                             </div>
                         </div>
 
+                        <div class="sub-section-header">Notification Channels</div>
+                        <div class="info-grid mb-24"
+                            style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
+                            <div class="info-item">
+                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                                    <input type="checkbox" id="send-in-app" <%=job.notificationSettings?.sendInApp
+                                        !==false ? 'checked' : '' %>
+                                    style="width: 20px; height: 20px; margin-top: 2px;">
+                                    <div>
+                                        <div style="color: var(--text-main); font-weight: 700; font-size: 0.95rem;">
+                                            In-App Notifications</div>
+                                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">Show
+                                            alerts in the HR dashboard for new activity.</p>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="info-item">
+                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                                    <input type="checkbox" id="send-email" <%=job.notificationSettings?.sendEmail
+                                        ? 'checked' : '' %>
+                                    style="width: 20px; height: 20px; margin-top: 2px;">
+                                    <div>
+                                        <div style="color: var(--text-main); font-weight: 700; font-size: 0.95rem;">
+                                            Email Alerts</div>
+                                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">Send
+                                            summary emails for applications and results.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="sub-section-header">Assessment Configuration</div>
                         <div class="info-grid mb-20" style="align-items: flex-end;">
                             <div class="info-item">
@@ -618,7 +649,11 @@
                             minSoftSkillScore: minSoftScore,
                             questionsPerSkill: questionsPerSkill,
                             allowAIGeneration: allowAIGen,
-                            skillConfigs: skillConfigs
+                            skillConfigs: skillConfigs,
+                            notificationSettings: {
+                                sendInApp: document.getElementById('send-in-app').checked,
+                                sendEmail: document.getElementById('send-email').checked
+                            }
                         })
                     });
 

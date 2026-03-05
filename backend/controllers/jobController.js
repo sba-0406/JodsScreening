@@ -113,9 +113,16 @@ exports.updateAssessment = async (req, res) => {
         weights.forEach(f => { if (body[f] !== undefined) job.assessmentId[f] = body[f]; });
 
         // 2. Update Job-level Generation Config
-        if (body.questionsPerSkill || body.allowAIGeneration || body.skillConfigs) {
+        if (body.questionsPerSkill || body.allowAIGeneration !== undefined || body.skillConfigs || body.notificationSettings) {
             if (body.questionsPerSkill) job.assessmentConfig.questionsPerSkill = parseInt(body.questionsPerSkill);
             if (body.allowAIGeneration !== undefined) job.assessmentConfig.allowAIGeneration = !!body.allowAIGeneration;
+
+            if (body.notificationSettings) {
+                job.notificationSettings = {
+                    sendInApp: body.notificationSettings.sendInApp !== undefined ? !!body.notificationSettings.sendInApp : job.notificationSettings.sendInApp,
+                    sendEmail: body.notificationSettings.sendEmail !== undefined ? !!body.notificationSettings.sendEmail : job.notificationSettings.sendEmail
+                };
+            }
 
             if (body.skillConfigs) {
                 job.assessmentConfig.skillConfigs = Object.entries(body.skillConfigs).map(([skill, count]) => ({

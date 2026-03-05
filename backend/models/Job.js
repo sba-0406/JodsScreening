@@ -95,6 +95,18 @@ const JobSchema = new mongoose.Schema({
     },
     applicationDeadline: Date,
 
+    // Notification Preferences
+    notificationSettings: {
+        sendInApp: {
+            type: Boolean,
+            default: true
+        },
+        sendEmail: {
+            type: Boolean,
+            default: false
+        }
+    },
+
     // Metadata
     postedBy: {
         type: mongoose.Schema.Types.ObjectId,

@@ -70,10 +70,11 @@ exports.getTemplates = async (req, res) => {
  */
 exports.sendManualNotification = async (req, res) => {
     try {
-        const { recipientId, templateName, data, customTitle, customMessage, actionUrl } = req.body;
+        const { recipientId, jobId, templateName, data, customTitle, customMessage, actionUrl } = req.body;
 
         const notification = await notificationService.sendNotification({
             recipientId,
+            jobId,
             senderId: req.user._id,
             templateName,
             data,

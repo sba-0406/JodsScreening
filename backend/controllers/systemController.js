@@ -21,7 +21,10 @@ exports.getAuditLogs = async (req, res) => {
         const { entityId, entityType } = req.query;
         const query = {};
         if (entityId) query.entityId = entityId;
-        if (entityType) query.entityType = entityType;
+        if (entityType) {
+            // Use regex for case-insensitive match to handle inconsistent data casing
+            query.entityType = { $regex: new RegExp(`^${entityType}$`, 'i') };
+        }
 
         const logs = await AuditLog.find(query)
             .sort({ timestamp: -1 })

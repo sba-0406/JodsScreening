@@ -611,6 +611,7 @@ exports.finalizeAssessment = async (req, res) => {
         if (hrId) {
             await notificationService.sendNotification({
                 recipientId: hrId,
+                jobId: application.job?._id,
                 senderId: session.user,
                 templateName: 'hr_assessment_complete',
                 data: {

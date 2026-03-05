@@ -330,31 +330,68 @@
                             </div>
                         </div>
 
-                        <!-- Assessment Settings -->
+                        <!-- Assessment Configuration -->
                         <div class="form-section">
                             <div class="section-header">
-                                <h2>AI Assessment Engine</h2>
-                                <p>Configure the automated evaluation parameters.</p>
+                                <h2>Assessment Configuration</h2>
+                                <p>Control how AI generates your candidate simulation.</p>
                             </div>
 
                             <div class="form-grid mb-24">
                                 <div class="form-group">
-                                    <label for="questionsPerSkill">Questions per Technical Skill</label>
+                                    <label for="questionsPerSkill">Questions Per Skill</label>
                                     <input type="number" id="questionsPerSkill" name="questionsPerSkill" min="1"
-                                        max="10" value="3" required>
+                                        max="10" value="3">
+                                    <small style="color: var(--text-muted); display: block; margin-top: 4px;">Number of
+                                        technical questions to generate for each identified skill.</small>
+                                </div>
+
+                                <div class="checkbox-group"
+                                    onclick="document.getElementById('allowAIGeneration').click()">
+                                    <input type="checkbox" id="allowAIGeneration" name="allowAIGeneration" checked
+                                        onclick="event.stopPropagation()">
+                                    <div>
+                                        <label
+                                            style="margin-bottom: 2px; cursor: pointer; font-size: 0.95rem; font-weight: 700;">AI
+                                            Question Generation</label>
+                                        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">
+                                            Automatically generate technical scenarios using AI based on your JD.</p>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="checkbox-group" onclick="document.getElementById('allowAIGeneration').click()">
-                                <input type="checkbox" id="allowAIGeneration" name="allowAIGeneration" checked
-                                    onclick="event.stopPropagation()">
-                                <div>
-                                    <label
-                                        style="margin-bottom: 2px; cursor: pointer; font-size: 0.95rem; font-weight: 700;">Smart
-                                        Question Sourcing</label>
-                                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">If enabled, AI
-                                        will generate custom questions for niche skills not found in our standard bank.
-                                    </p>
+                        <!-- Notification Settings -->
+                        <div class="form-section" style="background: #f8fafc;">
+                            <div class="section-header">
+                                <h2>Notification Channels</h2>
+                                <p>Choose how you want to be notified about candidate activity.</p>
+                            </div>
+
+                            <div class="form-grid">
+                                <div class="checkbox-group" onclick="document.getElementById('sendInApp').click()">
+                                    <input type="checkbox" id="sendInApp" name="sendInApp" checked
+                                        onclick="event.stopPropagation()">
+                                    <div>
+                                        <label
+                                            style="margin-bottom: 2px; cursor: pointer; font-size: 0.95rem; font-weight: 700;">In-App
+                                            Notifications</label>
+                                        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Receive
+                                            alerts in the top bell tray for new applications and assessment results.</p>
+                                    </div>
+                                </div>
+
+                                <div class="checkbox-group" onclick="document.getElementById('sendEmail').click()">
+                                    <input type="checkbox" id="sendEmail" name="sendEmail"
+                                        onclick="event.stopPropagation()">
+                                    <div>
+                                        <label
+                                            style="margin-bottom: 2px; cursor: pointer; font-size: 0.95rem; font-weight: 700;">Email
+                                            Alerts</label>
+                                        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Receive a
+                                            professional email summary whenever a candidate applies or completes a test.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -403,8 +440,14 @@
                 const formData = new FormData(e.target);
                 const data = Object.fromEntries(formData.entries());
 
-                // Handle checkbox boolean
+                // Handle checkbox booleans
                 data.allowAIGeneration = e.target.allowAIGeneration.checked;
+
+                // Nested notification settings for the Job model
+                data.notificationSettings = {
+                    sendInApp: e.target.sendInApp.checked,
+                    sendEmail: e.target.sendEmail.checked
+                };
 
                 // Convert numbers
                 data.experienceMin = parseInt(data.experienceMin);

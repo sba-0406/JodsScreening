@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { logAction } = require('../utils/auditLogger');
 
 /**
  * @desc    Render Admin Dashboard
@@ -44,6 +45,15 @@ exports.createHR = async (req, res) => {
             status: 'active'
         });
 
+        // Audit Log: creation
+        await logAction({
+            entityType: 'user',
+            entityId: hr._id,
+            action: 'create',
+            req,
+            metadata: { name: hr.name, email: hr.email, role: 'hr' }
+        });
+
         res.status(201).json({
             success: true,
             message: 'HR account created successfully',
@@ -75,6 +85,15 @@ exports.deleteHR = async (req, res) => {
         if (hr.role !== 'hr') {
             return res.status(400).json({ success: false, error: 'Cannot delete non-HR accounts via this endpoint' });
         }
+
+        // Audit Log: deletion
+        await logAction({
+            entityType: 'user',
+            entityId: hr._id,
+            action: 'delete',
+            req,
+            metadata: { name: hr.name, email: hr.email, role: 'hr' }
+        });
 
         await hr.deleteOne();
 

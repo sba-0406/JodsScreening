@@ -277,6 +277,7 @@ exports.submitMCQAnswer = async (req, res) => {
         );
 
         // Check if phase is complete
+        const totalMCQs = availableQuestions.length;
         let phaseComplete = false;
         if (updatedSession.currentMCQIndex >= totalMCQs) {
             updatedSession.assessmentPhase = 'SCENARIO';
@@ -315,14 +316,6 @@ exports.submitMCQAnswer = async (req, res) => {
             data: {
                 phaseComplete,
                 nextPhase: updatedSession.assessmentPhase
-            }
-        });
-
-        res.json({
-            success: true,
-            data: {
-                phaseComplete,
-                nextPhase: session.assessmentPhase
             }
         });
     } catch (error) {

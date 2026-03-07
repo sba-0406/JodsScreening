@@ -123,56 +123,56 @@
                     <div class="stat-card">
                         <div class="stat-label">AI Success Rate</div>
                         <div class="stat-value">
-                            <%= health.successRate %>%
+                            <%= health.successRate + '%' %>
                         </div>
                         <div style="height: 4px; background: #f1f5f9; border-radius: 2px; margin-top: 15px;">
-                            <div
-                                style="height: 100%; width: <%= health.successRate %>%; background: var(--primary-color); border-radius: 2px;">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Avg. Latency</div>
-                        <div class="stat-value">
-                            <%= health.avgLatency %>ms
-                        </div>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">End-to-end token
-                            generation</p>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Calls</div>
-                        <div class="stat-value">
-                            <%= health.totalCalls %>
-                        </div>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
-                            <%= health.fallbackCount %> Fallbacks triggered
-                        </p>
+                            <%- `<div
+                                style="height: 100%; width: ${health.successRate || 0}%; background: var(--primary-color); border-radius: 2px;">
+                        </div>` %>
                     </div>
                 </div>
-
-                <!-- Live Audit Logs -->
-                <div class="section-card">
-                    <h3 style="margin-bottom: 20px;">Live Application Audit Feed</h3>
-                    <div style="overflow-x: auto;">
-                        <table class="audit-table">
-                            <thead>
-                                <tr>
-                                    <th>Timestamp</th>
-                                    <th>Action</th>
-                                    <th>Performer</th>
-                                    <th>Details</th>
-                                </tr>
-                            </thead>
-                            <tbody id="audit-feed">
-                                <tr>
-                                    <td colspan="4" style="text-align: center; color: var(--text-muted);">Loading
-                                        logs...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div class="stat-card">
+                    <div class="stat-label">Avg. Latency</div>
+                    <div class="stat-value">
+                        <%= health.avgLatency %>ms
                     </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">End-to-end token
+                        generation</p>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Calls</div>
+                    <div class="stat-value">
+                        <%= health.totalCalls %>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
+                        <%= health.fallbackCount %> Fallbacks triggered
+                    </p>
                 </div>
             </div>
+
+            <!-- Live Audit Logs -->
+            <div class="section-card">
+                <h3 style="margin-bottom: 20px;">Live Application Audit Feed</h3>
+                <div style="overflow-x: auto;">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                                <th>Performer</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-feed">
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--text-muted);">Loading
+                                    logs...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
         </div>
 
         <script>
@@ -201,6 +201,8 @@
                             <td style="font-size: 0.85rem;">
                                 ${log.newState ? `Transitioned to <b>${log.newState}</b>` : ''}
                                 ${log.metadata?.jobTitle ? `for job: <i>${log.metadata.jobTitle}</i>` : ''}
+                                ${log.metadata?.name ? `Target: <b>${log.metadata.name}</b> ${log.metadata.email ? `(${log.metadata.email})` : ''}` : ''}
+                                ${log.metadata?.department ? `<div style="font-size: 0.75rem; color: var(--text-muted);">Dept: ${log.metadata.department}</div>` : ''}
                                 ${log.metadata?.notes ? `<div style="margin-top:5px; color: var(--text-muted); font-style: italic;">"${log.metadata.notes}"</div>` : ''}
                             </td>
                         </tr>

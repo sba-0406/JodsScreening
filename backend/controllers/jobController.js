@@ -5,6 +5,7 @@ const Question = require('../models/Question');
 const aiService = require('../services/aiService');
 const { generateAssessment } = require('../services/assessmentGeneratorService');
 const { calculateMatchScore } = require('./applicationController');
+const { logAction } = require('../utils/auditLogger');
 
 // ==========================================
 // JOB MANAGEMENT (HR Actions)
@@ -27,6 +28,15 @@ exports.createJob = async (req, res) => {
             },
             postedBy: req.user._id,
             status: 'active'
+        });
+
+        // Audit Log: creation
+        await logAction({
+            entityType: 'job',
+            entityId: job._id,
+            action: 'create',
+            req,
+            metadata: { jobTitle: job.title, department: job.department }
         });
 
         res.status(201).json({ success: true, data: job });
@@ -54,6 +64,15 @@ exports.deleteJob = async (req, res) => {
         if (job.assessmentId) {
             await Assessment.findByIdAndDelete(job.assessmentId);
         }
+
+        // Audit Log: deletion
+        await logAction({
+            entityType: 'job',
+            entityId: job._id,
+            action: 'delete',
+            req,
+            metadata: { jobTitle: job.title }
+        });
 
         await Job.findByIdAndDelete(req.params.id);
 
@@ -89,6 +108,15 @@ exports.generateAssessment = async (req, res) => {
         // Link the generated assessment back to the job
         job.assessmentId = assessment._id;
         await job.save();
+
+        // Audit Log: assessment generation
+        await logAction({
+            entityType: 'job',
+            entityId: job._id,
+            action: 'ai_summary_generated', // Repurposing or could use 'update'
+            req,
+            metadata: { assessmentId: assessment._id }
+        });
 
         res.json({ success: true, data: { job, assessment, analysis, warnings } });
     } catch (error) {
@@ -419,6 +447,15 @@ exports.updateJob = async (req, res) => {
         job = await Job.findByIdAndUpdate(req.params.id, { $set: req.body }, {
             new: true,
             runValidators: true
+        });
+
+        // Audit Log: update
+        await logAction({
+            entityType: 'job',
+            entityId: job._id,
+            action: 'update',
+            req,
+            metadata: { updatedFields: Object.keys(req.body) }
         });
 
         res.json({

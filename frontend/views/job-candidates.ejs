@@ -228,35 +228,33 @@
                                                         <%= candidate.matchScore %>%
                                                     </span>
                                                     <div class="score-bar-mini">
-                                                        <% const scoreColor=candidate.matchScore>= 70 ? 'score-high' :
+                                                        <% const colorClass=candidate.matchScore>= 70 ? 'score-high' :
                                                             (candidate.matchScore >= 50 ? 'score-mid' : 'score-low'); %>
-                                                            <% const scoreStyle='width: ' + (candidate.matchScore || 0)
-                                                                + '%' ; %>
-                                                                <div class="score-fill <%= scoreColor %>"
-                                                                    style="<%= scoreStyle %>"></div>
-                                                    </div>
+                                                            <%- `<div class="score-fill ${colorClass}"
+                                                                style="width: ${candidate.matchScore || 0}%">
+                                                    </div>` %>
                                                 </div>
-                                            </td>
-                                            <td>
-                                                <div class="action-btns">
-                                                    <a href="/api/applications/application/<%= candidate._id %>/view"
-                                                        class="btn btn-sm btn-secondary">Profile</a>
-                                                    <% if (candidate.assessmentStatus==='pending' &&
-                                                        job.requireAssessment) { %>
-                                                        <button
-                                                            onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>', '<%= candidate._id %>')"
-                                                            class="btn btn-sm">Invite</button>
-                                                        <% } %>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <% }); %>
-                                            <% } %>
-                        </tbody>
-                    </table>
                 </div>
-
+                </td>
+                <td>
+                    <div class="action-btns">
+                        <a href="/api/applications/application/<%= candidate._id %>/view"
+                            class="btn btn-sm btn-secondary">Profile</a>
+                        <% if (candidate.assessmentStatus==='pending' && job.requireAssessment) { %>
+                            <button
+                                onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>', '<%= candidate._id %>')"
+                                class="btn btn-sm">Invite</button>
+                            <% } %>
+                    </div>
+                </td>
+                </tr>
+                <% }); %>
+                    <% } %>
+                        </tbody>
+                        </table>
             </div>
+
+        </div>
         </div>
 
         <!-- Invite Modal -->

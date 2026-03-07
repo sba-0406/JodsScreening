@@ -197,7 +197,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sessionId, answerIndex: idx })
                 });
-                const { success, data } = await res.json();
+                const { success, data, error } = await res.json();
                 if (success) {
                     if (data.phaseComplete) {
                         showOverlay('Phase Complete!', 'You have finished the technical questions. Now, let\'s move to the behavioral scenarios.', '👥', () => {
@@ -206,8 +206,13 @@
                     } else {
                         loadState();
                     }
+                } else {
+                    alert('Submission failed: ' + (error || 'Unknown error'));
                 }
-            } catch (err) { console.error(err); } finally {
+            } catch (err) {
+                console.error(err);
+                alert('Connection error. Please check your internet and try again.');
+            } finally {
                 toggleLoading(false);
             }
         }

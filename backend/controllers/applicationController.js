@@ -3,7 +3,10 @@ const Application = require('../models/Application');
 const ai = require('../services/aiService');
 const notificationService = require('../services/notificationService');
 const User = require('../models/User');
-const { logAction } = require('../utils/auditLogger'); // Added import for auditLogger
+const { logAction } = require('../utils/auditLogger');
+const resumeAssistant = require('../services/resumeAssistant');
+const skillService = require('../services/skillService');
+const Assessment = require('../models/Assessment');
 
 // ==========================================
 // UTILITY FUNCTIONS (Internal)
@@ -16,7 +19,15 @@ const { logAction } = require('../utils/auditLogger'); // Added import for audit
  * @returns {Number} - Score from 0-100
  */
 const calculateMatchScore = (application, job) => {
-    const weights = job.rankingWeights || { technicalWeight: 0.45, softSkillWeight: 0.40, experienceWeight: 0.15 };
+    // Standardize weights with robust fallbacks per key
+    const jobWeights = job.rankingWeights || {};
+    const weights = { 
+        technicalWeight: jobWeights.technicalWeight ?? 0.40, 
+        softSkillWeight: jobWeights.softSkillWeight ?? 0.35, 
+        experienceWeight: jobWeights.experienceWeight ?? 0.15,
+        skillMatchWeight: jobWeights.skillMatchWeight ?? 0.10
+    };
+    
     const assessmentDone = application.assessmentStatus === 'completed';
 
     // 1. Technical Score (0-100) — only if assessment completed
@@ -26,39 +37,58 @@ const calculateMatchScore = (application, job) => {
     const softScore = assessmentDone ? (application.assessmentResults?.softSkillScore || 0) : 0;
 
     // 3. Experience Score — uses job's min/max range
-    const rawExp = Math.max(0, parseInt(application.yearsExperience) || 0); // Guard: negative/invalid → 0
+    const rawExp = Math.max(0, parseInt(application.yearsExperience) || 0);
     const minExp = job.experienceMin || 0;
     const maxExp = job.experienceMax || 10;
 
     let expScore;
     if (rawExp >= minExp && rawExp <= maxExp) {
-        expScore = 100; // In range — perfect
+        expScore = 100;
     } else if (rawExp > maxExp) {
-        expScore = 100; // Over-qualified — still valid, will be flagged in view
+        expScore = 100;
     } else if (minExp > 0) {
-        // Under-qualified: proportional penalty (0–80% of max, capped)
         expScore = Math.round((rawExp / minExp) * 80);
     } else {
         expScore = 0;
     }
 
-    // 4. Final Weighted Calculation
-    // If assessment not done, only experience component contributes
+    // 4. Resume Skill Match Score (0-100)
+    // This comes from our new AI parsing logic
+    const skillMatchScore = application.skillsMatch?.score || 0;
+
+    // 5. Final Weighted Calculation
+    // We calculate two scores: 
+    // - resumeScore: For the "Initial Pool" (Resume leaderboard)
+    // - combinedScore: For the "Qualified Pool" (Simulation leaderboard)
+
+    // Normalize weights if assessment is not done (only resume + experience + skill match)
+    const resumeWeightsTotal = (weights.experienceWeight || 0) + (weights.skillMatchWeight || 0);
+    const resumeScore = resumeWeightsTotal > 0 
+        ? Math.round(((expScore * weights.experienceWeight) + (skillMatchScore * weights.skillMatchWeight)) / resumeWeightsTotal)
+        : 0;
+
     let finalScore;
     if (!assessmentDone) {
-        finalScore = expScore * weights.experienceWeight;
+        finalScore = resumeScore;
     } else {
-        finalScore =
+        finalScore = Math.round(
             (techScore * weights.technicalWeight) +
             (softScore * weights.softSkillWeight) +
-            (expScore * weights.experienceWeight);
+            (expScore * weights.experienceWeight) +
+            (skillMatchScore * weights.skillMatchWeight)
+        );
     }
 
     return {
-        score: Math.round(finalScore),
+        score: finalScore,
+        resumeScore: resumeScore,
+        techScore: techScore,
+        softScore: softScore,
+        skillScore: skillMatchScore,
         isPartial: !assessmentDone,
         isOverQualified: rawExp > maxExp,
-        isUnderQualified: rawExp < minExp
+        isUnderQualified: rawExp < minExp,
+        recommendInvite: !assessmentDone && resumeScore >= 75
     };
 };
 exports.calculateMatchScore = calculateMatchScore;
@@ -171,7 +201,7 @@ exports.getPublicJobDetail = async (req, res) => {
  */
 exports.submitApplication = async (req, res) => {
     try {
-        const { candidateName, candidateEmail, candidatePhone, yearsExperience, coverLetter } = req.body;
+        const { candidateName, candidateEmail, candidatePhone, yearsExperience, coverLetter, useExistingResume } = req.body;
         const jobId = req.params.jobId;
 
         // 1. Validate experience input
@@ -188,20 +218,120 @@ exports.submitApplication = async (req, res) => {
         const existingApp = await Application.findOne({ job: jobId, candidate: req.user._id });
         if (existingApp) return res.status(400).json({ success: false, error: 'Already applied' });
 
-        // 2. Create Application Record
+        // 2. Determine Resume URL
+        let resumeUrl = req.file ? req.file.location : null;
+        let preExtractedSkills = null;
+        let preMatchResults = null;
+
+        if (useExistingResume === 'true' && req.user.resume) {
+            resumeUrl = req.user.resume;
+            if (req.user.parsedResumeData?.skills) {
+                preExtractedSkills = req.user.parsedResumeData.skills;
+            }
+        }
+
+        // 3. Process Screening Answers & Check Knockouts
+        let screeningQuestions = req.body['screeningQuestion[]'] || [];
+        let screeningAnswers = req.body['screeningAnswer[]'] || [];
+
+        // Support for indexed keys (e.g., screeningAnswer[0]) and single strings
+        if (!Array.isArray(screeningQuestions)) screeningQuestions = [screeningQuestions];
+        
+        // If screeningAnswers[] is empty but indexed keys exist (radio buttons)
+        if (!Array.isArray(screeningAnswers) || screeningAnswers.length === 0) {
+            if (typeof screeningAnswers === 'string' && screeningAnswers !== '') {
+                screeningAnswers = [screeningAnswers];
+            } else {
+                screeningAnswers = [];
+                // Extract indexed answers from req.body
+                Object.keys(req.body).forEach(key => {
+                    if (key.startsWith('screeningAnswer[')) {
+                        const match = key.match(/\[(\d+)\]/);
+                        if (match) {
+                            const index = parseInt(match[1]);
+                            screeningAnswers[index] = req.body[key];
+                        }
+                    }
+                });
+            }
+        }
+
+        const finalAnswers = [];
+        let knockoutFailed = false;
+        let knockoutReason = '';
+        
+        screeningQuestions.forEach((q, i) => {
+            const answer = screeningAnswers[i];
+            if (q && answer) {
+                finalAnswers.push({ question: q, answer: answer });
+                
+                // Check if this is a knockout question
+                const jobQ = job.screeningQuestions.find(sq => {
+                    const questionText = typeof sq === 'string' ? sq : sq.question;
+                    return questionText === q;
+                });
+
+                if (jobQ && typeof jobQ !== 'string' && jobQ.isKnockout && jobQ.expectedAnswer) {
+                    if (answer.toLowerCase().trim() !== jobQ.expectedAnswer.toLowerCase().trim()) {
+                        knockoutFailed = true;
+                        knockoutReason = `Automatically rejected: Did not meet requirement for "${q}"`;
+                    }
+                }
+            }
+        });
+
+        // 3. Create Application Record
         const application = await Application.create({
             job: jobId,
             candidate: req.user._id,
             candidateName,
             candidateEmail,
             candidatePhone,
-            yearsExperience: parseInt(yearsExperience),
-            resume: req.file ? req.file.location : null,
-            // resume: req.file ? req.file.path.replace(/\\/g, '/') : null, // Normalize file path for Windows
+            yearsExperience: parsedExp,
+            resume: resumeUrl,
             coverLetter,
-            status: 'applied',
-            assessmentStatus: job.requireAssessment ? 'pending' : 'not_required'
+            status: knockoutFailed ? 'rejected' : 'applied',
+            reviewNotes: knockoutFailed ? knockoutReason : undefined,
+            assessmentStatus: knockoutFailed ? 'skipped' : 'pending',
+            extractedSkills: preExtractedSkills,
+            screeningAnswers: finalAnswers
         });
+
+        // 4. Async Skill Extraction & Matching
+        const triggerExtraction = req.file || (useExistingResume === 'true' && !preExtractedSkills);
+        
+        if (triggerExtraction || (useExistingResume === 'true' && preExtractedSkills)) {
+            setImmediate(async () => {
+                try {
+                    let skills = preExtractedSkills;
+                    
+                    if (!skills && resumeUrl) {
+                        console.log(`[PROCESS] Extracting skills for App: ${application._id}`);
+                        const text = await resumeAssistant.extractText(resumeUrl);
+                        skills = await resumeAssistant.extractSkills(text);
+                        
+                        // Update User Cache
+                        await User.findByIdAndUpdate(req.user._id, {
+                            'parsedResumeData.skills': skills,
+                            'parsedResumeData.lastParsed': new Date()
+                        });
+                    }
+                    
+                    // Get skills from job's assessment config
+                    const jobWithSkillDesc = await Job.findById(jobId).populate('assessmentId');
+                    const jobSkills = jobWithSkillDesc.assessmentId?.technicalSkills || [];
+                    
+                    const matchResults = await skillService.matchSkills(skills, jobSkills);
+                    
+                    await Application.findByIdAndUpdate(application._id, {
+                        extractedSkills: skills,
+                        skillsMatch: matchResults
+                    });
+                } catch (e) {
+                    console.error(`[PROCESS ERROR] Resume processing failed:`, e.message);
+                }
+            });
+        }
         if (req.file) {
             console.log("S3 Upload Success:", req.file.location);
         } else {
@@ -412,7 +542,14 @@ exports.renderApplicationDetail = async (req, res) => {
         const isHR = ['hr', 'admin'].includes(req.user.role);
         if (!isOwner && !isHR) return res.status(403).send('Unauthorized');
 
-        res.render('application-detail.ejs', { title: 'Application Details', application, user: req.user });
+        const matchMeta = calculateMatchScore(application, application.job);
+        res.render('application-detail.ejs', { 
+            title: 'Application Details', 
+            application, 
+            user: req.user,
+            matchScore: matchMeta.score,
+            matchMeta: matchMeta
+        });
     } catch (e) { res.status(500).send('Error'); }
 };
 
@@ -449,10 +586,18 @@ exports.updateApplicationStatus = async (req, res) => {
         if (status === 'rejected') application.rejectedAt = Date.now();
 
         if (status === 'interview_scheduled' && interviewDate) {
-            const parsedDate = new Date(interviewDate);
+            let parsedDate = new Date(interviewDate);
             if (isNaN(parsedDate.getTime())) {
                 return res.status(400).json({ success: false, error: 'Incorrect date format' });
             }
+
+            // Year Safeguard: If the year is way in the past (like 2001 bug), 
+            // adjust it to the current year.
+            const currentYear = new Date().getFullYear();
+            if (parsedDate.getFullYear() < 2020) {
+                parsedDate.setFullYear(currentYear);
+            }
+            
             application.interviewDate = parsedDate;
         }
 
@@ -545,5 +690,86 @@ exports.generateAISummary = async (req, res) => {
     } catch (error) {
         console.error('[CONTROLLER ERROR] generateAISummary:', error);
         res.status(500).json({ success: false, error: 'AI Generation Failed' });
+    }
+};
+
+/**
+ * @desc    Invite candidate for assessment
+ * @route   POST /api/applications/application/:id/invite
+ */
+exports.sendAssessmentInvite = async (req, res) => {
+    try {
+        const application = await Application.findById(req.params.id).populate('job');
+        if (!application) return res.status(404).json({ success: false, error: 'Application not found' });
+
+        if (application.assessmentStatus !== 'pending') {
+            return res.status(400).json({ success: false, error: 'Candidate already invited or assessment done' });
+        }
+
+        application.assessmentStatus = 'invited';
+        application.status = 'invited_for_assessment';
+        
+        // Store assessment configuration for this specific candidate session
+        if (req.body.config) {
+            application.assessmentConfig = {
+                strategy: req.body.config.strategy,
+                difficulty: req.body.config.difficulty,
+                duration: req.body.config.duration,
+                includeTechnical: req.body.config.includeTechnical !== undefined ? req.body.config.includeTechnical : true,
+                includeScenarios: req.body.config.includeScenarios !== undefined ? req.body.config.includeScenarios : true
+            };
+        }
+        await application.save();
+
+        // Send notification
+        await notificationService.sendNotification({
+            recipientId: application.candidate,
+            jobId: application.job._id,
+            templateName: 'assessment_invite', // We will ensure this template exists
+            data: {
+                candidateName: application.candidateName,
+                jobTitle: application.job.title
+            },
+            type: 'HR',
+            actionUrl: `/dojo/assessment/${application._id}`
+        });
+
+        // Audit Log
+        await logAction({
+            entityType: 'application',
+            entityId: application._id,
+            action: 'invited_to_assessment',
+            req,
+            metadata: { jobTitle: application.job.title }
+        });
+
+        res.json({ success: true, message: 'Invitation sent successfully' });
+    } catch (error) {
+        console.error('[CONTROLLER ERROR] sendAssessmentInvite:', error);
+        res.status(500).json({ success: false, error: 'Failed to send invitation' });
+    }
+};
+
+/**
+ * @desc    Autofill application from resume
+ * @route   POST /api/applications/autofill
+ */
+exports.autofillFromResume = async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ success: false, error: 'No resume provided' });
+
+        const text = await resumeAssistant.extractTextFromBuffer(req.file.buffer);
+        const data = await resumeAssistant.getAutofillData(text);
+
+        // Update User Cache with parsed data (do NOT update resume URL here since it's not uploaded to S3 yet)
+        await User.findByIdAndUpdate(req.user._id, {
+            'parsedResumeData.profile': data,
+            'parsedResumeData.lastParsed': new Date()
+        });
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('[CONTROLLER ERROR] autofillFromResume:', error);
+        res.status(500).json({ success: false, error: 'Autofill failed' });
     }
 };

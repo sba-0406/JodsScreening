@@ -32,6 +32,12 @@ exports.startAssessment = async (req, res) => {
             return res.status(403).send('Unauthorized');
         }
 
+        // --- NEW GUARD: INVITE ONLY ---
+        const allowedStatuses = ['invited', 'in_progress'];
+        if (!allowedStatuses.includes(application.assessmentStatus)) {
+            return res.status(403).send('<h2>Access Denied</h2><p>You must be invited by HR to take this assessment.</p><a href="/api/applications/my-dashboard">Back to Dashboard</a>');
+        }
+
         if (application.assessmentStatus === 'completed') {
             return res.redirect(`/api/applications/application/${application._id}/view`);
         }
@@ -56,8 +62,9 @@ exports.startAssessment = async (req, res) => {
                 return res.status(400).send('This assessment is currently undergoing moderation by HR. Please check back later.');
             }
 
-            // Initialize Phase 1: MCQ
-            // Note: We'll repurpose ChatSession or create a special field for phase tracking
+            // Initialize Phase 1: MCQ (Only if enabled)
+            const includeTechnical = application.assessmentConfig?.includeTechnical !== false;
+            
             session = await ChatSession.create({
                 user: req.user._id,
                 application: application._id,
@@ -66,7 +73,7 @@ exports.startAssessment = async (req, res) => {
                     type: 'CANDIDATE_ASSESSMENT'
                 },
                 status: 'active',
-                assessmentPhase: 'MCQ',
+                assessmentPhase: includeTechnical ? 'MCQ' : 'SCENARIO',
                 currentMCQIndex: 0,
                 mcqAnswers: [],
                 persona: {
@@ -209,6 +216,16 @@ exports.getAssessmentSession = async (req, res) => {
             });
         }
 
+        // If phase is COMPLETED (all enabled sections done)
+        if (session.assessmentPhase === 'COMPLETED') {
+            return res.json({
+                success: true,
+                data: {
+                    phase: 'COMPLETED'
+                }
+            });
+        }
+
         res.json({ success: false, error: 'Unknown phase' });
     } catch (error) {
         console.error('Error getting assessment session:', error);
@@ -280,35 +297,41 @@ exports.submitMCQAnswer = async (req, res) => {
         const totalMCQs = availableQuestions.length;
         let phaseComplete = false;
         if (updatedSession.currentMCQIndex >= totalMCQs) {
-            updatedSession.assessmentPhase = 'SCENARIO';
+            const includeScenarios = session.application.assessmentConfig?.includeScenarios !== false;
             phaseComplete = true;
 
-            // Initialize first scenario persona
-            const firstScenario = updatedSession.scenarioProgress.scenarios[0];
-            updatedSession.persona = {
-                name: firstScenario.stakeholder,
-                role: firstScenario.stakeholder,
-                mood: 'Professional',
-                briefing: {
-                    situation: firstScenario.description,
-                    objective: 'Navigate the situation effectively',
-                    stakes: 'High'
+            if (includeScenarios && updatedSession.scenarioProgress?.scenarios?.length > 0) {
+                updatedSession.assessmentPhase = 'SCENARIO';
+                
+                // Initialize first scenario persona
+                const firstScenario = updatedSession.scenarioProgress.scenarios[0];
+                updatedSession.persona = {
+                    name: firstScenario.stakeholder,
+                    role: firstScenario.stakeholder,
+                    mood: 'Professional',
+                    briefing: {
+                        situation: firstScenario.description,
+                        objective: 'Navigate the situation effectively',
+                        stakes: 'High'
+                    }
+                };
+
+                // Set initial world state if not already set
+                if (!updatedSession.worldState || updatedSession.worldState.size === 0) {
+                    const config = assessment.simulationConfig;
+                    const metrics = (config && config.metrics && config.metrics.length > 0)
+                        ? config.metrics
+                        : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
+                    
+                    const initialState = {};
+                    metrics.forEach(m => initialState[m] = 50);
+                    updatedSession.worldState = initialState;
                 }
-            };
-
-            // Set initial world state if not already set
-            if (!updatedSession.worldState || updatedSession.worldState.size === 0) {
-                const config = assessment.simulationConfig;
-                const metrics = (config && config.metrics && config.metrics.length > 0)
-                    ? config.metrics
-                    : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
-
-                const initialState = {};
-                metrics.forEach(m => initialState[m] = 50);
-                updatedSession.worldState = initialState;
+            } else {
+                updatedSession.assessmentPhase = 'COMPLETED';
             }
-
-            await updatedSession.save(); // Phase change is okay as a save
+            
+            await updatedSession.save();
         }
 
         res.json({
@@ -594,28 +617,32 @@ exports.finalizeAssessment = async (req, res) => {
         session.completedAt = new Date();
         await session.save();
 
-        // 7. Send Notification to HR (Target the specific HR who posted the job, with fallback)
-        let hrId = application.job ? application.job.postedBy : null;
-        if (!hrId) {
-            const fallbackHr = await User.findOne({ role: 'hr', department: application.job?.department }) || await User.findOne({ role: 'hr' });
-            hrId = fallbackHr ? fallbackHr._id : null;
-        }
+        // 7. Send Notification to HR (non-critical — wrap in try/catch so missing template won't crash finalize)
+        try {
+            let hrId = application.job ? application.job.postedBy : null;
+            if (!hrId) {
+                const fallbackHr = await User.findOne({ role: 'hr', department: application.job?.department }) || await User.findOne({ role: 'hr' });
+                hrId = fallbackHr ? fallbackHr._id : null;
+            }
 
-        if (hrId) {
-            await notificationService.sendNotification({
-                recipientId: hrId,
-                jobId: application.job?._id,
-                senderId: session.user,
-                templateName: 'hr_assessment_complete',
-                data: {
-                    candidateName: application.candidateName,
-                    jobTitle: application.job.title,
-                    score: Math.round(weightedScore),
-                    fit: overallFit
-                },
-                type: 'HR',
-                actionUrl: `/api/applications/application/${application._id}/view`
-            });
+            if (hrId) {
+                await notificationService.sendNotification({
+                    recipientId: hrId,
+                    jobId: application.job?._id,
+                    senderId: session.user,
+                    templateName: 'hr_assessment_complete',
+                    data: {
+                        candidateName: application.candidateName,
+                        jobTitle: application.job?.title || 'the job',
+                        score: Math.round(weightedScore),
+                        fit: overallFit
+                    },
+                    type: 'HR',
+                    actionUrl: `/api/applications/application/${application._id}/view`
+                });
+            }
+        } catch (notifErr) {
+            console.warn('[ASSESSMENT] HR notification failed (non-critical):', notifErr.message);
         }
 
         res.json({

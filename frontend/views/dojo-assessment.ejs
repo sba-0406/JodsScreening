@@ -161,6 +161,11 @@
                         renderMCQ(data);
                     } else if (currentPhase === 'SCENARIO') {
                         renderScenario(data);
+                    } else if (currentPhase === 'COMPLETED') {
+                        // All sections done (e.g. tech only), finalize immediately or show completion
+                        showOverlay('Assessment Finished!', 'You have completed all sections of the evaluation. Click below to view your dashboard.', '🏆', () => {
+                            finalizeAssessment();
+                        });
                     }
                 }
             } catch (err) { console.error(err); }
@@ -200,8 +205,14 @@
                 const { success, data, error } = await res.json();
                 if (success) {
                     if (data.phaseComplete) {
-                        showOverlay('Phase Complete!', 'You have finished the technical questions. Now, let\'s move to the behavioral scenarios.', '👥', () => {
-                            window.location.reload();
+                        const isFinal = data.nextPhase === 'COMPLETED';
+                        const title = isFinal ? 'Assessment Complete!' : 'Phase Complete!';
+                        const desc = isFinal ? 'Thank you for completing the technical evaluation. We will process your results now.' : 'You have finished the technical questions. Now, let\'s move to the behavioral scenarios.';
+                        const icon = isFinal ? '🏆' : '👥';
+                        
+                        showOverlay(title, desc, icon, () => {
+                            if (isFinal) finalizeAssessment();
+                            else window.location.reload();
                         });
                     } else {
                         loadState();

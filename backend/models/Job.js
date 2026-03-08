@@ -69,9 +69,10 @@ const JobSchema = new mongoose.Schema({
     // NOTE: Experience is self-reported by candidates, so it gets low weight (15%).
     // Assessment scores (Tech + Soft) are system-generated and carry 85% of the rank.
     rankingWeights: {
-        technicalWeight: { type: Number, default: 0.45 }, // 45% — system-generated
-        softSkillWeight: { type: Number, default: 0.40 }, // 40% — system-generated
-        experienceWeight: { type: Number, default: 0.15 }  // 15% — self-reported, unverified
+        technicalWeight: { type: Number, default: 0.40 }, // 40% — system-generated
+        softSkillWeight: { type: Number, default: 0.35 }, // 35% — system-generated
+        experienceWeight: { type: Number, default: 0.15 }, // 15% — self-reported
+        skillMatchWeight: { type: Number, default: 0.10 }  // 10% — resume index
     },
 
     // Assessment Reference
@@ -85,6 +86,12 @@ const JobSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    screeningQuestions: [{
+        question: { type: String, required: true },
+        type: { type: String, enum: ['text', 'yes_no'], default: 'text' },
+        isKnockout: { type: Boolean, default: false },
+        expectedAnswer: { type: String } // e.g. "Yes" or "No" for yes_no type
+    }],
     allowResumeUpload: {
         type: Boolean,
         default: true

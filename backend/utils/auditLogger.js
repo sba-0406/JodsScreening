@@ -29,7 +29,7 @@ const logAction = async ({
             newState,
             performer: performer._id,
             performerRole: performer.role,
-            ipAddress: req ? (req.headers['x-forwarded-for'] || req.socket.remoteAddress) : null,
+            ipAddress: req ? (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'Systemic') : null,
             metadata
         });
     } catch (error) {

@@ -108,6 +108,109 @@
             gap: 8px;
             justify-content: flex-end;
         }
+
+        /* ── Segregated Tabs ───────────────── */
+        .tabs-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 2px;
+        }
+
+        .tab-btn {
+            padding: 10px 24px;
+            border: none;
+            background: none;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-color);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .count-badge {
+            background: #f1f5f9;
+            color: #64748b;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-left: 6px;
+        }
+
+        .active .count-badge {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        /* ── Skill Match UI ───────────────── */
+        .skill-tag-mini {
+            display: inline-block;
+            background: #ecfdf5;
+            color: #059669;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .skill-missing {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .match-indicator {
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .invite-suggest {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fffbeb;
+            color: #92400e;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border: 1px solid #fef3c7;
+            margin-top: 4px;
+        }
     </style>
 </head>
 
@@ -158,32 +261,68 @@
                     </div>
                 </div>
 
-                <!-- Results Table -->
-                <div class="card" style="padding: 0; overflow: hidden;">
-                    <table class="candidates-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 80px; text-align: center;">Rank</th>
-                                <th>Candidate</th>
-                                <th>Experience</th>
-                                <th>Assessment</th>
-                                <th>Status</th>
-                                <th>Match Score</th>
-                                <th style="text-align: right;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (candidates.length===0) { %>
+                <!-- Results Section -->
+                <div class="tabs-container">
+                    <% 
+                        // Qualified Pool = Assessment Completed OR Finalized (Rejected/Hired)
+                        const qualifiedPool = candidates.filter(c => c.assessmentStatus === 'completed' || ['rejected', 'hired'].includes(c.status));
+                        // Initial Pool = Active candidates who haven't finished assessment
+                        const initialPool = candidates.filter(c => c.assessmentStatus !== 'completed' && !['rejected', 'hired'].includes(c.status));
+                    %>
+                    <button class="tab-btn active" onclick="showTab('qualified-tab')">
+                        Qualified Pool (Simulation)
+                        <span class="count-badge"><%= qualifiedPool.length %></span>
+                    </button>
+                    <button class="tab-btn" onclick="showTab('initial-tab')">
+                        Initial Pool (Resume Match)
+                        <span class="count-badge"><%= initialPool.length %></span>
+                    </button>
+                </div>
+
+                <!-- Tab 1: Qualified Pool -->
+                <div id="qualified-tab" class="tab-content active">
+                    <div class="filter-bar" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; background: #f8fafc; padding: 12px 20px; border-radius: 8px; border: 1px solid var(--border);">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Filter by Status:</label>
+                        <select id="status-filter" onchange="filterCandidates(this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.9rem; font-weight: 600; color: var(--text-main); cursor: pointer; outline: none;">
+                            <option value="all">All Qualified</option>
+                            <option value="waiting">Waiting for Action</option>
+                            <option value="shortlisted">Shortlisted</option>
+                            <option value="interview">Interview Scheduled</option>
+                            <option value="hired">Hired</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                        <span id="filter-count" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Showing <%= qualifiedPool.length %> candidates</span>
+                    </div>
+
+                    <div class="card" style="padding: 0; overflow: hidden;">
+                        <table class="candidates-table" id="qualified-table">
+                            <thead>
                                 <tr>
-                                    <td colspan="7" class="empty-state">No applications yet for this role.</td>
+                                    <th style="width: 80px; text-align: center;">Rank</th>
+                                    <th>Candidate</th>
+                                    <th>Performance</th>
+                                    <th>Status</th>
+                                    <th style="text-align: center;">Skill Match</th>
+                                    <th>Composite Match</th>
+                                    <th style="text-align: right;">Actions</th>
                                 </tr>
+                            </thead>
+                            <tbody>
+                                <% if (qualifiedPool.length === 0) { %>
+                                    <tr>
+                                        <td colspan="7" class="empty-state">No candidates have completed the simulation yet.</td>
+                                    </tr>
                                 <% } else { %>
-                                    <% candidates.forEach((candidate, index)=> { %>
-                                        <tr>
+                                    <% qualifiedPool.forEach((candidate, index) => { %>
+                                        <tr class="candidate-row" data-status="<%= candidate.status || 'applied' %>">
                                             <td style="text-align: center;">
-                                                <div class="rank-circle <%= index < 3 ? 'rank-top' : '' %>">
-                                                    <%= index + 1 %>
-                                                </div>
+                                                <% if (candidate.assessmentStatus === 'completed') { %>
+                                                    <div class="rank-circle <%= index < 3 ? 'rank-top' : '' %>">
+                                                        <%= index + 1 %>
+                                                    </div>
+                                                <% } else { %>
+                                                    <div class="rank-circle">—</div>
+                                                <% } %>
                                             </td>
                                             <td>
                                                 <div style="font-weight: 700; color: var(--text-main);">
@@ -194,64 +333,130 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <% const expMatch=(candidate.yearsExperience>= job.experienceMin &&
-                                                    candidate.yearsExperience <= job.experienceMax); %>
-                                                        <b class="<%= expMatch ? '' : 'text-danger' %>">
-                                                            <%= candidate.yearsExperience %> Years
-                                                        </b>
-                                            </td>
-                                            <td>
-                                                <% if (candidate.assessmentStatus==='completed' ) { %>
-                                                    <span class="badge badge-success">COMPLETED</span>
-                                                    <div
-                                                        style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; font-weight: 700;">
-                                                        FIT: <%= candidate.assessmentResults?.overallFit ?
-                                                            candidate.assessmentResults.overallFit.toUpperCase() : 'N/A'
-                                                            %>
+                                                <% if (candidate.assessmentStatus === 'completed') { %>
+                                                    <div style="font-size: 0.85rem; font-weight: 600;">
+                                                        TECH: <%= candidate.assessmentResults?.technicalScore || 0 %>%
                                                     </div>
-                                                    <% } else if (candidate.assessmentStatus==='in_progress' ) { %>
-                                                        <span class="badge badge-warning">IN PROGRESS</span>
-                                                        <% } else { %>
-                                                            <span class="badge"
-                                                                style="background: #f1f5f9; color: #64748b;">PENDING</span>
-                                                            <% } %>
+                                                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">
+                                                        SOFT: <%= candidate.assessmentResults?.softSkillScore || 0 %>%
+                                                    </div>
+                                                <% } else { %>
+                                                    <div style="font-size: 0.85rem; color: var(--text-muted);">No Simulation</div>
+                                                <% } %>
                                             </td>
                                             <td>
-                                                <span class="status-badge status-<%= candidate.status %>"
-                                                    style="font-size: 0.75rem; text-transform: uppercase;">
-                                                    <%= candidate.status.replace(/_/g, ' ' ) %>
+                                                <% 
+                                                    let badgeClass = 'badge-info';
+                                                    if (candidate.status === 'shortlisted') badgeClass = 'badge-success';
+                                                    if (candidate.status === 'interview_scheduled') badgeClass = 'badge-primary';
+                                                    if (candidate.status === 'hired') badgeClass = 'badge-success';
+                                                    if (candidate.status === 'rejected') badgeClass = 'badge-danger';
+                                                %>
+                                                <span class="badge <%= badgeClass %>">
+                                                    <%= (candidate.status || 'applied').toUpperCase().replace(/_/g, ' ') %>
                                                 </span>
+                                                <% if (candidate.assessmentStatus === 'completed') { %>
+                                                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; font-weight: 700; text-transform: uppercase;">
+                                                        <%= candidate.assessmentResults?.overallFit || 'N/A' %>
+                                                    </div>
+                                                <% } %>
+                                            </td>
+                                            <td style="text-align: center;">
+                                                <div style="font-weight: 800; color: var(--text-main);"><%= candidate.matchMeta?.skillScore || 0 %>%</div>
+                                                <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Resume Index</div>
                                             </td>
                                             <td>
                                                 <div class="match-score-pill">
-                                                    <span>
-                                                        <%= candidate.matchScore %>%
-                                                    </span>
+                                                    <span><%= candidate.matchScore || 0 %>%</span>
                                                     <div class="score-bar-mini">
-                                                        <% const colorClass=candidate.matchScore>= 70 ? 'score-high' :
-                                                            (candidate.matchScore >= 50 ? 'score-mid' : 'score-low'); %>
-                                                            <%- `<div class="score-fill ${colorClass}"
-                                                                style="width: ${candidate.matchScore || 0}%">
-                                                    </div>` %>
+                                                        <% const colorClass = (candidate.matchScore || 0) >= 70 ? 'score-high' : ((candidate.matchScore || 0) >= 50 ? 'score-mid' : 'score-low'); %>
+                                                        <div class="score-fill <%= colorClass %>" style="width: <%= candidate.matchScore || 0 %>%"></div>
+                                                    </div>
                                                 </div>
-                </div>
-                </td>
-                <td>
-                    <div class="action-btns">
-                        <a href="/api/applications/application/<%= candidate._id %>/view"
-                            class="btn btn-sm btn-secondary">Profile</a>
-                        <% if (candidate.assessmentStatus==='pending' && job.requireAssessment) { %>
-                            <button
-                                onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>', '<%= candidate._id %>')"
-                                class="btn btn-sm">Invite</button>
-                            <% } %>
-                    </div>
-                </td>
-                </tr>
-                <% }); %>
-                    <% } %>
-                        </tbody>
+                                            </td>
+                                            <td>
+                                                <div class="action-btns">
+                                                    <a href="/api/applications/application/<%= candidate._id %>/view" class="btn btn-sm btn-secondary">Report</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } %>
+                            </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Initial Pool -->
+                <div id="initial-tab" class="tab-content">
+                    <div class="card" style="padding: 0; overflow: hidden;">
+                        <table class="candidates-table shadow-sm">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px; text-align: center;">Rank</th>
+                                    <th>Candidate</th>
+                                    <th>Experience</th>
+                                    <th>Match Details</th>
+                                    <th>Index Score</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (initialPool.length === 0) { %>
+                                    <tr>
+                                        <td colspan="6" class="empty-state">All candidates have moved to the Qualified Pool.</td>
+                                    </tr>
+                                <% } else { %>
+                                    <% 
+                                        initialPool.sort((a,b) => (b.matchMeta?.resumeScore || 0) - (a.matchMeta?.resumeScore || 0));
+                                        initialPool.forEach((candidate, index) => { 
+                                    %>
+                                        <tr>
+                                            <td style="text-align: center;">
+                                                <div class="rank-circle <%= index < 3 ? 'rank-top' : '' %>">
+                                                    <%= index + 1 %>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style="font-weight: 700; color: var(--text-main);">
+                                                    <%= candidate.candidateName %>
+                                                </div>
+                                                <% if (candidate.matchMeta?.recommendInvite) { %>
+                                                    <div class="invite-suggest" style="margin-top: 4px;">✨ Recommended</div>
+                                                <% } %>
+                                            </td>
+                                            <td>
+                                                <div style="font-weight: 600;"><%= candidate.yearsExperience %> Years</div>
+                                            </td>
+                                            <td>
+                                                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                                    <% if (candidate.assessmentStatus === 'invited') { %>
+                                                        <span class="badge badge-info" style="font-size: 0.65rem;">INVITED</span>
+                                                    <% } else if (candidate.assessmentStatus === 'in_progress') { %>
+                                                        <span class="badge badge-warning" style="font-size: 0.65rem;">IN PROGRESS</span>
+                                                    <% } else { %>
+                                                        <span class="badge badge-secondary" style="font-size: 0.65rem;">NEW</span>
+                                                    <% } %>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style="font-weight: 800; font-size: 1rem;"><%= candidate.matchMeta?.resumeScore || 0 %>%</div>
+                                            </td>
+                                            <td>
+                                                <div class="action-btns">
+                                                    <a href="/api/applications/application/<%= candidate._id %>/view" class="btn btn-sm btn-secondary">Review</a>
+                                                    <% if (candidate.assessmentStatus === 'pending' && candidate.status !== 'rejected') { %>
+                                                        <button onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>', '<%= candidate._id %>')" class="btn btn-sm">Invite</button>
+                                                    <% } %>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -286,6 +491,46 @@
         </div>
 
         <script>
+            function showTab(tabId) {
+                // Update buttons
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.getAttribute('onclick').includes(tabId)) btn.classList.add('active');
+                });
+                
+                // Update content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tabId).classList.add('active');
+            }
+
+            function filterCandidates(status) {
+                const rows = document.querySelectorAll('.candidate-row');
+                let count = 0;
+                
+                rows.forEach(row => {
+                    const rowStatus = row.getAttribute('data-status');
+                    let show = false;
+                    
+                    if (status === 'all') show = true;
+                    else if (status === 'waiting' && (rowStatus === 'applied' || rowStatus === 'invited_for_assessment')) show = true;
+                    else if (status === 'shortlisted' && rowStatus === 'shortlisted') show = true;
+                    else if (status === 'interview' && rowStatus === 'interview_scheduled') show = true;
+                    else if (status === 'hired' && rowStatus === 'hired') show = true;
+                    else if (status === 'rejected' && rowStatus === 'rejected') show = true;
+                    
+                    if (show) {
+                        row.style.display = '';
+                        count++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                document.getElementById('filter-count').textContent = `Showing ${count} candidates`;
+            }
+
             const jobId = "<%= job._id %>";
             const jobTitle = "<%= job.title %>";
             let currentCandidateId = null, currentCandidateName = null, currentAppId = null, templates = [];

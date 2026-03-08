@@ -37,6 +37,10 @@ const QuestionSchema = new mongoose.Schema({
     tags: [String],
     createdBy: String, // 'admin', 'ai', or user ID
     reviewedBy: String,
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
     source: String, // Where the question came from
 
     // Quality Metrics

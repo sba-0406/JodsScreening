@@ -12,6 +12,11 @@ const AssessmentSchema = new mongoose.Schema({
     roleCategory: String, // Engineering, Sales, etc.
     seniorityLevel: String, // Junior, Mid, Senior, Lead
     roleType: String, // IC, Manager, etc.
+    presetStrategy: {
+        type: String,
+        enum: ['technical', 'balanced', 'behavioral'],
+        default: 'balanced'
+    },
 
     // Extracted Skills
     technicalSkills: [String],
@@ -42,11 +47,23 @@ const AssessmentSchema = new mongoose.Schema({
         isManual: { type: Boolean, default: false }
     }],
 
+    // AI Suggested Questions (Staging Area)
+    suggestedQuestions: [{
+        skill: String,
+        difficulty: String,
+        question: String,
+        options: [String],
+        correctAnswer: Number,
+        explanation: String,
+        source: { type: String, default: 'ai_generated' }
+    }],
+
     // Scenario Templates (AI-generated)
     scenarioTemplates: [{
         theme: String, // Dynamic theme name
         stakeholder: String, // e.g. "Senior Manager", "CEO", "Lead Designer"
-        softSkill: String, // The specific soft skill this tests
+        softSkill: String, // The specific primary soft skill this tests
+        otherSkills: [String], // Additional skills also tested (for composite scenarios)
         metrics: [String], // Team Morale, Trust, etc.
         metricPolarity: {
             type: Map,

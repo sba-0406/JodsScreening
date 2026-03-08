@@ -36,6 +36,17 @@ const UserSchema = new mongoose.Schema({
   // For Candidates
   phone: String,
   resume: String, // File path or URL
+  skills: [String], // Extracted or self-reported skills
+  parsedResumeData: {
+    skills: [String],
+    profile: {
+        name: String,
+        email: String,
+        phone: String,
+        years: Number
+    },
+    lastParsed: Date
+  },
 
   // Legacy fields (keep for backward compatibility)
   isActive: {

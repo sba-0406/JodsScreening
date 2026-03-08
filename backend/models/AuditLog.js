@@ -15,7 +15,7 @@ const auditLogSchema = new mongoose.Schema({
     action: {
         type: String,
         required: true,
-        enum: ['create', 'update', 'delete', 'status_change', 'ai_summary_generated', 'assessment_started', 'assessment_completed']
+        enum: ['create', 'update', 'delete', 'status_change', 'ai_summary_generated', 'assessment_started', 'assessment_completed', 'invited_to_assessment']
     },
     previousState: {
         type: mongoose.Schema.Types.Mixed

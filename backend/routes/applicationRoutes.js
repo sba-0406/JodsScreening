@@ -76,6 +76,22 @@ const upload = multer({
     }
 });
 
+const uploadMemory = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = /pdf|doc|docx/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+
+        if (mimetype && extname) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF and Word documents allowed'));
+        }
+    }
+});
+
 // Public routes (no authentication required, but load user if logged in)
 router.get('/jobs', loadUser, applicationController.getPublicJobs);
 router.get('/jobs/:id', loadUser, applicationController.getPublicJobDetail);
@@ -87,7 +103,9 @@ router.get('/application/:id', protect, applicationController.getApplicationDeta
 router.get('/application/:id/benchmark', protect, applicationController.getBenchmarkingData);
 router.get('/application/:id/view', protect, applicationController.renderApplicationDetail);
 router.patch('/application/:id/status', protect, authorizeHR, applicationController.updateApplicationStatus);
+router.post('/application/:id/invite', protect, authorizeHR, applicationController.sendAssessmentInvite);
 router.post('/application/:id/ai-summary', protect, authorizeHR, applicationController.generateAISummary);
+router.post('/autofill', protect, uploadMemory.single('resume'), applicationController.autofillFromResume);
 
 // View routes
 router.get('/jobs-portal', loadUser, applicationController.renderJobsPortal);

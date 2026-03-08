@@ -343,10 +343,22 @@ class SmartMockAIService {
                 {
                     question: "Mock Question 1?",
                     options: ["A", "B", "C", "D"],
-                    correctAnswer: "A",
+                    correctAnswer: 0,
                     explanation: "Reason A"
                 }
             ]);
+        }
+
+        if (lower.includes('extract a flat list of technical skills')) {
+            // Smart extraction based on common keywords if possible, or just a good default
+            return JSON.stringify(["Photoshop", "Illustrator", "Figma", "PowerPoint", "UI/UX", "Adobe Creative Suite"]);
+        }
+
+        if (lower.includes('identify the general tech category')) {
+            if (lower.includes('photoshop') || lower.includes('figma') || lower.includes('illustrator')) return "UI-UX";
+            if (lower.includes('react') || lower.includes('vue')) return "Frontend-Framework";
+            if (lower.includes('node') || lower.includes('express')) return "Backend-Framework";
+            return "General-Tech";
         }
         return JSON.stringify({
             totalScore: 7,

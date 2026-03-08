@@ -109,10 +109,9 @@ Guidelines:
  */
 async function generateScenarioTemplates(softSkills, roleCategory, roleType, count = 3, jobDescription = '', jobTitle = '') {
   try {
-    const prompt = `Generate exactly ${softSkills.length} realistic workplace scenario templates for a ${roleType} in ${roleCategory}.
-
-STRICT REQUIREMENT: You MUST generate exactly one scenario for EACH of the following soft skills:
-Skills to test: ${softSkills.join(', ')}
+    const isComposite = count < softSkills.length;
+    const prompt = `Generate exactly ${count} realistic workplace scenario templates for a ${roleType} in ${roleCategory}.
+${isComposite ? `Since we only have ${count} scenarios to test ${softSkills.length} skills, each scenario MUST be a "Composite Scenario" that probes multiple skills from this list: ${softSkills.join(', ')}.` : `STRICT REQUIREMENT: You MUST generate exactly one scenario for EACH of the following soft skills: ${softSkills.join(', ')}.`}
 
 Job Description Context:
 """
@@ -125,10 +124,11 @@ EXACT STRUCTURE (no extra fields):
 {
   "scenarios": [
     {
-      "softSkill": "The EXACT name of the soft skill from the list (e.g. '${softSkills[0]}')",
+      "softSkill": "${isComposite ? "Primary skill being tested (e.g. 'Communication')" : "The EXACT name of the soft skill from the list"}",
+      "otherSkills": ${isComposite ? "[\"List of 1-2 additional skills also tested in this prompt\"]" : "[]"},
       "theme": "A short, catchy title for the situation",
-      "stakeholder": "The specific job title of the person the candidate of job title or role type ${jobTitle || roleType} is speaking with (e.g. 'Project Manager', 'Lead Designer', 'VP of Sales')",
-      "prompt": "A specific, realistic workplace challenge explicitly designed to test THIS skill. Be detailed and role-specific.",
+      "stakeholder": "The specific job title of the person the candidate of job title or role type ${jobTitle || roleType} is speaking with",
+      "prompt": "A specific, realistic workplace challenge. ${isComposite ? "This prompt must be complex enough to trigger 2-3 different soft skills from the list." : "This prompt should specifically test the main soft skill."}",
       "applicableRoles": ["${roleType}"]
     }
   ],
@@ -139,30 +139,18 @@ EXACT STRUCTURE (no extra fields):
       "MetricB": "high",
       "MetricC": "low"
     }
-    // "effects": { // DEPRECATED: Physics is now dynamic
-    //   "Results":      { "MetricA": 10, "MetricB": -8, "MetricC": 5 },
-    //   "Relationship": { "MetricA": -5, "MetricB": 10, "MetricC": -8 },
-    //   "Boundary":     { "MetricA": 5,  "MetricB": -5, "MetricC": -10 }
-    // }
   }
 }
 
 RULES — follow exactly:
-1. QUANTITY: Return exactly ${softSkills.length} scenarios. One for each skill.
-2. SOFTSKILL: The 'softSkill' field MUST be the exact name of the soft skill from the list provided.
-3. THEME: A creative title related to the situation (e.g. "The Midnight Deadline").
+1. QUANTITY: Return exactly ${count} scenarios.
+2. SOFTSKILL: The 'softSkill' field MUST be the exact name of a soft skill from the list provided.
+3. THEME: A creative title related to the situation.
 4. METRICS: Choose exactly 3 metrics that are critical success factors for THIS specific job role.
-   - Use clear, professional names (e.g. "Stakeholder Trust", "Delivery Speed", "Compliance Risk")
-   - Do NOT use generic names like "TeamMorale", "Trust", "Productivity"
-
-5. POLARITY: "high" = higher is better. "low" = higher is worse (use for Risk, Stress, Debt, Friction).
-
-// 6. EFFECTS — DEPRECATED: These are now calculated dynamically by a separate AI judge.
-//    Do NOT include the "effects" key in the "physics" object.
-
-7. SCENARIOS: Be specific to the job. Each prompt should describe a concrete stakeholder, their complaint/demand, and the stakes related to the specific soft skill being tested.
-8. ROLE: The candidate's role in the scenario should be exactly '${jobTitle || roleType}'. Do NOT just say 'IC' if a more specific title like 'Senior Marketing Manager' is appropriate.
-9. STAKEHOLDER: The 'stakeholder' field must be a professional job title, NEVER the name of the soft skill.`;
+5. POLARITY: "high" = higher is better. "low" = higher is worse.
+6. SCENARIOS: Be specific to the job. Each prompt should describe a concrete stakeholder, their complaint/demand, and high stakes.
+7. ROLE: The candidate's role in the scenario should be exactly '${jobTitle || roleType}'.
+8. STAKEHOLDER: The 'stakeholder' field must be a professional job title.`;
 
     const response = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],

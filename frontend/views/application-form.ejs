@@ -66,13 +66,29 @@
 
                         <div class="form-group">
                             <label>Resume (PDF/DOC) *</label>
-                            <label class="file-upload-dropzone">
-                                <input type="file" name="resume" required accept=".pdf,.doc,.docx"
-                                    onchange="document.getElementById('file-chosen').innerText = '📄 ' + this.files[0].name; document.getElementById('file-chosen').style.color = 'var(--primary-color)'">
-                                <span class="file-upload-icon">📄</span>
-                                <span id="file-chosen" class="file-upload-text">Click to upload your resume or drag and
-                                    drop</span>
-                            </label>
+                            <div id="resume-upload-section">
+                                <label class="file-upload-dropzone" id="dropzone">
+                                    <input type="file" id="resume-input" name="resume" required accept=".pdf,.doc,.docx"
+                                        onchange="handleFileSelect(event)">
+                                    <span class="file-upload-icon">📄</span>
+                                    <span id="file-chosen" class="file-upload-text">
+                                        Click to upload your resume or drag and drop
+                                    </span>
+                                </label>
+
+                                <% if (user.resume) { %>
+                                    <div style="margin-top: 10px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; font-size: 0.85rem;">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" id="use-existing-check" onchange="toggleResumeReuse(this.checked)">
+                                            <span>Use my existing resume: <strong><%= user.resume.split('/').pop() %></strong></span>
+                                        </label>
+                                    </div>
+                                <% } %>
+
+                                <button type="button" class="btn btn-outline" style="width: 100%; margin-top: 10px; font-size: 0.85rem;" id="autofill-btn" disabled>
+                                    ✨ Auto-fill details from Resume
+                                </button>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -80,6 +96,33 @@
                             <textarea name="coverLetter" class="form-control" style="min-height: 120px;"
                                 placeholder="Tell us why you are a great fit for this role..."></textarea>
                         </div>
+
+                        <% if (job.screeningQuestions && job.screeningQuestions.length > 0) { %>
+                            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f1f5f9;">
+                                <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--primary-color); margin-bottom: 20px;">Role-Specific Questions</h3>
+                                <% job.screeningQuestions.forEach((sq, index) => { %>
+                                    <div class="form-group mb-24">
+                                        <label style="font-weight: 700; font-size: 0.95rem; margin-bottom: 12px; display: block; color: var(--text-main);">
+                                            <%= sq.question %> *
+                                        </label>
+                                        <input type="hidden" name="screeningQuestion[]" value="<%= sq.question %>">
+                                        
+                                        <% if (sq.type === 'yes_no') { %>
+                                            <div style="display: flex; gap: 30px; background: #f8fafc; padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border);">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                                                    <input type="radio" name="screeningAnswer[<%= index %>]" value="Yes" required style="width: 18px; height: 18px; accent-color: var(--primary-color);"> Yes
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                                                    <input type="radio" name="screeningAnswer[<%= index %>]" value="No" required style="width: 18px; height: 18px; accent-color: var(--primary-color);"> No
+                                                </label>
+                                            </div>
+                                        <% } else { %>
+                                            <textarea name="screeningAnswer[<%= index %>]" class="form-control" required placeholder="Type your answer here..." style="min-height: 80px;"></textarea>
+                                        <% } %>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } %>
 
                         <button type="submit" class="btn"
                             style="width: 100%; padding: 14px; margin-top: 10px; font-weight: 700;" id="submit-btn">
@@ -96,19 +139,94 @@
             const jobId = '<%= job._id %>';
 
             function handleFileSelect(event) {
-                const fileName = event.target.files[0]?.name;
-                const fileNameDisplay = document.getElementById('file-name');
-                const uploadInfo = document.getElementById('upload-info');
+                const file = event.target.files[0];
+                const fileName = file?.name;
+                const fileChosen = document.getElementById('file-chosen');
+                const autofillBtn = document.getElementById('autofill-btn');
 
                 if (fileName) {
-                    fileNameDisplay.textContent = 'Selected: ' + fileName;
-                    fileNameDisplay.style.display = 'block';
-                    uploadInfo.style.display = 'none';
+                    fileChosen.innerText = '📄 ' + fileName;
+                    fileChosen.style.color = 'var(--primary-color)';
+                    autofillBtn.disabled = false;
+                    autofillBtn.classList.add('pulse'); // Visual cue
                 } else {
-                    fileNameDisplay.style.display = 'none';
-                    uploadInfo.style.display = 'block';
+                    fileChosen.innerText = 'Click to upload your resume or drag and drop';
+                    fileChosen.style.color = 'var(--text-muted)';
+                    autofillBtn.disabled = true;
                 }
             }
+
+            // Store profile data if available for reuse
+            const cachedProfile = <%- JSON.stringify(typeof user !== 'undefined' ? (user?.parsedResumeData?.profile || null) : null) %>;
+
+            function toggleResumeReuse(isReusing) {
+                const input = document.getElementById('resume-input');
+                const fileChosen = document.getElementById('file-chosen');
+                const autofillBtn = document.getElementById('autofill-btn');
+
+                if (isReusing) {
+                    input.value = ""; // Clear any selected file
+                    input.required = false;
+                    fileChosen.innerText = "Using existing resume";
+                    fileChosen.style.color = "var(--success)";
+                    autofillBtn.disabled = true;
+
+                    // Immediately autofill if data exists
+                    if (cachedProfile) {
+                        if (cachedProfile.name) document.querySelector('input[name="candidateName"]').value = cachedProfile.name;
+                        if (cachedProfile.email) document.querySelector('input[name="candidateEmail"]').value = cachedProfile.email;
+                        if (cachedProfile.phone) document.querySelector('input[name="candidatePhone"]').value = cachedProfile.phone;
+                        if (cachedProfile.years) document.querySelector('input[name="yearsExperience"]').value = cachedProfile.years;
+                    }
+                } else {
+                    input.required = true;
+                    fileChosen.innerText = "Click to upload your resume or drag and drop";
+                    fileChosen.style.color = "var(--text-muted)";
+                    autofillBtn.disabled = !input.files[0];
+                }
+            }
+
+            // Ensure correct state on load
+            document.addEventListener('DOMContentLoaded', () => {
+                toggleResumeReuse(false);
+            });
+
+            document.getElementById('autofill-btn').addEventListener('click', async () => {
+                const input = document.getElementById('resume-input');
+                if (!input.files[0]) return;
+
+                const btn = document.getElementById('autofill-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✨ Scanning...';
+                btn.disabled = true;
+
+                const formData = new FormData();
+                formData.append('resume', input.files[0]);
+
+                try {
+                    const res = await fetch('/api/applications/autofill', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await res.json();
+                    if (result.success && result.data) {
+                        const data = result.data;
+                        if (data.name) document.querySelector('input[name="candidateName"]').value = data.name;
+                        if (data.email) document.querySelector('input[name="candidateEmail"]').value = data.email;
+                        if (data.phone) document.querySelector('input[name="candidatePhone"]').value = data.phone;
+                        if (data.years !== undefined) document.querySelector('input[name="yearsExperience"]').value = data.years;
+                        btn.innerHTML = '✅ Form Updated!';
+                    }
+                } catch (e) {
+                    console.error('Autofill failed:', e);
+                    btn.innerHTML = '❌ Scan Failed';
+                } finally {
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 3000);
+                }
+            });
 
             document.getElementById('application-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -121,6 +239,12 @@
                 errorDisplay.style.display = 'none';
 
                 const formData = new FormData(e.target);
+
+                // Add explicit flag for existing resume
+                const existingCheck = document.getElementById('use-existing-check');
+                if (existingCheck && existingCheck.checked) {
+                    formData.append('useExistingResume', 'true');
+                }
 
                 try {
                     const response = await fetch(`/api/applications/apply/${jobId}`, {

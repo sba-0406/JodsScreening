@@ -108,12 +108,15 @@
                     else statusBadge = 'badge-warning';
 
                     let assessmentAction = '';
-                    if (app.assessmentStatus === 'pending') {
+                    if (app.assessmentStatus === 'invited') {
                         assessmentAction = `<a href="/api/assessment/assessment/${app._id}" class="btn-sm" style="flex: 1.5; text-align: center; display: flex; align-items: center; justify-content: center; background: var(--success); color: white; border-color: var(--success);">Take Assessment</a>`;
                     } else if (app.assessmentStatus === 'in_progress') {
                         assessmentAction = `<a href="/api/assessment/assessment/${app._id}" class="btn-sm" style="flex: 1.5; text-align: center; display: flex; align-items: center; justify-content: center; background: var(--primary-color); color: white;">Resume Assessment</a>`;
-                    } else {
+                    } else if (app.assessmentStatus === 'completed') {
                         assessmentAction = `<div class="btn-sm completed-pill" style="flex: 1.5; background: #f0fdf4; color: #16a34a; border-color: #bcfecb; cursor: default; display: flex; align-items: center; justify-content: center; font-weight: 700; white-space: nowrap;">✓ Completed</div>`;
+                    } else {
+                        // Pending or any other state
+                        assessmentAction = `<div class="btn-sm" style="flex: 1.5; background: #f8fafc; color: #64748b; border: 1px solid var(--border); cursor: default; display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">Under Review</div>`;
                     }
 
                     return `

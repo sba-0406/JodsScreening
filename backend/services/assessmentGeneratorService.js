@@ -29,20 +29,44 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
         console.log('[GENERATE] Step 1: Analyzing Job Description...');
         const analysis = await analyzeJobDescription(jobDescription);
 
-        // STEP 2: Technical Question Sourcing
-        // We look at the existing question bank. If allowed, we generate AI questions for missing skills.
-        console.log('[GENERATE] Step 2: Selecting Technical Questions...');
+        // APPLY PRESET STRATEGY DEFAULTS
+        const strategy = assessmentConfig.presetStrategy || 'balanced';
+        let technicalWeight = analysis.technicalWeight;
+        let softSkillWeight = analysis.softSkillWeight;
+        let techCountMultiplier = 1;
+        let scenarioCountOverride = null;
 
-        let countConfig = assessmentConfig.questionsPerSkill || 2;
+        if (strategy === 'technical') {
+            technicalWeight = 0.8;
+            softSkillWeight = 0.2;
+            techCountMultiplier = 2; // More MCQs
+            scenarioCountOverride = 1; // Minimal scenarios
+        } else if (strategy === 'behavioral') {
+            technicalWeight = 0.3;
+            softSkillWeight = 0.7;
+            techCountMultiplier = 0.5; // Fewer MCQs
+            scenarioCountOverride = 5; // Heavy scenarios
+        } else {
+            // Balanced (default)
+            technicalWeight = 0.6;
+            softSkillWeight = 0.4;
+            techCountMultiplier = 1;
+            scenarioCountOverride = 3;
+        }
+
+        // STEP 2: Technical Question Sourcing
+        console.log(`[GENERATE] Step 2: Selecting Technical Questions (Strategy: ${strategy})...`);
+
+        let countConfig = (assessmentConfig.questionsPerSkill || 2) * techCountMultiplier;
         if (assessmentConfig.skillConfigs?.length > 0) {
-            countConfig = { default: assessmentConfig.questionsPerSkill || 2 };
+            countConfig = { default: (assessmentConfig.questionsPerSkill || 2) * techCountMultiplier };
             assessmentConfig.skillConfigs.forEach(sc => countConfig[sc.skill] = sc.questionCount);
         }
 
         const difficulty = analysis.seniorityLevel === 'Junior' ? 'Easy' :
             analysis.seniorityLevel === 'Lead' ? 'Hard' : 'Medium';
 
-        const { questions, missingSkills, skillMappings } = await selectQuestions(
+        const { questions, missingSkills, skillMappings, suggestions } = await selectQuestions(
             analysis.technicalSkills,
             countConfig,
             difficulty,
@@ -50,10 +74,8 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
         );
 
         // STEP 3: Scenario Template Creation
-        // We generate one situational scenario for each soft skill identified.
         console.log('[GENERATE] Step 3: Generating Situational Scenarios...');
 
-        // Fetch the job title for role-specific scenario prompts
         const Job = require('../models/Job');
         const jobDoc = await Job.findById(jobId);
         const jobTitle = jobDoc?.title || '';
@@ -62,28 +84,28 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
             analysis.softSkills,
             analysis.roleCategory,
             analysis.roleType,
-            analysis.softSkills.length, // Explicitly one per soft skill
+            scenarioCountOverride || analysis.softSkills.length,
             jobDescription,
             jobTitle
         );
 
         // STEP 4: Assessment Persistence
-        // We save the structured assessment to the database.
         const assessment = await Assessment.create({
             job: jobId,
             roleCategory: analysis.roleCategory,
             seniorityLevel: analysis.seniorityLevel,
             roleType: analysis.roleType,
+            presetStrategy: strategy,
             technicalSkills: analysis.technicalSkills,
             softSkills: analysis.softSkills,
-            technicalWeight: analysis.technicalWeight,
-            softSkillWeight: analysis.softSkillWeight,
+            technicalWeight,
+            softSkillWeight,
             technicalQuestions: questions,
-            scenarioTemplates: scenarios.scenarios, // Use .scenarios from result
+            suggestedQuestions: suggestions || [],
+            scenarioTemplates: scenarios.scenarios,
             simulationConfig: {
                 metrics: scenarios.physics.metrics,
                 metricPolarity: scenarios.physics.polarity,
-                // approachEffects: scenarios.physics.effects // DEPRECATED: Physics is now dynamic
             },
             minTechnicalScore: analysis.minTechnicalScore,
             minSoftSkillScore: analysis.minSoftSkillScore,
@@ -95,7 +117,7 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
             missingSkills,
             skillMappings,
             createdBy,
-            status: (missingSkills.length > 0 || questions.some(q => q.status === 'pending_review')) ? 'pending_review' : 'active'
+            status: (missingSkills.length > 0 || (suggestions && suggestions.length > 0)) ? 'pending_review' : 'active'
         });
 
         return { assessment, analysis, warnings: missingSkills.length > 0 ? [`Missing skills in bank: ${missingSkills.join(', ')}`] : [] };
@@ -118,7 +140,16 @@ async function regenerateScenarios(assessmentId) {
 
     // Safely get the job description - job is now populated
     const jobDescription = assessment.job?.description || '';
-    const scenarioCount = assessment.softSkills?.length || 3;
+    
+    // APPLY PRESET STRATEGY DEFAULTS
+    let scenarioCount = assessment.softSkills?.length || 3;
+    if (assessment.presetStrategy === 'technical') {
+        scenarioCount = 1; // Minimal but composite
+    } else if (assessment.presetStrategy === 'behavioral') {
+        scenarioCount = 5; // Heavy scenarios
+    } else {
+        scenarioCount = 3; // Balanced
+    }
 
     // Preserve manual scenarios
     const manualScenarios = assessment.scenarioTemplates.filter(s => s.isManual);
@@ -240,10 +271,18 @@ async function regenerateTechnicalQuestions(assessmentId, config = {}) {
     const difficulty = assessment.seniorityLevel === 'Junior' ? 'Easy' :
         assessment.seniorityLevel === 'Lead' ? 'Hard' : 'Medium';
 
+    // APPLY PRESET STRATEGY DEFAULTS
+    let techCountMultiplier = 1;
+    if (assessment.presetStrategy === 'technical') {
+        techCountMultiplier = 2;
+    } else if (assessment.presetStrategy === 'behavioral') {
+        techCountMultiplier = 0.5;
+    }
+
     // Prepare granular count config
-    let countConfig = config.questionsPerSkill || 2;
+    let countConfig = (config.questionsPerSkill || 2) * techCountMultiplier;
     if (config.skillConfigs && config.skillConfigs.length > 0) {
-        countConfig = { default: config.questionsPerSkill || 2 };
+        countConfig = { default: (config.questionsPerSkill || 2) * techCountMultiplier };
         config.skillConfigs.forEach(sc => {
             countConfig[sc.skill] = sc.questionCount;
         });
@@ -255,7 +294,7 @@ async function regenerateTechnicalQuestions(assessmentId, config = {}) {
     // For shuffling/regeneration, exclude currently used questions
     const excludeIds = assessment.technicalQuestions.map(q => q.questionId);
 
-    const { questions, missingSkills, skillMappings } = await selectQuestions(
+    const { questions, missingSkills, skillMappings, suggestions } = await selectQuestions(
         assessment.technicalSkills,
         countConfig,
         difficulty,
@@ -265,12 +304,13 @@ async function regenerateTechnicalQuestions(assessmentId, config = {}) {
 
     // Combine manual with newly source/generated ones
     assessment.technicalQuestions = [...manualQuestions, ...questions];
+    assessment.suggestedQuestions = suggestions || [];
     assessment.missingSkills = missingSkills;
     assessment.skillMappings = skillMappings;
     assessment.questionCounts.technical = assessment.technicalQuestions.length;
 
     // Update status if needed
-    assessment.status = (missingSkills.length > 0 || questions.some(q => q.status === 'pending_review')) ? 'pending_review' : 'active';
+    assessment.status = (missingSkills.length > 0 || (suggestions && suggestions.length > 0)) ? 'pending_review' : 'active';
 
     await assessment.save();
     return assessment;

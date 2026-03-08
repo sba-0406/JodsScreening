@@ -35,8 +35,15 @@ const ApplicationSchema = new mongoose.Schema({
     // Assessment Status
     assessmentStatus: {
         type: String,
-        enum: ['pending', 'in_progress', 'completed'],
+        enum: ['pending', 'invited', 'in_progress', 'completed', 'not_required', 'skipped'],
         default: 'pending'
+    },
+    assessmentConfig: {
+        strategy: String,
+        difficulty: String,
+        duration: Number,
+        includeTechnical: { type: Boolean, default: true },
+        includeScenarios: { type: Boolean, default: true }
     },
 
     // Assessment Results
@@ -60,8 +67,22 @@ const ApplicationSchema = new mongoose.Schema({
     // Application Status
     status: {
         type: String,
-        enum: ['applied', 'shortlisted', 'rejected', 'hired', 'interview_scheduled'],
+        enum: ['applied', 'invited_for_assessment', 'shortlisted', 'rejected', 'hired', 'interview_scheduled'],
         default: 'applied'
+    },
+
+    screeningAnswers: [{
+        question: String,
+        answer: String
+    }],
+
+    // Skill Matching Data
+    extractedSkills: [String],
+    skillsMatch: {
+        exact: [String],
+        similar: [String],
+        missing: [String],
+        score: { type: Number, default: 0 }
     },
 
     // HR Actions

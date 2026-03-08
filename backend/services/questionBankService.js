@@ -39,6 +39,7 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
     const selected = [];
     const missing = [];
     const mappings = {};
+    const suggestions = [];
 
     const skillsToGenerate = {};
 
@@ -51,15 +52,31 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
             count = countConfig[skill] || countConfig.default || 2;
         }
 
-        // --- Step 1: Search the existing Bank (Shuffle logic) ---
+        // --- Step 1: Search the existing Bank (Prioritize Verified questions) ---
         let questions = await Question.find({
             skill,
             difficulty,
             status: 'active',
+            isVerified: true,
             _id: { $nin: excludeIds }
         })
             .sort({ usageCount: 1 })
             .limit(count);
+
+        // Fallback to non-verified active questions
+        if (questions.length < count) {
+            const needed = count - questions.length;
+            const nonVerified = await Question.find({
+                skill,
+                difficulty,
+                status: 'active',
+                isVerified: false,
+                _id: { $nin: [...excludeIds, ...questions.map(q => q._id)] }
+            })
+                .sort({ usageCount: 1 })
+                .limit(needed);
+            questions = [...questions, ...nonVerified];
+        }
 
         // --- Step 2: Try Skill Mapping ---
         if (questions.length < count) {
@@ -84,9 +101,12 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
         }
 
         // --- Step 3: Collect for Bulk AI Generation ---
+        // Request 2x the needed count so that even if the AI returns fewer valid
+        // questions (due to parsing failures or malformed responses), we still hit
+        // the target. All generated questions are saved to the bank for future use.
         if (questions.length < count && allowAIGeneration) {
             const needed = count - questions.length;
-            skillsToGenerate[skill] = needed;
+            skillsToGenerate[skill] = needed * 2; // Over-generate to buffer against AI shortfalls
         }
 
         // Store intermediate results
@@ -105,7 +125,7 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
     // --- Step 4: Execute Bulk AI Generation if needed ---
     const skillsList = Object.keys(skillsToGenerate);
     if (skillsList.length > 0) {
-        console.log(`[BULK] Generating questions for ${skillsList.length} skills in one packet...`);
+        console.log(`[BULK] Generating questions for ${skillsList.length} skills in one packet (2x buffer)...`);
         try {
             const bulkResults = await aiService.generateBulkTechnicalQuestions(skillsToGenerate, difficulty);
 
@@ -113,39 +133,26 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
                 const aiQuestionsData = bulkResults[skill] || [];
 
                 if (aiQuestionsData.length > 0) {
-                    const savedQuestions = await Promise.all(aiQuestionsData.map(async (qData) => {
+                    const skillSuggestions = aiQuestionsData.map((qData) => {
                         let correctIdx = qData.correctAnswer;
                         if (typeof correctIdx === 'string') {
                             correctIdx = qData.options.indexOf(correctIdx);
                             if (correctIdx === -1) correctIdx = 0;
                         }
 
-                        return await Question.create({
+                        return {
                             skill,
                             difficulty,
                             question: qData.question,
                             options: qData.options,
                             correctAnswer: correctIdx,
                             explanation: qData.explanation,
-                            status: 'pending_review',
-                            source: 'ai_generated',
-                            createdBy: 'system_ai'
-                        });
-                    }));
+                            source: 'ai_generated'
+                        };
+                    });
 
-                    // Add to final selection (preserving the bank questions already there)
-                    selected.push(...savedQuestions.map(q => ({
-                        questionId: q._id,
-                        skill: skill,
-                        difficulty: q.difficulty,
-                        question: q.question,
-                        options: q.options,
-                        correctAnswer: q.correctAnswer,
-                        explanation: q.explanation,
-                        status: q.status
-                    })));
-
-                    console.log(`[BULK SUCCESS] Added ${savedQuestions.length} AI questions for ${skill}`);
+                    suggestions.push(...skillSuggestions);
+                    console.log(`[BULK SUCCESS] Generated ${skillSuggestions.length} suggestions for ${skill}`);
                 }
             }
         } catch (err) {
@@ -165,7 +172,8 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
     return {
         questions: selected,
         missingSkills: missing,
-        skillMappings: mappings
+        skillMappings: mappings,
+        suggestions: suggestions
     };
 }
 

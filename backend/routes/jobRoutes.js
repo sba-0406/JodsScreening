@@ -28,6 +28,15 @@ router.post('/:id/regenerate-questions', jobController.regenerateTechnicalAssess
 router.post('/:id/regenerate-scenarios', jobController.regenerateScenarios);
 router.post('/:id/approve-all', jobController.approveAllQuestions);
 router.put('/:id/questions/:questionId', jobController.moderateQuestion);
+router.delete('/:id/questions/:questionId/remove', jobController.removeQuestionFromAssessment);
+
+// AI Question Suggestions
+router.post('/:id/suggestions/approve', jobController.approveSuggestions);
+router.post('/:id/suggestions/dismiss', jobController.dismissSuggestions);
+router.post('/:id/suggestions/generate-more', jobController.generateMoreSuggestions);
+
+// Technical Pool
+router.put('/:id/pool/refresh-skill', jobController.refreshSkillPool);
 
 // Granular Scenario Control
 router.delete('/:id/scenario/:scenarioId', jobController.deleteScenario);

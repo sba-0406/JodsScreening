@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
             navHtml += `<a href="#" id="logoutBtn">Logout</a>`;
         } else {
             // Not logged in - redirect from protected pages
-            const protectedPaths = ['/dojo/simulation'];
+            const protectedPaths = ['/api/assessment/assessment'];
             const isProtected = protectedPaths.some(p => currentPath.startsWith(p));
 
             if (isProtected) {

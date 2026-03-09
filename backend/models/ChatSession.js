@@ -14,7 +14,7 @@ const ChatSessionSchema = new mongoose.Schema({
   },
   // Assessment specific fields
   application: { type: mongoose.Schema.Types.ObjectId, ref: 'Application' },
-  assessmentPhase: { type: String, enum: ['MCQ', 'SCENARIO'], default: 'MCQ' },
+  assessmentPhase: { type: String, enum: ['MCQ', 'SCENARIO', 'COMPLETED'], default: 'MCQ' },
   currentMCQIndex: { type: Number, default: 0 },
   mcqAnswers: [{
     questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },

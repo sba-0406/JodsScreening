@@ -15,6 +15,13 @@
 
         <div class="main-wrapper">
             <div class="details-container">
+                <% if (!application.job) { %>
+                    <div class="card" style="text-align: center; padding: 60px;">
+                        <h2 style="color: var(--danger); margin-bottom: 20px;">⚠️ Job Data Not Found</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 30px;">The job associated with this application has been removed or is inaccessible.</p>
+                        <a href="<%= user.role === 'candidate' ? '/api/applications/my-dashboard' : '/api/jobs/dashboard' %>" class="btn">Back to Dashboard</a>
+                    </div>
+                <% } else { %>
                 <!-- Breadcrumb -->
                 <div class="breadcrumb mb-20">
                     <a href="<%= user.role === 'candidate' ? '/api/applications/my-dashboard' : '/api/jobs/' + application.job._id + '/candidates' %>"
@@ -129,7 +136,12 @@
                                     <div style="background: #fff; padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                             <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Resume Skill Match Index</span>
-                                            <span class="badge" style="background: <%= application.skillsMatch.score > 70 ? '#22c55e' : (application.skillsMatch.score > 40 ? '#f59e0b' : '#64748b') %>; color: #fff;">
+                                            <% 
+                                                let matchColor = '#64748b';
+                                                if (application.skillsMatch.score > 70) matchColor = '#22c55e';
+                                                else if (application.skillsMatch.score > 40) matchColor = '#f59e0b';
+                                            %>
+                                            <span class="badge" style="background: <%= matchColor %>; color: #fff;">
                                                 <%= application.skillsMatch.score %>% Match
                                             </span>
                                         </div>
@@ -200,7 +212,7 @@
                                                                 id="bench-percent-text">—</strong> of candidates who
                                                             completed this assessment.
                                                             Your score of <strong>
-                                                                <%= application.assessmentResults.weightedScore %>%
+                                                                <%= application.assessmentResults?.weightedScore??0 %>%
                                                             </strong> is
                                                             <span id="bench-vs-avg">—</span> the pool average (<span
                                                                 id="bench-avg-score">—</span>%).
@@ -263,7 +275,7 @@
                                                                         <div style="text-align: right;">
                                                                             <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Overall Fit</div>
                                                                             <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary-color);">
-                                                                                <%= application.assessmentResults.overallFit %>
+                                                                                <%= application.assessmentResults?.overallFit??'N/A' %>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -272,13 +284,13 @@
                                                                         <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
                                                                             <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">TECHNICAL</div>
                                                                             <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
-                                                                                <%= application.assessmentResults.technicalScore %>%
+                                                                                <%= application.assessmentResults?.technicalScore??0 %>%
                                                                             </div>
                                                                         </div>
                                                                         <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
                                                                             <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">SOFT SKILLS</div>
                                                                             <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
-                                                                                <%= application.assessmentResults.softSkillScore %>%
+                                                                                <%= application.assessmentResults?.softSkillScore??0 %>%
                                                                             </div>
                                                                         </div>
                                                                         <div style="background: #eff6ff; padding: 15px; border-radius: 8px; border: 2px solid var(--primary-color); text-align: center;">
@@ -396,6 +408,7 @@
                             <% } %>
             </div>
         </div>
+                <% } %>
 
         <script>
             async function scheduleInterview() {
@@ -507,39 +520,9 @@
                                     This will notify the candidate to start their scenario assessment for <strong><%= application.job.title %></strong>.
                                 </p>
                                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
-                                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase;">Assessment Configuration</div>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                        <div>
-                                            <label style="display: block; font-size: 0.8rem; margin-bottom: 5px;">Strategy</label>
-                                            <select id="invite-strategy" class="form-control" style="font-size: 0.85rem; padding: 5px 10px;">
-                                                <option value="technical" <%= application.job.assessmentId?.presetStrategy === 'technical' ? 'selected' : '' %>>Technical Deep-Dive</option>
-                                                <option value="balanced" <%= application.job.assessmentId?.presetStrategy === 'balanced' ? 'selected' : '' %>>Balanced Mix</option>
-                                                <option value="behavioral" <%= application.job.assessmentId?.presetStrategy === 'behavioral' ? 'selected' : '' %>>Behavioral Focus</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label style="display: block; font-size: 0.8rem; margin-bottom: 5px;">Difficulty</label>
-                                            <select id="invite-difficulty" class="form-control" style="font-size: 0.85rem; padding: 5px 10px;">
-                                                <option value="Match Job">Match Job Level</option>
-                                                <option value="Junior">Junior</option>
-                                                <option value="Mid">Mid Level</option>
-                                                <option value="Senior">Senior</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div style="margin-top: 15px;">
-                                        <label style="display: block; font-size: 0.8rem; margin-bottom: 5px;">Duration (Minutes)</label>
-                                        <input type="number" id="invite-duration" class="form-control" value="30" min="15" max="90" style="font-size: 0.85rem; padding: 5px 10px; width: 100px;">
-                                    </div>
-                                    <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); pt-15;">
-                                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase;">Include Sections</div>
-                                        <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem; cursor: pointer;">
-                                            <input type="checkbox" id="invite-include-tech" checked> Technical Questions (MCQ)
-                                        </label>
-                                        <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem; cursor: pointer;">
-                                            <input type="checkbox" id="invite-include-scenarios" checked> Behavioral Scenarios
-                                        </label>
-                                    </div>
+                                    <p style="margin: 0; font-size: 0.9rem; color: var(--text-main);">
+                                        <strong>Default Settings:</strong> This assessment will include both Technical and Behavioral sections with standard duration.
+                                    </p>
                                 </div>
                                 <div class="template-preview" id="invite-preview">Loading preview...</div>
                             </div>
@@ -580,11 +563,11 @@
                 btn.disabled = true; btn.innerText = 'Sending...';
                 
                 const config = {
-                    strategy: document.getElementById('invite-strategy').value,
-                    difficulty: document.getElementById('invite-difficulty').value,
-                    duration: parseInt(document.getElementById('invite-duration').value),
-                    includeTechnical: document.getElementById('invite-include-tech').checked,
-                    includeScenarios: document.getElementById('invite-include-scenarios').checked
+                    strategy: 'balanced',
+                    difficulty: 'Match Job',
+                    duration: 30,
+                    includeTechnical: true,
+                    includeScenarios: true
                 };
 
                 try {

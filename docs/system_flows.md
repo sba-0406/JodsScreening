@@ -10,11 +10,12 @@ Handles the creation and delivery of real-time alerts inside the HR and Candidat
 ### 🎬 Sequence Diagram
 ```mermaid
 sequenceDiagram
-    participant App as "Any Controller"
+    participant App as "applicationController.js"
     participant NS as "notificationService.js"
     participant DB as "MongoDB (Notifications)"
     participant FE as "Dashboard UI"
 
+    Note over App: "Action: sendAssessmentInvite()"
     App->>NS: "sendNotification({ templateName, data })"
     
     Note over NS: "STEP 1: Template Lookup"
@@ -31,11 +32,11 @@ sequenceDiagram
     DB-->>FE: "Updated Alert List"
 ```
 
-### 🔬 Files & Methods
+### 🔬 Files & Actions
+- **Controller Action**: `applicationController.js` -> `inviteCandidate()`
+- **Controller Action**: `assessmentController.js` -> `finalizeAssessment()` (once completed)
 - **Service**: `backend/services/notificationService.js` -> `sendNotification()`
-- **Model (Storage)**: `backend/models/Notification.js`
-- **Model (Blueprints)**: `backend/models/NotificationTemplate.js`
-- **Controller**: `backend/controllers/notificationController.js` (For fetching/marking as read)
+- **Model**: `backend/models/Notification.js`
 
 ---
 
@@ -45,18 +46,19 @@ The standalone engine for sending external communications via SMTP.
 ### 🎬 Sequence Diagram
 ```mermaid
 sequenceDiagram
-    participant NS as "Notification/Auth Service"
+    participant NS as "notificationService.js"
     participant ES as "emailService.js"
     participant SMTP as "Gmail SMTP Server"
     participant User as "Recipient Inbox"
 
+    Note over NS: "Action: sendNotification()"
     NS->>ES: "sendEmail({ to, subject, html })"
     
     Note over ES: "STEP 1: Verification"
     ES->>ES: "Check for SMTP_USER in .env"
     
     Note over ES: "STEP 2: Safety Filter"
-    ES->>ES: "Check if domain is @gmail.com (Dev mode)"
+    ES->>ES: "Check if domain is @gmail.com"
 
     Note over ES: "STEP 3: Transmission"
     ES->>SMTP: "Nodemailer.sendMail(mailOptions)"
@@ -65,10 +67,11 @@ sequenceDiagram
     SMTP->>User: "Delivers Physical Email"
 ```
 
-### 🔬 Files & Methods
-- **Service**: `backend/services/emailService.js`
-- **Configuration**: `backend/.env` (`SMTP_USER`, `SMTP_PASS`)
-- **Key Method**: `nodemailer.createTransport()` (Initializes connection)
+### 🔬 Files & Actions
+- **Trigger Service**: `backend/services/notificationService.js`
+- **Auth Trigger**: `backend/controllers/authController.js` -> `register()`
+- **Service**: `backend/services/emailService.js` -> `sendEmail()`
+- **Config**: `backend/.env` (`SMTP_USER`, `SMTP_PASS`)
 
 ---
 
@@ -85,6 +88,7 @@ sequenceDiagram
     participant AI as "aiService.js"
 
     UI->>AC: "POST /apply (Multipart Form)"
+    Note over AC: "Action: applyToJob()"
     Note over AC: "Multer intercepts file to buffer"
     
     AC->>RA: "extractTextFromBuffer(buffer)"
@@ -101,10 +105,10 @@ sequenceDiagram
     AC->>DB: "Application.save()"
 ```
 
-### 🔬 Files & Methods
-- **Service**: `backend/services/resumeAssistant.js`
-- **Dependency**: `pdf-parse` (Inbuilt method `pdf()`)
-- **Controller**: `backend/controllers/applicationController.js` -> `applyToJob()`
+### 🔬 Files & Actions
+- **Controller Action**: `applicationController.js` -> `applyToJob()`
+- **Service**: `backend/services/resumeAssistant.js` -> `extractTextFromBuffer()`
+- **Analysis**: `backend/services/aiService.js` (Groq/OpenAI Integration)
 
 ---
 
@@ -114,24 +118,25 @@ Every critical action leaves a permanent trail here.
 ### 🎬 Sequence Diagram
 ```mermaid
 sequenceDiagram
-    participant Controller as "Any Controller"
+    participant Controller as "jobController.js"
     participant AL as "auditLogger.js"
     participant DB as "MongoDB (AuditLog)"
 
+    Note over Controller: "Action: createJob() / updateJob()"
     Controller->>AL: "logAction({ action, req, metadata })"
     
     Note over AL: "STEP 1: Identity Extraction"
     AL->>AL: "Extract req.user._id & req.ip"
     
-    Note over AL: "STEP 2: State Diff (Optional)"
-    AL->>AL: "Capture previousState & newState"
-
+    Note over AL: "STEP 2: Persistence"
     AL->>DB: "AuditLog.create()"
 ```
 
-### 🔬 Files & Methods
+### 🔬 Files & Actions
+- **Controller Action**: `applicationController.js` -> `applyToJob()` (Logs 'create')
+- **Controller Action**: `jobController.js` -> `createJob()` / `updateJob()`
 - **Utility**: `backend/utils/auditLogger.js` -> `logAction()`
-- **Model**: `backend/models/AuditLog.js` (Defines `entityType` and `action`)
+- **Model**: `backend/models/AuditLog.js`
 
 ---
 
@@ -141,16 +146,12 @@ The mathematical engine behind candidate rankings.
 ### 🎬 Logic Map
 *   **Base Score**: (Years Experience / Min Required) * 100 [Capped at 100]
 *   **Skill Match**: (Resume Skills ∩ Job Skills) / Total Required * 100
-*   **Simulation Score**: Dynamic HSL calculation from AI Dojo.
-*   **Final Aggregate**:
-    *   `Experience * 0.15`
-    *   `SkillMatch * 0.10`
-    *   `Technical * 0.40`
-    *   `Soft Skills * 0.35`
+*   **Final Aggregate**: `(Exp * 0.15) + (Skills * 0.10) + (Tech * 0.40) + (Soft * 0.35)`
 
-### 🔬 Files & Methods
-- **Score Logic**: `backend/controllers/applicationController.js` -> `calculateMatchScore()`
-- **Ranking Weights**: Stored in `Job` model (`rankingWeights` map).
+### 🔬 Files & Actions
+- **Controller Action**: `applicationController.js` -> `getJobCandidates()` (Fetches and sorts by score)
+- **Math Logic**: `backend/controllers/applicationController.js` -> `calculateMatchScore()`
+- **Weights**: `Job` model -> `rankingWeights` (Configurable by HR)
 
 ---
 
@@ -166,6 +167,7 @@ sequenceDiagram
     participant MW as "authMiddleware.js"
 
     FE->>AC: "POST /login { email, password }"
+    Note over AC: "Action: login()"
     AC->>DB: "Find User & Select +password"
     
     Note over AC: "BCrypt.compare(input, hashed)"
@@ -173,15 +175,57 @@ sequenceDiagram
     AC->>AC: "user.getSignedJwtToken()"
     Note right of AC: "Token contains { id, role }"
     
-    AC-->>FE: "Set-Cookie: token=JWT; HttpOnly"
+    AC-->>FE: "Set-Cookie token=JWT"
 
-    Note over FE, MW: "Future Requests"
+    Note over FE: "Action: Future Requests"
     FE->>MW: "HTTP Request + Cookie"
-    MW->>MW: "JWT.verify(token)"
+    Note over MW: "Action: protect() middleware"
+    MW->>MW: "jwt.verify(token)"
     MW-->>FE: "Forbidden (if invalid)"
 ```
 
-### 🔬 Files & Methods
-- **Controller**: `backend/controllers/authController.js`
-- **Model Logic**: `backend/models/User.js` (`matchPassword`, `getSignedJwtToken`)
-- **Security Guard**: `backend/middleware/auth.js` (`protect`, `authorize`)
+### 🔬 Files & Actions
+- **Controller Action**: `authController.js` -> `login()`
+- **Controller Action**: `authController.js` -> `register()`
+- **Middleware**: `backend/middleware/auth.js` -> `protect()`
+- **Model**: `backend/models/User.js` (`matchPassword`, `getSignedJwtToken`)
+
+---
+
+## 7. Assessment Simulation (Dojo) Flow
+The real-time candidate experience.
+
+### 🎬 Sequence Diagram
+```mermaid
+sequenceDiagram
+    participant C as "Candidate UI"
+    participant AC as "assessmentController.js"
+    participant CS as "chatService.js"
+    participant DB as "MongoDB"
+
+    Note over AC: "Action: startAssessment()"
+    C->>AC: "Start My Assessment"
+    AC->>DB: "ChatSessionInit"
+    AC-->>C: "Render Examination UI"
+
+    Note over AC: "Action: submitMCQAnswer()"
+    C->>AC: "Send Choice"
+    AC->>AC: "Grade & Score"
+    AC->>DB: "Update Session State"
+
+    Note over AC: "Action: processMessage()"
+    C->>AC: "Enter Chat Message"
+    AC->>CS: "analyzeTurn() & generateResponse()"
+    CS-->>AC: "Sentiment & Stakeholder Reply"
+    AC->>DB: "Save Chat History"
+
+    Note over AC: "Action: finalizeAssessment()"
+    C->>AC: "Finish Exam"
+    AC->>AC: "Calculate Global Weighted Match"
+    AC->>DB: "Save Completed Application Record"
+```
+
+### 🔬 Files & Actions
+- **Controller**: `backend/controllers/assessmentController.js`
+- **Service**: `backend/services/chatService.js` (Roleplay & Analysis)
+- **Model**: `backend/models/ChatSession.js`

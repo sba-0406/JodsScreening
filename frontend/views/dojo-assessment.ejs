@@ -172,6 +172,11 @@
         }
 
         function renderMCQ(data) {
+            if (!data || !data.question) {
+                console.error('Invalid MCQ data:', data);
+                alert('Assessment error: Question data missing.');
+                return;
+            }
             document.getElementById('mcqInterface').style.display = 'block';
             document.getElementById('scenarioInterface').style.display = 'none';
             document.getElementById('phaseDisplay').textContent = 'Phase 1: Technical MCQ';
@@ -229,6 +234,13 @@
         }
 
         function renderScenario(data) {
+            if (!data || !data.scenario) {
+                console.error('Invalid Scenario data:', data);
+                // If we hit this, the backend likely transitioned us but didn't have templates.
+                // We should probably just refresh or finalize.
+                finalizeAssessment();
+                return;
+            }
             document.getElementById('mcqInterface').style.display = 'none';
             document.getElementById('scenarioInterface').style.display = 'flex';
             document.getElementById('phaseDisplay').textContent = 'Phase 2: Behavioral Scenarios';

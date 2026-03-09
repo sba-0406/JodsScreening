@@ -357,10 +357,13 @@ exports.moderateQuestion = async (req, res) => {
         updatedAssessment.status = hasPending ? 'pending_review' : 'active';
         await updatedAssessment.save();
 
+        // Return fully populated assessment for AJAX re-rendering
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
         res.json({
             success: true,
             message: `Question ${action}d successfully`,
-            data: updatedAssessment
+            data: fullyPopulated
         });
     } catch (error) {
         console.error('Error moderating question:', error);
@@ -396,7 +399,10 @@ exports.removeQuestionFromAssessment = async (req, res) => {
         assessment.markModified('technicalQuestions');
         await assessment.save();
 
-        res.json({ success: true, message: 'Question removed from assessment' });
+        // Return fully populated assessment for AJAX re-rendering
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
+        res.json({ success: true, message: 'Question removed from assessment', data: fullyPopulated });
     } catch (error) {
         console.error('Error removing question from assessment:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -468,7 +474,10 @@ exports.approveSuggestions = async (req, res) => {
         }
         await assessment.save();
 
-        res.json({ success: true, addedToAssessment, addedToQB });
+        // Return fully populated assessment for AJAX re-rendering
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
+        res.json({ success: true, addedToAssessment, addedToQB, data: fullyPopulated });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, error: err.message });
@@ -490,7 +499,11 @@ exports.dismissSuggestions = async (req, res) => {
             assessment.status = 'active';
         }
         await assessment.save();
-        res.json({ success: true, message: 'Dismissed' });
+        
+        // Return fully populated assessment for AJAX re-rendering
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
+        res.json({ success: true, message: 'Dismissed', data: fullyPopulated });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
@@ -576,8 +589,91 @@ exports.refreshSkillPool = async (req, res) => {
         
         assessment.markModified('technicalQuestions');
         await assessment.save();
-        res.json({ success: true });
+
+        // Return fully populated assessment for AJAX re-rendering
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
+        res.json({ success: true, data: fullyPopulated });
     } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+// @desc    Save active question selection for a specific skill
+// @route   PUT /api/jobs/:id/pool/save-selection
+// @access  Private (HR/Admin)
+exports.saveSkillSelection = async (req, res) => {
+    try {
+        const { skill, selectedIds } = req.body;
+        const job = await Job.findById(req.params.id);
+        if (!job || !job.assessmentId) return res.status(404).json({ success: false, error: 'Job/Assessment not found' });
+
+        const Assessment = require('../models/Assessment');
+        const Question = require('../models/Question');
+        const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
+
+        // 1. Remove all current ACTIVE questions for this skill
+        assessment.technicalQuestions = assessment.technicalQuestions.filter(q => q.skill !== skill);
+
+        // 2. Process selected IDs
+        for (const id of selectedIds) {
+            // Check if it's already an active bank question
+            const bankQ = await Question.findById(id);
+            
+            if (bankQ) {
+                // It's a DB question (was either active overflow or existing)
+                assessment.technicalQuestions.push({
+                    questionId: bankQ._id,
+                    skill: bankQ.skill,
+                    difficulty: bankQ.difficulty,
+                    isManual: false
+                });
+            } else {
+                // It must be an AI suggestion that needs to be promoted to the DB
+                const suggestion = assessment.suggestedQuestions.find(s => s._id.toString() === id);
+                if (suggestion) {
+                    const newQ = await Question.create({
+                        skill: suggestion.skill,
+                        difficulty: suggestion.difficulty,
+                        question: suggestion.question,
+                        options: suggestion.options,
+                        correctAnswer: suggestion.correctAnswer,
+                        explanation: suggestion.explanation,
+                        status: 'active',
+                        isVerified: true,
+                        source: 'ai_generated',
+                        createdBy: req.user?._id || null
+                    });
+                    
+                    assessment.technicalQuestions.push({
+                        questionId: newQ._id,
+                        skill: newQ.skill,
+                        difficulty: newQ.difficulty,
+                        isManual: false
+                    });
+                    
+                    // Remove from suggestions
+                    assessment.suggestedQuestions = assessment.suggestedQuestions.filter(s => s._id.toString() !== id);
+                }
+            }
+        }
+        
+        // Clean up remaining suggestions for this skill if they weren't selected
+        // (Optional: can keep them as 'dismissed' or just remove them. We'll remove them)
+        assessment.suggestedQuestions = assessment.suggestedQuestions.filter(s => s.skill !== skill);
+
+        assessment.questionCounts.technical = assessment.technicalQuestions.length;
+        if (assessment.suggestedQuestions.length === 0 && assessment.technicalQuestions.length > 0) {
+            assessment.status = 'active';
+        }
+        
+        await assessment.save();
+
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+        res.json({ success: true, data: fullyPopulated });
+
+    } catch (err) {
+        console.error(err);
         res.status(500).json({ success: false, error: err.message });
     }
 };
@@ -616,10 +712,13 @@ exports.approveAllQuestions = async (req, res) => {
         ) ? 'pending_review' : 'active';
         await assessment.save();
 
+        // Return fully populated assessment for AJAX re-rendering
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
         res.json({
             success: true,
             message: 'All pending questions approved and added to global bank',
-            data: assessment
+            data: fullyPopulated
         });
     } catch (error) {
         console.error('Error approving all questions:', error);
@@ -643,9 +742,12 @@ exports.regenerateTechnicalAssessment = async (req, res) => {
         // Pass current config
         const assessment = await regenerateTechnicalQuestions(job.assessmentId, job.assessmentConfig);
 
+        // Return fully populated assessment for AJAX re-rendering
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
         res.json({
             success: true,
-            data: assessment
+            data: fullyPopulated
         });
     } catch (error) {
         console.error('Error regenerating technical questions:', error);
@@ -667,9 +769,12 @@ exports.regenerateScenarios = async (req, res) => {
         const { regenerateScenarios } = require('../services/assessmentGeneratorService');
         const assessment = await regenerateScenarios(job.assessmentId);
 
+        // Return fully populated assessment for AJAX re-rendering
+        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
         res.json({
             success: true,
-            data: assessment
+            data: fullyPopulated
         });
     } catch (error) {
         console.error('Error regenerating scenarios:', error);

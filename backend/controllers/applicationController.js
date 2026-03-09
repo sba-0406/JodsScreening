@@ -71,11 +71,28 @@ const calculateMatchScore = (application, job) => {
     if (!assessmentDone) {
         finalScore = resumeScore;
     } else {
+        // WEIGHT NORMALIZATION FOR COMPLETED ASSESSMENTS
+        // Check which assessment sections were actually enabled
+        const hasTech = application.assessmentConfig?.includeTechnical !== false;
+        const hasSoft = application.assessmentConfig?.includeScenario !== false;
+
+        let activeWeights = { ...weights };
+        let totalActiveWeight = weights.experienceWeight + weights.skillMatchWeight;
+
+        if (hasTech) totalActiveWeight += weights.technicalWeight;
+        else activeWeights.technicalWeight = 0;
+
+        if (hasSoft) totalActiveWeight += weights.softSkillWeight;
+        else activeWeights.softSkillWeight = 0;
+
+        // Redistribute weights if any section was skipped
         finalScore = Math.round(
-            (techScore * weights.technicalWeight) +
-            (softScore * weights.softSkillWeight) +
-            (expScore * weights.experienceWeight) +
-            (skillMatchScore * weights.skillMatchWeight)
+            (
+                (techScore * (activeWeights.technicalWeight || 0)) +
+                (softScore * (activeWeights.softSkillWeight || 0)) +
+                (expScore * weights.experienceWeight) +
+                (skillMatchScore * weights.skillMatchWeight)
+            ) / totalActiveWeight
         );
     }
 
@@ -402,7 +419,10 @@ exports.getMyApplications = async (req, res) => {
             .populate('job', 'title department location companyName')
             .sort({ appliedAt: -1 });
 
-        res.json({ success: true, count: applications.length, data: applications });
+        // Filter out applications where the job no longer exists (orphaned)
+        const validApplications = applications.filter(app => app.job !== null);
+
+        res.json({ success: true, count: validApplications.length, data: validApplications });
     } catch (error) {
         console.error('[CONTROLLER ERROR] getMyApplications:', error);
         res.status(500).json({ success: false, error: 'Failed to fetch applications' });
@@ -731,7 +751,7 @@ exports.sendAssessmentInvite = async (req, res) => {
                 jobTitle: application.job.title
             },
             type: 'HR',
-            actionUrl: `/dojo/assessment/${application._id}`
+            actionUrl: `/api/assessment/assessment/${application._id}`
         });
 
         // Audit Log

@@ -16,7 +16,7 @@ const sanitizeSkill = (skill) => {
 };
 
 // @desc    Start/Resume Assessment
-// @route   GET /dojo/assessment/:applicationId
+// @route   GET /api/assessment/assessment/:applicationId
 // @access  Private (Candidate)
 exports.startAssessment = async (req, res) => {
     try {
@@ -190,11 +190,41 @@ exports.getAssessmentSession = async (req, res) => {
                     }
                 });
             } else {
-                // Transition to Scenario Phase if no MCQs or all answered
-                console.log(`[ASSESSMENT] MCQ Phase complete or no questions found (${totalQuestions}). Transitioning to SCENARIO.`);
-                session.assessmentPhase = 'SCENARIO';
+                // Transition to Scenario Phase ONLY if scenarios exist
+                const hasScenarios = session.scenarioProgress?.scenarios?.length > 0;
+                console.log(`[ASSESSMENT] MCQ Phase complete. Scenarios exist: ${hasScenarios}`);
+                
+                if (hasScenarios) {
+                    session.assessmentPhase = 'SCENARIO';
+                    // Initialize first scenario persona if not set
+                    if (session.persona?.role === 'Proctor') {
+                        const firstScenario = session.scenarioProgress.scenarios[0];
+                        session.persona = {
+                            name: firstScenario.stakeholder,
+                            role: firstScenario.stakeholder,
+                            mood: 'Professional',
+                            briefing: {
+                                situation: firstScenario.description,
+                                objective: 'Navigate the situation effectively',
+                                stakes: 'High'
+                            }
+                        };
+                    }
+                    // Initialize worldState if empty
+                    if (!session.worldState || session.worldState.size === 0) {
+                        const config = assessment.simulationConfig;
+                        const metrics = (config && config.metrics && config.metrics.length > 0)
+                            ? config.metrics
+                            : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
+                        
+                        const initialState = {};
+                        metrics.forEach(m => initialState[m] = 50);
+                        session.worldState = initialState;
+                    }
+                } else {
+                    session.assessmentPhase = 'COMPLETED';
+                }
                 await session.save();
-                // We'll return the scenario state below
             }
         }
 
@@ -202,6 +232,13 @@ exports.getAssessmentSession = async (req, res) => {
         if (session.assessmentPhase === 'SCENARIO') {
             const currentIdx = session.scenarioProgress.currentScenario - 1;
             const currentScenario = session.scenarioProgress.scenarios[currentIdx];
+
+            if (!currentScenario) {
+                console.warn(`[ASSESSMENT] Scenario data missing for index ${currentIdx}. Completing session.`);
+                session.assessmentPhase = 'COMPLETED';
+                await session.save();
+                return res.json({ success: true, data: { phase: 'COMPLETED' } });
+            }
 
             return res.json({
                 success: true,
@@ -211,7 +248,7 @@ exports.getAssessmentSession = async (req, res) => {
                     total: session.scenarioProgress.totalScenarios,
                     scenario: currentScenario,
                     messages: session.messages,
-                    worldState: Object.fromEntries(session.worldState)
+                    worldState: Object.fromEntries(session.worldState || new Map())
                 }
             });
         }
@@ -265,7 +302,13 @@ exports.submitMCQAnswer = async (req, res) => {
             return res.status(400).json({ success: false, error: 'No more questions' });
         }
 
-        const question = availableQuestions[currentIdx].questionId;
+        const question = availableQuestions[currentIdx]?.questionId;
+
+        // Guard: if the question document no longer exists (deleted from bank), skip gracefully
+        if (!question) {
+            await ChatSession.findByIdAndUpdate(sessionId, { $inc: { currentMCQIndex: 1 } });
+            return res.json({ success: true, data: { phaseComplete: false, nextPhase: 'MCQ' } });
+        }
 
         // Grade the answer
         const isCorrect = question.correctAnswer === parseInt(answerIndex);
@@ -274,6 +317,18 @@ exports.submitMCQAnswer = async (req, res) => {
         await question.recordUsage(isCorrect);
 
         // Atomic Update to prevent race conditions during rapid clicking
+        const skillKey = sanitizeSkill(question.skill);
+        
+        // Get current score safely (handle Map vs Object)
+        let currentScore = 0;
+        if (session.skillScores) {
+            if (typeof session.skillScores.get === 'function') {
+                currentScore = session.skillScores.get(skillKey) || 0;
+            } else {
+                currentScore = session.skillScores[skillKey] || 0;
+            }
+        }
+        
         const updatedSession = await ChatSession.findByIdAndUpdate(
             sessionId,
             {
@@ -287,7 +342,7 @@ exports.submitMCQAnswer = async (req, res) => {
                 },
                 $inc: { currentMCQIndex: 1 },
                 $set: {
-                    [`skillScores.${sanitizeSkill(question.skill)}`]: (session.skillScores.get(sanitizeSkill(question.skill)) || 0) + (isCorrect ? 10 : 0)
+                    [`skillScores.${skillKey}`]: currentScore + (isCorrect ? 10 : 0)
                 }
             },
             { new: true }
@@ -298,9 +353,10 @@ exports.submitMCQAnswer = async (req, res) => {
         let phaseComplete = false;
         if (updatedSession.currentMCQIndex >= totalMCQs) {
             const includeScenarios = session.application.assessmentConfig?.includeScenarios !== false;
+            const hasScenarios = updatedSession.scenarioProgress?.scenarios?.length > 0;
             phaseComplete = true;
 
-            if (includeScenarios && updatedSession.scenarioProgress?.scenarios?.length > 0) {
+            if (includeScenarios && hasScenarios) {
                 updatedSession.assessmentPhase = 'SCENARIO';
                 
                 // Initialize first scenario persona
@@ -323,9 +379,9 @@ exports.submitMCQAnswer = async (req, res) => {
                         ? config.metrics
                         : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
                     
-                    const initialState = {};
-                    metrics.forEach(m => initialState[m] = 50);
-                    updatedSession.worldState = initialState;
+                    metrics.forEach(m => {
+                        updatedSession.worldState.set(m, 50);
+                    });
                 }
             } else {
                 updatedSession.assessmentPhase = 'COMPLETED';
@@ -567,8 +623,20 @@ exports.finalizeAssessment = async (req, res) => {
         });
         const softScore = count > 0 ? totalHealth / count : 0;
 
-        // 3. Calculate Weighted Score
-        const weightedScore = (techScore * assessment.technicalWeight) + (softScore * assessment.softSkillWeight);
+        // 3. Calculate Weighted Score (Normalized if sessions are skipped)
+        const hasTech = application.assessmentConfig?.includeTechnical !== false;
+        const hasSoft = application.assessmentConfig?.includeScenario !== false;
+
+        let weightedScore;
+        if (hasTech && hasSoft) {
+            weightedScore = (techScore * assessment.technicalWeight) + (softScore * assessment.softSkillWeight);
+        } else if (hasTech) {
+            weightedScore = techScore; // 100% weight to Tech
+        } else if (hasSoft) {
+            weightedScore = softScore; // 100% weight to Soft
+        } else {
+            weightedScore = 0;
+        }
 
         // 4. Determine Fit
         let overallFit = 'Need Review';

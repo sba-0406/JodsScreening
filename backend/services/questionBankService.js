@@ -45,12 +45,14 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
 
     for (const skill of skills) {
         // Determine number of questions for this skill
-        let count = 2; // Default
+        let targetCount = 2; // Default
         if (typeof countConfig === 'number') {
-            count = countConfig;
+            targetCount = countConfig;
         } else if (typeof countConfig === 'object' && countConfig !== null) {
-            count = countConfig[skill] || countConfig.default || 2;
+            targetCount = countConfig[skill] || countConfig.default || 2;
         }
+        
+        let desiredTotal = targetCount * 2; // We want 2x options for the user to pick from
 
         // --- Step 1: Search the existing Bank (Prioritize Verified questions) ---
         let questions = await Question.find({
@@ -61,11 +63,11 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
             _id: { $nin: excludeIds }
         })
             .sort({ usageCount: 1 })
-            .limit(count);
+            .limit(desiredTotal);
 
         // Fallback to non-verified active questions
-        if (questions.length < count) {
-            const needed = count - questions.length;
+        if (questions.length < desiredTotal) {
+            const needed = desiredTotal - questions.length;
             const nonVerified = await Question.find({
                 skill,
                 difficulty,
@@ -79,8 +81,8 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
         }
 
         // --- Step 2: Try Skill Mapping ---
-        if (questions.length < count) {
-            const needed = count - questions.length;
+        if (questions.length < desiredTotal) {
+            const needed = desiredTotal - questions.length;
             const mappedSkill = skillMappings[skill];
             if (mappedSkill) {
                 const mappedQuestions = await Question.find({
@@ -101,16 +103,17 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
         }
 
         // --- Step 3: Collect for Bulk AI Generation ---
-        // Request 2x the needed count so that even if the AI returns fewer valid
-        // questions (due to parsing failures or malformed responses), we still hit
-        // the target. All generated questions are saved to the bank for future use.
-        if (questions.length < count && allowAIGeneration) {
-            const needed = count - questions.length;
-            skillsToGenerate[skill] = needed * 2; // Over-generate to buffer against AI shortfalls
+        if (questions.length < desiredTotal && allowAIGeneration) {
+            const needed = desiredTotal - questions.length;
+            // Over-generate slightly if we rely heavily on AI to ensure we hit the 2x target
+            skillsToGenerate[skill] = needed + 1; 
         }
 
-        // Store intermediate results
-        selected.push(...questions.map(q => ({
+        // Split DB questions: First 'targetCount' go to active assessment, remainder to suggestions
+        const activeQs = questions.slice(0, targetCount);
+        const overflowQs = questions.slice(targetCount);
+
+        selected.push(...activeQs.map(q => ({
             questionId: q._id,
             skill: skill,
             difficulty: q.difficulty,
@@ -119,6 +122,18 @@ async function selectQuestions(skills, countConfig, difficulty = 'Medium', allow
             correctAnswer: q.correctAnswer,
             explanation: q.explanation,
             status: q.status
+        })));
+        
+        // Add overflow DB questions to suggestions
+        suggestions.push(...overflowQs.map(q => ({
+            questionId: q._id,
+            skill: skill,
+            difficulty: q.difficulty,
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            source: 'question_bank'
         })));
     }
 

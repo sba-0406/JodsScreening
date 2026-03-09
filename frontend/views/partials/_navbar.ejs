@@ -158,9 +158,14 @@
     async function handleNotiClick(e, id, url) {
         e.stopPropagation();
         try {
-            await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
-            if (url && url !== 'undefined' && url !== '') window.location.href = url;
-            else fetchNotifications();
+            const res = await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
+            if (res.ok) {
+                if (url && url !== 'undefined' && url !== '') {
+                    window.location.href = url;
+                } else {
+                    fetchNotifications();
+                }
+            }
         } catch (err) { console.error('Mark Read Error:', err); }
     }
 

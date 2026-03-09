@@ -118,6 +118,14 @@
                 </div>
 
                 <% if (job.assessmentId) { %>
+                <!-- Tab Navigation -->
+                <div class="tabs-nav mb-20">
+                    <button class="tab-link active" onclick="openTab(event, 'tab-definition')">1. Job Definition</button>
+                    <button class="tab-link" onclick="openTab(event, 'tab-assessment')">2. Assessment Builder</button>
+                    <button class="tab-link" onclick="openTab(event, 'tab-analytics')">3. Candidates & Analytics</button>
+                </div>
+
+                <div id="tab-definition" class="tab-pane active" style="display: block;">
                     <!-- Assessment Configuration -->
                     <div class="card">
                         <h2 class="mb-20">AI-Generated Assessment</h2>
@@ -128,21 +136,12 @@
                                 <div class="info-item">
                                     <span class="info-label">Category</span>
                                     <span class="info-value">
-                                        <%= job.assessmentId.roleCategory %>
+                                        <%= (job.assessmentId && job.assessmentId.roleCategory) ? job.assessmentId.roleCategory : 'N/A' %>
                                     </span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Current Strategy</span>
-                                    <select id="preset-strategy" class="form-control" style="font-weight: 700; color: var(--primary);">
-                                        <option value="technical" <%= job.assessmentId.presetStrategy === 'technical' ? 'selected' : '' %>>Technical Deep-Dive</option>
-                                        <option value="balanced" <%= job.assessmentId.presetStrategy === 'balanced' ? 'selected' : '' %>>Balanced Mix</option>
-                                        <option value="behavioral" <%= job.assessmentId.presetStrategy === 'behavioral' ? 'selected' : '' %>>Behavioral Focus</option>
-                                    </select>
-                                </div>
-                                <div class="info-item">
+                                                              <div class="info-item">
                                     <span class="info-label">Seniority Target</span>
                                     <span class="info-value">
-                                        <%= job.assessmentId.seniorityLevel %>
+                                        <%= (job.assessmentId && job.assessmentId.seniorityLevel) ? job.assessmentId.seniorityLevel : 'Not Specified' %>
                                     </span>
                                 </div>
                             </div>
@@ -153,23 +152,31 @@
                                     <div>
                                         <div class="info-label" style="margin-bottom: 8px;">Technical Skills</div>
                                         <div class="skills-list">
-                                            <% job.assessmentId.technicalSkills.forEach(skill=> { %>
-                                                <span class="skill-tag">
-                                                    <%= skill %>
-                                                </span>
+                                            <% if (job.assessmentId && job.assessmentId.technicalSkills) { %>
+                                                <% job.assessmentId.technicalSkills.forEach(skill=> { %>
+                                                    <span class="skill-tag">
+                                                        <%= skill %>
+                                                    </span>
                                                 <% }); %>
+                                            <% } else { %>
+                                                <span style="color: var(--text-muted); font-size: 0.85rem;">None extracted</span>
+                                            <% } %>
                                         </div>
                                     </div>
                                     <div>
                                         <div class="info-label" style="margin-bottom: 8px;">Soft Skills</div>
                                         <div class="skills-list">
-                                            <% job.assessmentId.softSkills.forEach(skill=> { %>
-                                                <span class="skill-tag">
-                                                    <%= skill %>
-                                                </span>
+                                            <% if (job.assessmentId && job.assessmentId.softSkills) { %>
+                                                <% job.assessmentId.softSkills.forEach(skill=> { %>
+                                                    <span class="skill-tag">
+                                                        <%= skill %>
+                                                    </span>
                                                 <% }); %>
+                                            <% } else { %>
+                                                <span style="color: var(--text-muted); font-size: 0.85rem;">None extracted</span>
+                                            <% } %>
                                         </div>
-                                    </div>
+                                    </div>     </div>
                                 </div>
                             </div>
                         </div>
@@ -226,22 +233,22 @@
                                 <div class="weight-slider-header">
                                     <span class="weight-label">Technical Skills</span>
                                     <span id="tech-weight-value" class="weight-pct">
-                                        <%= Math.round(job.assessmentId.technicalWeight * 100) %>%
+                                        <%= job.assessmentId ? Math.round(job.assessmentId.technicalWeight * 100) : 50 %>%
                                     </span>
                                 </div>
                                 <input type="range" id="tech-weight" min="0" max="100"
-                                    value="<%= Math.round(job.assessmentId.technicalWeight * 100) %>">
+                                    value="<%= job.assessmentId ? Math.round(job.assessmentId.technicalWeight * 100) : 50 %>">
                             </div>
 
                             <div class="weight-slider-card">
                                 <div class="weight-slider-header">
                                     <span class="weight-label">Soft Skills</span>
                                     <span id="soft-weight-value" class="weight-pct">
-                                        <%= Math.round(job.assessmentId.softSkillWeight * 100) %>%
+                                        <%= job.assessmentId ? Math.round(job.assessmentId.softSkillWeight * 100) : 50 %>%
                                     </span>
                                 </div>
                                 <input type="range" id="soft-weight" min="0" max="100"
-                                    value="<%= Math.round(job.assessmentId.softSkillWeight * 100) %>">
+                                    value="<%= job.assessmentId ? Math.round(job.assessmentId.softSkillWeight * 100) : 50 %>">
                             </div>
                         </div>
 
@@ -337,20 +344,31 @@
                             </div>
                         </div>
 
-                        <button onclick="saveAssessmentConfig()" class="btn" style="margin-top: 1rem;">
-                            Save Changes
-                        </button>
+                        <div style="display: flex; gap: 10px; margin-top: 1.5rem;">
+                            <button onclick="saveAssessmentConfig()" class="btn">
+                                Save Changes
+                            </button>
+                            <button onclick="openTab(event, 'tab-assessment')" class="btn btn-secondary">
+                                Next: Assessment Builder ➔
+                            </button>
+                        </div>
                     </div>
+                </div> <!-- End Tab Definition -->
+
+                <div id="tab-assessment" class="tab-pane">
 
                     <!-- Questions Preview & Moderation -->
                     <div class="card" id="questions-section">
                         <div
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <div class="sub-section-header" style="margin: 0; flex: 1;">Technical Question Pool</div>
-                            <div style="display: flex; gap: 10px;">
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button onclick="saveAllSkillSelections()" class="btn-sm" style="background: var(--primary-color); border: none; color: white; cursor: pointer; font-size: 0.75rem; padding: 0.4rem 1rem;">
+                                    Save All Questions
+                                </button>
                                 <button onclick="toggleManualQuestionForm()" class="btn-sm btn-secondary"
                                     style="font-size: 0.75rem;">+ Custom Question</button>
-                                <button onclick="regenerateQuestions()" class="btn-sm"
+                                <button onclick="regenerateQuestions()" class="btn-sm btn-secondary"
                                     style="font-size: 0.75rem; padding: 0.4rem 1rem;">
                                     Update Questions
                                 </button>
@@ -359,25 +377,26 @@
                         
                         <% 
                             const poolBySkill = {};
-                            const skillCounts = {}; 
-                            
-                            job.assessmentId.technicalSkills.forEach(skill => {
-                                const config = job.assessmentConfig?.skillConfigs?.find(sc => sc.skill === skill);
-                                let baseCount = config ? config.questionCount : (job.assessmentConfig?.questionsPerSkill || 2);
-                                let mult = 1;
-                                if (job.assessmentId.presetStrategy === 'technical') mult = 2;
-                                if (job.assessmentId.presetStrategy === 'behavioral') mult = 0.5;
-                                skillCounts[skill] = Math.max(1, Math.ceil(baseCount * mult));
-                                poolBySkill[skill] = [];
-                            });
-
-                            job.assessmentId.technicalQuestions.forEach(q => {
-                                if (!poolBySkill[q.skill]) poolBySkill[q.skill] = [];
-                                poolBySkill[q.skill].push(q);
-                            });
-
+                            const skillCounts = {};
+                            const hasSuggestions = job.assessmentId && job.assessmentId.suggestedQuestions && job.assessmentId.suggestedQuestions.length > 0;
                             const suggestionsBySkill = {};
-                            const hasSuggestions = job.assessmentId.suggestedQuestions && job.assessmentId.suggestedQuestions.length > 0;
+
+                            if (job.assessmentId && job.assessmentId.technicalSkills) {
+                                job.assessmentId.technicalSkills.forEach(skill => {
+                                    const config = job.assessmentConfig?.skillConfigs?.find(sc => sc.skill === skill);
+                                    let baseCount = config ? config.questionCount : (job.assessmentConfig?.questionsPerSkill || 2);
+                                    skillCounts[skill] = Math.max(1, Math.ceil(baseCount));
+                                    poolBySkill[skill] = [];
+                                });
+                            }
+
+                            if (job.assessmentId && job.assessmentId.technicalQuestions) {
+                                job.assessmentId.technicalQuestions.forEach(q => {
+                                    if (!poolBySkill[q.skill]) poolBySkill[q.skill] = [];
+                                    poolBySkill[q.skill].push(q);
+                                });
+                            }
+
                             if (hasSuggestions) {
                                 job.assessmentId.suggestedQuestions.forEach(q => {
                                     if (!suggestionsBySkill[q.skill]) suggestionsBySkill[q.skill] = [];
@@ -400,7 +419,7 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 30px; background: #ffffff; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border); align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
                              <div>
                                  <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Current Pool</div>
-                                 <div style="font-size: 1.5rem; font-weight: 800; color: var(--text);"><%= job.assessmentId.technicalQuestions.length %> <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-muted);">Questions</span></div>
+                                 <div style="font-size: 1.5rem; font-weight: 800; color: var(--text);"><%= job.assessmentId ? job.assessmentId.technicalQuestions.length : 0 %> <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-muted);">Questions</span></div>
                              </div>
                              <div style="border-left: 1px solid var(--border); padding-left: 30px; display: flex; align-items: center; justify-content: space-between;">
                                  <div>
@@ -416,31 +435,137 @@
                              </div>
                         </div>
 
-                        <!-- AI Suggestions Section -->
-                        <% if (hasSuggestions) { %>
-                        <div id="suggestions-section" style="margin-bottom: 30px; padding: 20px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;">
-                            <h4 style="margin-bottom: 15px; color: #92400e;">AI Suggested Questions</h4>
-                            <p style="font-size: 0.85rem; color: #b45309; margin-bottom: 20px;">Review and select the questions you want to add to this candidate assessment. Approved questions will also be saved to the global bank. Extras will only be saved to the bank.</p>
-                            
+                        <div id="unified-skill-pool">
+                            <!-- Manual Question Form (Hidden by default) -->
+                            <div id="manual-question-form" class="card"
+                                style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; margin-bottom: 20px;">
+                                <h4 class="mb-15">Add Custom Technical Question</h4>
+                                <div class="form-group mb-15">
+                                    <label class="info-label">Question Text</label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <textarea id="mq-text" class="form-control" rows="2"
+                                            placeholder="Enter your question here..."></textarea>
+                                        <button onclick="refineHRContent('mq-text', 'question')"
+                                            class="btn-sm btn-secondary" title="Refine with AI" style="font-size: 0.7rem; font-weight: 600;">Refine</button>
+                                    </div>
+                                </div>
+                                <div class="info-grid mb-15">
+                                    <div class="info-item">
+                                        <label class="info-label">Skill</label>
+                                        <select id="mq-skill" class="form-control">
+                                            <% if (job.assessmentId && job.assessmentId.technicalSkills) { %>
+                                                <% job.assessmentId.technicalSkills.forEach(skill=> { %>
+                                                    <option value="<%= skill %>">
+                                                        <%= skill %>
+                                                    </option>
+                                                <% }); %>
+                                            <% } %>
+                                        </select>
+                                    </div>
+                                    <div class="info-item">
+                                        <label class="info-label">Difficulty</label>
+                                        <select id="mq-diff" class="form-control">
+                                            <option value="Easy">Easy</option>
+                                            <option value="Medium" selected>Medium</option>
+                                            <option value="Hard">Hard</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" class="mb-15">
+                                    <% [0, 1, 2, 3].forEach(i=> { %>
+                                        <div>
+                                            <label class="info-label">Option <%= i+1 %></label>
+                                            <input type="text" id="mq-opt-<%= i %>" class="form-control"
+                                                placeholder="Option <%= i+1 %>">
+                                        </div>
+                                        <% }); %>
+                                </div>
+                                <div class="form-group mb-15">
+                                    <label class="info-label">Correct Option</label>
+                                    <select id="mq-correct" class="form-control">
+                                        <option value="0">Option 1</option>
+                                        <option value="1">Option 2</option>
+                                        <option value="2">Option 3</option>
+                                        <option value="3">Option 4</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button onclick="saveManualQuestion()" class="btn btn-primary btn-sm"
+                                        style="background: #22c55e;">Save Question</button>
+                                    <button onclick="toggleManualQuestionForm()"
+                                        class="btn btn-secondary btn-sm">Cancel</button>
+                                </div>
+                            </div>
+
                             <script>const targetCounts = <%- JSON.stringify(skillCounts) %>;</script>
 
-                            <% Object.keys(suggestionsBySkill).forEach(skill => { %>
-                                <div style="margin-bottom: 25px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #fde68a; padding-bottom: 8px;">
-                                        <div style="font-weight: 700; color: #92400e; font-size: 1.1rem;"><%= skill %></div>
-                                        <div style="font-size: 0.85rem; color: #b45309; font-weight: 600;">Target: <%= skillCounts[skill] %> slots</div>
+                            <% Object.keys(skillCounts).forEach(skill => { 
+                                const activeQs = poolBySkill[skill] || [];
+                                const pendingSuggestions = suggestionsBySkill[skill] || [];
+                                const targetCount = skillCounts[skill];
+                                const hasPending = pendingSuggestions.length > 0;
+                            %>
+                                <div style="margin-bottom: 25px; padding: 20px; background: <%= hasPending ? '#fffbeb' : '#ffffff' %>; border: 1px solid <%= hasPending ? '#fde68a' : 'var(--border)' %>; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                    <div onclick="toggleSkillAccordion('<%= skill %>')" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; cursor: pointer;">
+                                        <div style="font-weight: 700; color: <%= hasPending ? '#92400e' : 'var(--text-main)' %>; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                                            <span id="accordion-icon-<%= skill %>" style="font-size: 0.8rem; color: #6b7280; transition: transform 0.2s;">▶</span> <%= skill %> 
+                                            <% if (hasPending) { %>
+                                                <span style="font-size: 0.75rem; background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">Needs Review</span>
+                                            <% } %>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 15px;" onclick="event.stopPropagation()">
+                                            <div style="font-size: 0.85rem; color: <%= hasPending ? '#b45309' : 'var(--text-muted)' %>; font-weight: 600;">Target: <span id="selected-count-<%= skill %>"><%= activeQs.length %></span> / <%= targetCount %> Selected</div>
+                                            <button onclick="refreshSkillPool('<%= skill %>')" title="Swap these questions with different ones from the bank" style="font-size: 0.75rem; padding: 4px 10px; background: white; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                                                <span>↻ Refresh Selection</span>
+                                            </button>
+                                        </div>
                                     </div>
                                     
-                                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                                        <button onclick="toggleSelectAll('<%= skill %>')" style="font-size: 0.75rem; padding: 4px 10px; background: white; border: 1px solid #f59e0b; border-radius: 4px; color: #d97706; cursor: pointer;">Select All <%= skill %></button>
-                                    </div>
+                                    <div id="skill-content-<%= skill %>" style="display: none; border-top: 2px solid <%= hasPending ? '#fde68a' : 'var(--border)' %>; padding-top: 15px; margin-top: 5px;">
+                                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Please select exactly <%= targetCount %> question(s) below.</p>
 
-                                    <% suggestionsBySkill[skill].forEach(sug => { %>
-                                        <div class="question-preview suggestion-card" data-skill="<%= skill %>" style="display: flex; gap: 15px; margin-top: 10px; background: white;">
-                                            <input type="checkbox" class="sug-checkbox" value="<%= sug._id %>" style="width: 20px; height: 20px; margin-top: 5px; cursor: pointer;">
+                                    <!-- Active Pool Questions (Pre-selected) -->
+                                    <% activeQs.forEach(q => { 
+                                        const questionData = q.questionId || {}; 
+                                        const id = questionData._id || q._id;
+                                    %>
+                                        <div class="question-preview suggestion-card" style="display: flex; gap: 15px; margin-bottom: 10px; background: white; border-left: 4px solid #16a34a;">
+                                            <input type="checkbox" class="skill-checkbox" data-skill="<%= skill %>" value="<%= id %>" checked onchange="enforceLimits('<%= skill %>', <%= targetCount %>)" style="width: 20px; height: 20px; margin-top: 5px; cursor: pointer;">
                                             <div style="flex: 1;">
-                                                <div class="question-header" style="margin-bottom: 8px;">
+                                                <div class="question-header" style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
+                                                    <span class="question-difficulty diff-<%= (q.difficulty || 'Medium').toLowerCase() %>"><%= q.difficulty || 'Medium' %></span>
+                                                    <span class="question-source-tag <%= questionData.source === 'ai_generated' ? 'source-ai' : 'source-manual' %>">
+                                                        <%= questionData.source === 'ai_generated' ? 'AI Generated' : 'Manual/Bank' %>
+                                                    </span>
+                                                </div>
+                                                <div class="question-text" style="font-weight: 500;">
+                                                    <%= questionData.question || 'Loading...' %>
+                                                </div>
+                                                <% if (questionData.options && questionData.options.length > 0) { %>
+                                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                                        <% questionData.options.forEach((opt, idx) => { %>
+                                                            <div style="<%= idx === questionData.correctAnswer ? 'color: #16a34a; font-weight: 600;' : '' %>">
+                                                                <%= idx + 1 %>. <%= opt %> <%= idx === questionData.correctAnswer ? '✓' : '' %>
+                                                            </div>
+                                                        <% }) %>
+                                                    </div>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                    <% }) %>
+
+                                    <!-- Pending Suggestions (Unselected) -->
+                                    <% pendingSuggestions.forEach(sug => { 
+                                        const id = sug._id;
+                                    %>
+                                        <div class="question-preview suggestion-card" style="display: flex; gap: 15px; margin-bottom: 10px; background: white; border-left: 4px solid #f59e0b;">
+                                            <input type="checkbox" class="skill-checkbox" data-skill="<%= skill %>" value="<%= id %>" onchange="enforceLimits('<%= skill %>', <%= targetCount %>)" style="width: 20px; height: 20px; margin-top: 5px; cursor: pointer;">
+                                            <div style="flex: 1;">
+                                                <div class="question-header" style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
                                                     <span class="question-difficulty diff-<%= sug.difficulty.toLowerCase() %>"><%= sug.difficulty %></span>
+                                                    <span class="question-source-tag <%= sug.source === 'question_bank' ? 'source-manual' : 'source-ai' %>">
+                                                        <%= sug.source === 'question_bank' ? 'From Bank' : 'New AI Suggestion' %>
+                                                    </span>
                                                 </div>
                                                 <div class="question-text" style="font-weight: 500;">
                                                     <%= sug.question %>
@@ -455,135 +580,22 @@
                                             </div>
                                         </div>
                                     <% }) %>
-                                    <div style="margin-top: 15px;">
-                                        <button onclick="generateMoreForSkill('<%= skill %>')" class="btn-sm btn-secondary" style="font-size: 0.75rem; background: white; border: 1px solid #d1d5db; color: #4b5563;">+ Generate More <%= skill %></button>
-                                    </div>
-                                </div>
-                            <% }) %>
 
-                            <div style="display: flex; gap: 15px; margin-top: 25px; border-top: 1px solid #fde68a; padding-top: 15px;">
-                                <button onclick="approveSelectedSuggestions()" class="btn btn-primary" style="background: #16a34a; border: none;">✓ Add Selected to Pool</button>
-                                <button onclick="dismissSelectedSuggestions()" class="btn btn-secondary" style="color: #ef4444; border-color: #fca5a5;">🗑 Dismiss Selected</button>
-                            </div>
+                                    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
+                                        <button onclick="generateMoreForSkill('<%= skill %>')" class="btn-sm btn-secondary" style="font-size: 0.75rem; background: white; border: 1px solid #d1d5db; color: #4b5563;">+ Generate More <%= skill %> (AI)</button>
+                                        <button onclick="saveSelectionForSkill('<%= skill %>')" style="background: var(--primary-color); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">Save <%= skill %> Selection</button>
+                                    </div>
+                                    </div> <!-- close accordion -->
+                                </div>
+                            <% }); %>
                         </div>
-                        <% } %>
-
-                        <div id="question-pool-container" style="display: none;">
-
-                        <!-- Manual Question Form (Hidden by default) -->
-                        <div id="manual-question-form" class="card"
-                            style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; margin-bottom: 20px;">
-                            <h4 class="mb-15">Add Custom Technical Question</h4>
-                            <div class="form-group mb-15">
-                                <label class="info-label">Question Text</label>
-                                <div style="display: flex; gap: 8px;">
-                                    <textarea id="mq-text" class="form-control" rows="2"
-                                        placeholder="Enter your question here..."></textarea>
-                                    <button onclick="refineHRContent('mq-text', 'question')"
-                                        class="btn-sm btn-secondary" title="Refine with AI" style="font-size: 0.7rem; font-weight: 600;">Refine</button>
-                                </div>
-                            </div>
-                            <div class="info-grid mb-15">
-                                <div class="info-item">
-                                    <label class="info-label">Skill</label>
-                                    <select id="mq-skill" class="form-control">
-                                        <% job.assessmentId.technicalSkills.forEach(skill=> { %>
-                                            <option value="<%= skill %>">
-                                                <%= skill %>
-                                            </option>
-                                            <% }); %>
-                                    </select>
-                                </div>
-                                <div class="info-item">
-                                    <label class="info-label">Difficulty</label>
-                                    <select id="mq-diff" class="form-control">
-                                        <option value="Easy">Easy</option>
-                                        <option value="Medium" selected>Medium</option>
-                                        <option value="Hard">Hard</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" class="mb-15">
-                                <% [0, 1, 2, 3].forEach(i=> { %>
-                                    <div>
-                                        <label class="info-label">Option <%= i+1 %></label>
-                                        <input type="text" id="mq-opt-<%= i %>" class="form-control"
-                                            placeholder="Option <%= i+1 %>">
-                                    </div>
-                                    <% }); %>
-                            </div>
-                            <div class="form-group mb-15">
-                                <label class="info-label">Correct Option</label>
-                                <select id="mq-correct" class="form-control">
-                                    <option value="0">Option 1</option>
-                                    <option value="1">Option 2</option>
-                                    <option value="2">Option 3</option>
-                                    <option value="3">Option 4</option>
-                                </select>
-                            </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button onclick="saveManualQuestion()" class="btn btn-primary btn-sm"
-                                    style="background: #22c55e;">Save Question</button>
-                                <button onclick="toggleManualQuestionForm()"
-                                    class="btn btn-secondary btn-sm">Cancel</button>
-                            </div>
-                        </div>
-
-                        <% Object.keys(poolBySkill).forEach(skill => { %>
-                            <div style="margin-bottom: 25px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid var(--border); padding-bottom: 5px;">
-                                    <div style="font-weight: 700; color: var(--text-main);"><%= skill %> <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">(<%= poolBySkill[skill].length %>/<%= skillCounts[skill] %> configured)</span></div>
-                                    <button onclick="refreshSkillPool('<%= skill %>')" title="Swap these questions with different ones from the bank" style="font-size: 0.75rem; padding: 4px 10px; background: #f8fafc; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                                        <span>↻ Refresh</span>
-                                    </button>
-                                </div>
-
-                                <% if (poolBySkill[skill].length === 0) { %>
-                                    <div style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 0.85rem; background: #f8fafc; border-radius: 8px; border: 1px dashed var(--border);">
-                                        No questions in assessment for <%= skill %>. Need to add from bank or generate using AI.
-                                        <% if (!hasSuggestions) { %>
-                                            <div style="margin-top: 10px;">
-                                                <button onclick="generateMoreForSkill('<%= skill %>')" class="btn-sm btn-secondary" style="font-size: 0.75rem; background: white; border: 1px solid #d1d5db; color: #4b5563;">+ Generate AI Questions for <%= skill %></button>
-                                            </div>
-                                        <% } %>
-                                    </div>
-                                <% } %>
-
-                                <% poolBySkill[skill].forEach(q => { %>
-                                    <div class="question-preview" style="position: relative;">
-                                        <div class="question-header">
-                                            <span class="question-skill">
-                                                <% if (q.questionId?.source==='ai_generated') { %>
-                                                    <span style="background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; font-size: 0.6rem; padding: 1px 6px; border-radius: 4px; font-weight: 600; margin-right: 6px;">AI Generated</span>
-                                                <% } %>
-                                            </span>
-                                            <div style="display: flex; align-items: center; gap: 10px;">
-                                                <span class="question-difficulty diff-<%= q.difficulty.toLowerCase() %>">
-                                                    <%= q.difficulty %>
-                                                </span>
-                                                <% if (q.questionId?._id) { %>
-                                                <button onclick="removeQuestion('<%= q.questionId._id %>')" title="Remove question"
-                                                    style="background: none; border: none; cursor: pointer; color: #ef4444; font-size: 1rem; padding: 2px 6px; border-radius: 4px; line-height: 1;"
-                                                    onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'">🗑</button>
-                                                <% } %>
-                                            </div>
-                                        </div>
-                                        <div class="question-text">
-                                            <%= q.questionId?.question || 'Question content loading...' %>
-                                        </div>
-                                    </div>
-                                <% }); %>
-                            </div>
-                        <% }); %>
-                        </div>
-                    </div>
+                    </div><!-- close questions card -->
 
                     <!-- Scenarios Preview -->
                     <div class="card">
                         <div
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <div class="sub-section-header" style="margin: 0; flex: 1;">Scenario Templates (<%=
-                                    job.assessmentId.scenarioTemplates.length %>)</div>
+                            <div class="sub-section-header" style="margin: 0; flex: 1;">Scenario Templates (<%= job.assessmentId ? job.assessmentId.scenarioTemplates.length : 0 %>)</div>
                             <div style="display: flex; gap: 10px;">
                                 <button onclick="toggleManualScenarioForm()" class="btn-sm btn-secondary"
                                     style="font-size: 0.75rem;">+ Add Scenario</button>
@@ -601,11 +613,13 @@
                             <div class="form-group mb-15">
                                 <label class="info-label">Target Soft Skill</label>
                                 <select id="ms-skill" class="form-control">
-                                    <% job.assessmentId.softSkills.forEach(skill=> { %>
-                                        <option value="<%= skill %>">
-                                            <%= skill %>
-                                        </option>
+                                    <% if (job.assessmentId && job.assessmentId.softSkills) { %>
+                                        <% job.assessmentId.softSkills.forEach(skill=> { %>
+                                            <option value="<%= skill %>">
+                                                <%= skill %>
+                                            </option>
                                         <% }); %>
+                                    <% } %>
                                 </select>
                             </div>
                             <div class="form-group mb-15">
@@ -635,8 +649,9 @@
                             </div>
                         </div>
 
-                        <% if (job.assessmentId.simulationConfig && job.assessmentId.simulationConfig.metrics &&
-                            job.assessmentId.simulationConfig.metrics.length> 0) { %>
+                        <% if (job.assessmentId && job.assessmentId.simulationConfig &&
+                            job.assessmentId.simulationConfig.metrics &&
+                            job.assessmentId.simulationConfig.metrics.length > 0) { %>
                             <div
                                 style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                                 <span
@@ -651,6 +666,7 @@
                             </div>
                             <% } %>
 
+                                <% if (job.assessmentId && job.assessmentId.scenarioTemplates) { %>
                                 <% job.assessmentId.scenarioTemplates.forEach(function(scenario) { %>
                                     <div class="question-preview">
                                         <div class="question-header"
@@ -690,40 +706,18 @@
                                         </div>
                                     </div>
                                     <% }); %>
+                                <% } %>
                     </div>
+                </div> <!-- End Tab Assessment -->
 
-
-
-                    <% if (job.assessmentId.missingSkills && job.assessmentId.missingSkills.length> 0) { %>
-                        <!-- Warnings -->
-                        <div class="warning-box" style="margin-top: 2rem; display: block;">
-                            <h3 style="color: #92400e; margin-bottom: 0.5rem;">⚠️ Skill Gap Detected</h3>
-                            <p style="color: #78350f; font-size: 0.875rem; margin-bottom: 1rem;">
-                                The following skills were identified in the Job Description but are missing from our
-                                standard question bank.
-                                Candidates will <strong>not</strong> be tested on these unless you enable AI Generation:
-                            </p>
-                            <ul
-                                style="color: #92400e; font-size: 0.875rem; margin-bottom: 1.5rem; list-style-position: inside;">
-                                <% job.assessmentId.missingSkills.forEach(skill=> { %>
-                                    <li>
-                                        <%= skill %>
-                                    </li>
-                                    <% }); %>
-                            </ul>
-                            <div
-                                style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #fbbf24;">
-                                <p style="font-size: 0.8125rem; color: #78350f;"><strong>To fix this:</strong></p>
-                                <ol
-                                    style="font-size: 0.8125rem; color: #92400e; padding-left: 1.25rem; margin-top: 0.25rem;">
-                                    <li>Enable <strong>"Allow AI Generation"</strong> in the settings above.</li>
-                                    <li>Click <strong>"Save Changes"</strong>.</li>
-                                    <li>Click <strong>"Regenerate All"</strong> in the Technical Questions Pool section.
-                                    </li>
-                                </ol>
-                            </div>
-                        </div>
-                        <% } %>
+                <div id="tab-analytics" class="tab-pane">
+                    <!-- Placeholder: In the future, move candidates/leaderboard here -->
+                    <div class="card" style="text-align: center; padding: 50px;">
+                        <h3>Candidate Analytics & Leaderboard</h3>
+                        <p>View detailed pool performance and the candidate leaderboard.</p>
+                        <a href="/api/jobs/<%= job._id %>/candidates" class="btn" style="display: inline-block; margin-top: 15px;">View Candidates Pool</a>
+                    </div>
+                </div>
 
                             <% } else { %>
                                 <!-- No Assessment -->
@@ -759,19 +753,21 @@
             const techValue = document.getElementById('tech-weight-value');
             const softValue = document.getElementById('soft-weight-value');
 
-            techWeight.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value);
-                techValue.textContent = val + '%';
-                softWeight.value = 100 - val;
-                softValue.textContent = (100 - val) + '%';
-            });
+            if (techWeight && softWeight) {
+                techWeight.addEventListener('input', (e) => {
+                    const val = parseInt(e.target.value);
+                    techValue.textContent = val + '%';
+                    softWeight.value = 100 - val;
+                    softValue.textContent = (100 - val) + '%';
+                });
 
-            softWeight.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value);
-                softValue.textContent = val + '%';
-                techWeight.value = 100 - val;
-                techValue.textContent = (100 - val) + '%';
-            });
+                softWeight.addEventListener('input', (e) => {
+                    const val = parseInt(e.target.value);
+                    softValue.textContent = val + '%';
+                    techWeight.value = 100 - val;
+                    techValue.textContent = (100 - val) + '%';
+                });
+            }
 
             async function saveAssessmentConfig() {
                 const techWeight = parseInt(document.getElementById('tech-weight').value) / 100;
@@ -781,7 +777,7 @@
                 const questionsPerSkill = parseInt(document.getElementById('questions-per-skill').value);
                 const allowAIGen = document.getElementById('allow-ai-gen').checked;
 
-                const presetStrategy = document.getElementById('preset-strategy').value;
+                const presetStrategy = 'balanced'; // Defaulted after UI removal
 
                 // Harvest granular skill counts
                 const skillConfigs = {};
@@ -837,7 +833,8 @@
 
                     const result = await response.json();
                     if (result.success) {
-                        location.reload();
+                        renderTechnicalAssessment(result.data);
+                        showToast(`Question ${action}d successfully`);
                     } else {
                         alert('Error: ' + result.error);
                     }
@@ -853,7 +850,10 @@
                         method: 'DELETE'
                     });
                     const result = await response.json();
-                    if (result.success) location.reload();
+                    if (result.success) {
+                        renderTechnicalAssessment(result.data);
+                        showToast('Question removed from the pool');
+                    }
                     else alert('Error: ' + result.error);
                 } catch(e) {
                     alert('Error removing question');
@@ -862,73 +862,124 @@
 
             async function regenerateQuestions() {
                 if (!confirm('This will update your technical questions based on the latest configuration. Continue?')) return;
+                showLoading('AI is generating new technical questions...');
                 try {
                     const response = await fetch(`/api/jobs/${jobId}/regenerate-questions`, {
                         method: 'POST'
                     });
                     const result = await response.json();
                     if (result.success) {
-                        location.reload();
+                        renderTechnicalAssessment(result.data);
+                        showToast('Questions updated successfully!');
                     } else {
                         alert('Error: ' + result.error);
                     }
                 } catch (error) {
                     alert('Error regenerating questions');
+                } finally {
+                    hideLoading();
                 }
             }
 
-            // AI Suggestion Flow
-            function toggleSelectAll(skill) {
-                const checkboxes = document.querySelectorAll(`.suggestion-card[data-skill="${skill}"] .sug-checkbox`);
-                const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
-                checkboxes.forEach(cb => cb.checked = anyUnchecked);
+            function toggleSkillAccordion(skill) {
+                const el = document.getElementById(`skill-content-${skill}`);
+                const icon = document.getElementById(`accordion-icon-${skill}`);
+                if (!el) return;
+                const isHidden = el.style.display === 'none';
+                el.style.display = isHidden ? 'block' : 'none';
+                if (icon) {
+                    icon.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+                }
             }
 
-            async function approveSelectedSuggestions() {
-                const selected = Array.from(document.querySelectorAll('.sug-checkbox:checked')).map(cb => cb.value);
-                if(selected.length === 0) return alert('Select at least one question to approve');
+            async function saveSelectionForSkill(skill) {
+                // Use data attributes to avoid escaping issues with periods in skill names like Node.js
+                const checkboxes = document.querySelectorAll(`.skill-checkbox[data-skill="${skill}"]:checked`);
+                const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+                const targetCount = targetCounts[skill];
+
+                if (selectedIds.length !== targetCount) {
+                    alert(`Target is ${targetCount} questions! You have selected ${selectedIds.length}. Please select exactly ${targetCount} questions before saving.`);
+                    return;
+                }
+
+                showLoading(`Saving selection for ${skill}...`);
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}/pool/save-selection`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ skill, selectedIds })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        renderTechnicalAssessment(result.data);
+                        showToast(`${skill} questions saved!`);
+                        const el = document.getElementById(`skill-content-${skill}`);
+                        const icon = document.getElementById(`accordion-icon-${skill}`);
+                        if (el) el.style.display = 'none';
+                        if (icon) icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error saving selection: ' + error.message);
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            function enforceLimits(skill, targetCount) {
+                // Use data attributes to prevent errors on strings with periods like Node.js
+                const checkboxes = document.querySelectorAll(`.skill-checkbox[data-skill="${skill}"]`);
+                const selectedCount = document.querySelectorAll(`.skill-checkbox[data-skill="${skill}"]:checked`).length;
                 
-                try {
-                    const res = await fetch(`/api/jobs/${jobId}/suggestions/approve`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ questionIds: selected, skillTargetCounts: typeof targetCounts !== 'undefined' ? targetCounts : {} })
+                const counterSpan = document.getElementById(`selected-count-${skill}`);
+                if (counterSpan) {
+                    counterSpan.textContent = selectedCount;
+                    counterSpan.style.color = selectedCount === targetCount ? '#16a34a' : '#ef4444';
+                }
+
+                if (selectedCount > targetCount) {
+                    // Checkboxes shouldn't let them go over, but realistically just cap it visually by disabling unchecked ones
+                }
+                
+                if (selectedCount >= targetCount) {
+                    checkboxes.forEach(cb => {
+                        if (!cb.checked) cb.disabled = true;
                     });
-                    const data = await res.json();
-                    if(data.success) {
-                         alert(`Approved! Added ${data.addedToAssessment} to assessment and ${data.addedToQB} to Question Bank.`);
-                         location.reload();
-                    } else alert('Error: ' + data.error);
-                } catch(e) { console.error(e); alert('Failed to approve suggestions'); }
+                } else {
+                    checkboxes.forEach(cb => cb.disabled = false);
+                }
             }
 
-            async function dismissSelectedSuggestions() {
-                const selected = Array.from(document.querySelectorAll('.sug-checkbox:checked')).map(cb => cb.value);
-                if(selected.length === 0) return alert('Select at least one question to dismiss');
-                if(!confirm('Dismiss selected suggestions permanently?')) return;
-                try {
-                    const res = await fetch(`/api/jobs/${jobId}/suggestions/dismiss`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ questionIds: selected })
+            document.addEventListener('DOMContentLoaded', () => {
+                if (typeof targetCounts !== 'undefined') {
+                    Object.keys(targetCounts).forEach(skill => {
+                        enforceLimits(skill, targetCounts[skill]);
                     });
-                    if((await res.json()).success) location.reload();
-                } catch(e) { console.error(e); alert('Failed to dismiss suggestions'); }
-            }
+                }
+            });
 
             async function generateMoreForSkill(skill) {
+                showLoading(`Generating more AI options for ${skill}...`);
                 try {
-                    const res = await fetch(`/api/jobs/${jobId}/suggestions/generate-more`, {
+                    const response = await fetch(`/api/jobs/${jobId}/suggestions/generate-more`, {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ skill, count: 2, difficulty: 'Medium' })
                     });
-                    const data = await res.json();
-                    if(data.success) {
-                        alert(`Generated ${data.count} new suggestions for ${skill}`);
+                    const result = await response.json();
+                    if (result.success) {
+                        alert(`New options generated for ${skill}!`);
                         location.reload();
-                    } else alert('Error: ' + data.error);
-                } catch(e) { console.error(e); alert('Failed to generate more'); }
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error generating questions: ' + error.message);
+                } finally {
+                    hideLoading();
+                }
             }
 
             async function refreshSkillPool(skill) {
@@ -938,11 +989,11 @@
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ skill })
                     });
-                    const data = await res.json();
-                    if(data.success) {
-                        alert(`Refreshed questions for ${skill}`);
-                        location.reload();
-                    } else alert('Error: ' + (data.error || data.message));
+                    const result = await res.json();
+                    if(result.success) {
+                        renderTechnicalAssessment(result.data);
+                        showToast(`Refreshed questions for ${skill}`);
+                    } else alert('Error: ' + (result.error || result.message));
                 } catch(e) { console.error(e); alert('Failed to refresh pool'); }
             }
 
@@ -968,9 +1019,40 @@
             }
 
 
+            async function saveAllSkillSelections() {
+                const skills = Object.keys(targetCounts);
+                if (skills.length === 0) return alert('No skills found.');
+
+                showLoading('Saving all question selections...');
+                let errors = [];
+                for (const skill of skills) {
+                    const checked = Array.from(
+                        document.querySelectorAll(`.skill-checkbox[data-skill="${CSS.escape(skill)}"]:checked`)
+                    ).map(cb => cb.value);
+
+                    try {
+                        const resp = await fetch(`/api/jobs/${jobId}/pool/save-selection`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ skill, selectedIds: checked })
+                        });
+                        const result = await resp.json();
+                        if (!result.success) errors.push(skill);
+                    } catch(e) {
+                        errors.push(skill);
+                    }
+                }
+                hideLoading();
+                if (errors.length > 0) {
+                    alert(`Saved with errors for: ${errors.join(', ')}`);
+                } else {
+                    location.href = window.location.pathname + '?tab=tab-assessment&expand=pool&toast=✅ All questions saved!';
+                }
+            }
+
             async function regenerateScenarios() {
                 if (!confirm('Regenerate all scenario templates?')) return;
-
+                showLoading('AI is crafting behavioral scenarios...');
                 try {
                     const response = await fetch(`/api/jobs/${jobId}/regenerate-scenarios`, {
                         method: 'POST'
@@ -978,12 +1060,17 @@
 
                     const result = await response.json();
                     if (result.success) {
-                        location.reload();
+                        // For scenarios, we might need a separate renderer or just reload for now 
+                        // but let's try to keep it AJAX if possible.
+                        // For simplicity in this step, I'll reload scenarios but preserve tab
+                        location.href = window.location.pathname + '?tab=tab-assessment&expand=pool&toast=Scenarios regenerated!';
                     } else {
                         alert('Error: ' + result.error);
                     }
                 } catch (error) {
                     alert('Error regenerating scenarios');
+                } finally {
+                    hideLoading();
                 }
             }
 
@@ -1031,16 +1118,18 @@
                 }
             }
 
-            async function approveAll() {
-                if (!confirm('Add all AI-generated questions to the verified Question Bank?')) return;
+            async function approveAllQuestions() {
+                if (!confirm('Approve all AI-generated questions and add them to the global question bank?')) return;
+
                 try {
                     const response = await fetch(`/api/jobs/${jobId}/approve-all`, {
                         method: 'POST'
                     });
+
                     const result = await response.json();
                     if (result.success) {
-                        alert('Questions approved and added to Bank!');
-                        location.reload();
+                        renderTechnicalAssessment(result.data);
+                        showToast('All questions approved!');
                     } else {
                         alert('Error: ' + result.error);
                     }
@@ -1275,6 +1364,98 @@
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 }
+            }
+
+            function openTab(evt, tabName) {
+                var i, tabpane, tablinks;
+                tabpane = document.getElementsByClassName("tab-pane");
+                for (i = 0; i < tabpane.length; i++) {
+                    tabpane[i].style.display = "none";
+                    tabpane[i].classList.remove("active");
+                }
+                tablinks = document.getElementsByClassName("tab-link");
+                for (i = 0; i < tablinks.length; i++) {
+                    tablinks[i].classList.remove("active");
+                }
+                document.getElementById(tabName).style.display = "block";
+                document.getElementById(tabName).classList.add("active");
+                evt.currentTarget.classList.add("active");
+                
+                // Keep track of active tab in URL for refresh
+                const url = new URL(window.location);
+                url.searchParams.set('tab', tabName);
+                window.history.pushState({}, '', url);
+            }
+
+            // Sync Tab on reload
+            const params = new URLSearchParams(window.location.search);
+            const activeTab = params.get('tab');
+            if (activeTab) {
+                const tabBtn = Array.from(document.querySelectorAll('.tab-link')).find(btn => btn.getAttribute('onclick').includes(activeTab));
+                if (tabBtn) tabBtn.click();
+            }
+
+            // Auto-expand sections if requested
+            if (params.get('expand') === 'pool') {
+                const poolContainer = document.getElementById('question-pool-container');
+                const toggleBtn = document.getElementById('toggle-pool-btn');
+                if (poolContainer) poolContainer.style.display = 'block';
+                if (toggleBtn) toggleBtn.style.display = 'none';
+            }
+
+            function showToast(message) {
+                const toast = document.createElement('div');
+                toast.style.position = 'fixed';
+                toast.style.bottom = '20px';
+                toast.style.right = '20px';
+                toast.style.background = 'var(--primary-color)';
+                toast.style.color = 'white';
+                toast.style.padding = '12px 24px';
+                toast.style.borderRadius = '8px';
+                toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                toast.style.zIndex = '9999';
+                toast.style.fontSize = '0.9rem';
+                toast.style.fontWeight = '600';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+
+            function renderTechnicalAssessment(assessment) {
+                const poolContainer = document.getElementById('question-pool-container');
+                // We are moving to a full page reload or complete re-render strategy for the new unified UI.
+                // A partial DOM replacement is too complex with the EJS unified skill layout.
+                // For a seamless experience, we just reload the page and use URL params to keep the section open.
+                const url = new URL(window.location);
+                url.searchParams.set('tab', 'tab-assessment');
+                url.searchParams.set('expand', 'pool');
+                window.location.href = url.toString();
+            }
+
+            function showLoading(msg) {
+                const overlay = document.createElement('div');
+                overlay.id = 'ai-loading-overlay';
+                overlay.style = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(255,255,255,0.8); backdrop-filter: blur(4px);
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    z-index: 10000;
+                `;
+                overlay.innerHTML = `
+                    <div class="ai-spinner" style="width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+                    <div style="font-weight: 700; color: #1e293b; font-size: 1.1rem;">${msg || 'AI is working...'}</div>
+                    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+                `;
+                document.body.appendChild(overlay);
+            }
+
+            function hideLoading() {
+                const overlay = document.getElementById('ai-loading-overlay');
+                if (overlay) overlay.remove();
+            }
+
+            if (params.get('toast')) {
+                showToast(params.get('toast'));
             }
         </script>
 </body>

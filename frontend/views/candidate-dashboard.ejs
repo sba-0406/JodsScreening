@@ -61,7 +61,7 @@
                 try {
                     const res = await fetch('/api/notifications');
                     const data = await res.json();
-                    if (data.success) {
+                    if (data.success && Array.isArray(data.data)) {
                         renderDashboardNotifications(data.data.slice(0, 3));
                     }
                 } catch (err) {
@@ -98,6 +98,8 @@
 
                 list.innerHTML = applications.map(app => {
                     const job = app.job;
+                    if (!job || !app) return ''; // Skip rendering if job or application is missing
+
                     const dateVal = app.appliedAt || app.createdAt;
                     const appliedDate = dateVal ? new Date(dateVal).toLocaleDateString() : 'Recent';
 

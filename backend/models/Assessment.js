@@ -49,6 +49,11 @@ const AssessmentSchema = new mongoose.Schema({
 
     // AI Suggested Questions (Staging Area)
     suggestedQuestions: [{
+        questionId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Question',
+            default: null
+        },
         skill: String,
         difficulty: String,
         question: String,
@@ -57,6 +62,7 @@ const AssessmentSchema = new mongoose.Schema({
         explanation: String,
         source: { type: String, default: 'ai_generated' }
     }],
+
 
     // Scenario Templates (AI-generated)
     scenarioTemplates: [{

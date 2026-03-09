@@ -37,6 +37,7 @@ router.post('/:id/suggestions/generate-more', jobController.generateMoreSuggesti
 
 // Technical Pool
 router.put('/:id/pool/refresh-skill', jobController.refreshSkillPool);
+router.put('/:id/pool/save-selection', jobController.saveSkillSelection);
 
 // Granular Scenario Control
 router.delete('/:id/scenario/:scenarioId', jobController.deleteScenario);

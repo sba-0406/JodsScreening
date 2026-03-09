@@ -3,7 +3,7 @@ const router = express.Router();
 const assessmentController = require('../controllers/assessmentController');
 const { protect } = require('../middleware/authMiddleware');
 
-// View Route
+// View Route (Standardized)
 router.get('/assessment/:applicationId', protect, assessmentController.startAssessment);
 
 // API Routes

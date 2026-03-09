@@ -80,14 +80,26 @@ async function generateAssessment(jobDescription, jobId, createdBy, assessmentCo
         const jobDoc = await Job.findById(jobId);
         const jobTitle = jobDoc?.title || '';
 
-        const scenarios = await generateScenarioTemplates(
-            analysis.softSkills,
-            analysis.roleCategory,
-            analysis.roleType,
-            scenarioCountOverride || analysis.softSkills.length,
-            jobDescription,
-            jobTitle
-        );
+        let scenarios = { scenarios: [], physics: { metrics: [], polarity: {} } };
+        if (analysis.softSkills && analysis.softSkills.length > 0) {
+            let finalScenarioCount = analysis.softSkills.length;
+            if (strategy === 'technical') {
+                finalScenarioCount = Math.min(analysis.softSkills.length, 1);
+            } else if (strategy === 'behavioral') {
+                finalScenarioCount = Math.min(analysis.softSkills.length, 5);
+            } else {
+                finalScenarioCount = Math.min(analysis.softSkills.length, 3);
+            }
+
+            scenarios = await generateScenarioTemplates(
+                analysis.softSkills,
+                analysis.roleCategory,
+                analysis.roleType,
+                finalScenarioCount,
+                jobDescription,
+                jobTitle
+            );
+        }
 
         // STEP 4: Assessment Persistence
         const assessment = await Assessment.create({
@@ -142,26 +154,31 @@ async function regenerateScenarios(assessmentId) {
     const jobDescription = assessment.job?.description || '';
     
     // APPLY PRESET STRATEGY DEFAULTS
-    let scenarioCount = assessment.softSkills?.length || 3;
-    if (assessment.presetStrategy === 'technical') {
-        scenarioCount = 1; // Minimal but composite
-    } else if (assessment.presetStrategy === 'behavioral') {
-        scenarioCount = 5; // Heavy scenarios
-    } else {
-        scenarioCount = 3; // Balanced
+    let scenarioCount = assessment.softSkills?.length || 0;
+    if (scenarioCount > 0) {
+        if (assessment.presetStrategy === 'technical') {
+            scenarioCount = Math.min(scenarioCount, 1); // Minimal but composite
+        } else if (assessment.presetStrategy === 'behavioral') {
+            scenarioCount = Math.min(scenarioCount, 5); // Heavy scenarios
+        } else {
+            scenarioCount = Math.min(scenarioCount, 3); // Balanced
+        }
     }
 
     // Preserve manual scenarios
     const manualScenarios = assessment.scenarioTemplates.filter(s => s.isManual);
 
-    const result = await generateScenarioTemplates(
-        assessment.softSkills,
-        assessment.roleCategory,
-        assessment.roleType,
-        scenarioCount,
-        jobDescription,
-        assessment.job?.title || ''
-    );
+    let result = { scenarios: [], physics: { metrics: [], polarity: {} } };
+    if (assessment.softSkills && assessment.softSkills.length > 0) {
+        result = await generateScenarioTemplates(
+            assessment.softSkills,
+            assessment.roleCategory,
+            assessment.roleType,
+            scenarioCount,
+            jobDescription,
+            assessment.job?.title || ''
+        );
+    }
 
     // Combine manual with newly generated ones
     assessment.scenarioTemplates = [...manualScenarios, ...result.scenarios];

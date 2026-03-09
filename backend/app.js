@@ -70,6 +70,8 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+// Redirect legacy dojo routes to the new assessment paths
+app.get('/dojo/assessment/:id', (req, res) => res.redirect(`/api/assessment/assessment/${req.params.id}`));
 app.use('/api/system', systemRoutes);
 
 // View Routes

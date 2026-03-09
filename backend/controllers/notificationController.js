@@ -44,9 +44,12 @@ exports.getNotifications = async (req, res) => {
  */
 exports.markAsRead = async (req, res) => {
     try {
+        console.log(`[NOTIF] Marking read: ${req.params.id}`);
         const notification = await notificationService.markAsRead(req.params.id);
+        console.log(`[NOTIF] Result: ${notification ? 'Success' : 'Not Found'}`);
         res.json({ success: true, data: notification });
     } catch (error) {
+        console.error(`[NOTIF ERROR] markAsRead:`, error);
         res.status(500).json({ success: false, error: 'Failed to update notification' });
     }
 };

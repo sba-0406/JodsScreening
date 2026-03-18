@@ -114,3 +114,23 @@ router.get('/job/:id/apply', protect, applicationController.renderApplicationFor
 router.get('/my-dashboard', protect, applicationController.renderCandidateDashboard);
 
 module.exports = router;
+
+
+
+
+
+// For S3:
+// req.file = {
+//   fieldname: 'resume',
+//   originalname: 'resume.pdf',
+//   mimetype: 'application/pdf',
+//   location: 'https://s3.amazonaws.com/...',
+//   key: 'resumes/resume-123.pdf',
+//   ...
+// }
+// For memory:
+// req.file = {
+//   buffer: <Buffer ...>,
+//   size: ...,
+//   mimetype: ...
+// }

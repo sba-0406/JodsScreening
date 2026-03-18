@@ -146,7 +146,7 @@ RULES — follow exactly:
 1. QUANTITY: Return exactly ${count} scenarios.
 2. SOFTSKILL: The 'softSkill' field MUST be the exact name of a soft skill from the list provided.
 3. THEME: A creative title related to the situation.
-4. METRICS: Choose exactly 3 metrics that are critical success factors for THIS specific job role.
+4. METRICS: Choose exactly 3 metrics that are critical success factors for THIS specific job role and soft skill/soft skills.
 5. POLARITY: "high" = higher is better. "low" = higher is worse.
 6. SCENARIOS: Be specific to the job. Each prompt should describe a concrete stakeholder, their complaint/demand, and high stakes.
 7. ROLE: The candidate's role in the scenario should be exactly '${jobTitle || roleType}'.

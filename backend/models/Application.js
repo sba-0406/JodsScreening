@@ -113,11 +113,10 @@ const ApplicationSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-// Virtual for Resume Public URL
+// Virtual for Resume Public URL (Internal Proxy)
 ApplicationSchema.virtual('resumeUrl').get(function () {
     if (!this.resume) return null;
-    const storageService = require('../services/storageService');
-    return storageService.getPublicUrl(this.resume);
+    return `/api/resumes/view/${this._id}`;
 });
 
 // Update timestamp on save

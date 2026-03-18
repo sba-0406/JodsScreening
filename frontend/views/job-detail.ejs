@@ -39,9 +39,9 @@
                                 JOB: <%= job.status.toUpperCase() %>
                             </span>
                             <% if (job.assessmentId) { %>
-                                <% const pendingCount = job.assessmentId.suggestedQuestions?.length || 0; %>
+                                <% const pendingCount=job.assessmentId.suggestedQuestions?.length || 0; %>
                                     <span class="badge <%= pendingCount > 0 ? 'badge-warning' : 'badge-success' %>">
-                                        ASSESSMENT: <%= pendingCount > 0 ? `${pendingCount} PENDING REVIEW` : 'ACTIVE' %>
+                                        ASSESSMENT: <%= pendingCount> 0 ? `${pendingCount} PENDING REVIEW` : 'ACTIVE' %>
                                     </span>
                                     <% } %>
                                         <button onclick="deleteJob()"
@@ -118,634 +118,779 @@
                 </div>
 
                 <% if (job.assessmentId) { %>
-                <!-- Tab Navigation -->
-                <div class="tabs-nav mb-20">
-                    <button class="tab-link active" onclick="openTab(event, 'tab-definition')">1. Job Definition</button>
-                    <button class="tab-link" onclick="openTab(event, 'tab-assessment')">2. Assessment Builder</button>
-                    <button class="tab-link" onclick="openTab(event, 'tab-analytics')">3. Candidates & Analytics</button>
-                </div>
-
-                <div id="tab-definition" class="tab-pane active" style="display: block;">
-                    <!-- Assessment Configuration -->
-                    <div class="card">
-                        <h2 class="mb-20">AI-Generated Assessment</h2>
-
-                        <div class="assessment-config">
-                            <div class="sub-section-header">Role & Assessment Strategy</div>
-                            <div class="info-grid mb-20">
-                                <div class="info-item">
-                                    <span class="info-label">Category</span>
-                                    <span class="info-value">
-                                        <%= (job.assessmentId && job.assessmentId.roleCategory) ? job.assessmentId.roleCategory : 'N/A' %>
-                                    </span>
-                                                              <div class="info-item">
-                                    <span class="info-label">Seniority Target</span>
-                                    <span class="info-value">
-                                        <%= (job.assessmentId && job.assessmentId.seniorityLevel) ? job.assessmentId.seniorityLevel : 'Not Specified' %>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div class="sub-section-header">Extracted Skills</div>
-                            <div style="margin-bottom: 20px;">
-                                <div style="display: flex; flex-direction: column; gap: 15px;">
-                                    <div>
-                                        <div class="info-label" style="margin-bottom: 8px;">Technical Skills</div>
-                                        <div class="skills-list">
-                                            <% if (job.assessmentId && job.assessmentId.technicalSkills) { %>
-                                                <% job.assessmentId.technicalSkills.forEach(skill=> { %>
-                                                    <span class="skill-tag">
-                                                        <%= skill %>
-                                                    </span>
-                                                <% }); %>
-                                            <% } else { %>
-                                                <span style="color: var(--text-muted); font-size: 0.85rem;">None extracted</span>
-                                            <% } %>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="info-label" style="margin-bottom: 8px;">Soft Skills</div>
-                                        <div class="skills-list">
-                                            <% if (job.assessmentId && job.assessmentId.softSkills) { %>
-                                                <% job.assessmentId.softSkills.forEach(skill=> { %>
-                                                    <span class="skill-tag">
-                                                        <%= skill %>
-                                                    </span>
-                                                <% }); %>
-                                            <% } else { %>
-                                                <span style="color: var(--text-muted); font-size: 0.85rem;">None extracted</span>
-                                            <% } %>
-                                        </div>
-                                    </div>     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="sub-section-header" style="display: flex; justify-content: space-between; align-items: center;">
-                            Custom Screening Questions
-                            <button type="button" onclick="addScreeningQuestion()" class="btn-sm btn-secondary" style="font-size: 0.7rem; padding: 4px 10px;">+ Add Question</button>
-                        </div>
-                        <div id="screening-questions-container" style="margin-bottom: 30px;">
-                            <% if (job.screeningQuestions && job.screeningQuestions.length > 0) { %>
-                                <% job.screeningQuestions.forEach((q, index) => { %>
-                                    <% const id = `sq-${Date.now()}-${index}`; %>
-                                    <div class="card screening-q-item" id="<%= id %>" style="padding: 20px; border: 1px solid var(--border); background: #fff; position: relative; margin-bottom: 15px;">
-                                        <button type="button" onclick="document.getElementById('<%= id %>').remove()" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px;">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                        </button>
-                                        <div class="form-group mb-16">
-                                            <label style="font-size: 0.75rem;">Question Text</label>
-                                            <input type="text" class="sq-text form-control" value="<%= typeof q === 'string' ? q : q.question %>" placeholder="e.g., Are you willing to relocate?" required style="font-size: 0.9rem; padding: 8px 12px;">
-                                        </div>
-                                        <div style="display: flex; gap: 20px; align-items: center;">
-                                            <div class="form-group" style="flex: 1; margin: 0;">
-                                                <label style="font-size: 0.75rem;">Response Type</label>
-                                                <select class="sq-type form-control" onchange="toggleKnockoutOptions('<%= id %>')" style="font-size: 0.85rem; padding: 6px 10px;">
-                                                    <option value="yes_no" <%= (typeof q !== 'string' && q.type === 'yes_no') ? 'selected' : '' %>>Yes / No</option>
-                                                    <option value="text" <%= (typeof q === 'string' || q.type === 'text') ? 'selected' : '' %>>Short Answer</option>
-                                                </select>
-                                            </div>
-                                            <div style="flex: 1; display: flex; align-items: center; gap: 10px; margin-top: 20px;">
-                                                <input type="checkbox" class="sq-knockout" id="ko-<%= id %>" <%= (typeof q !== 'string' && q.isKnockout) ? 'checked' : '' %> onchange="toggleKnockoutOptions('<%= id %>')">
-                                                <label for="ko-<%= id %>" style="font-size: 0.85rem; margin: 0; cursor: pointer;">Mark as Knockout</label>
-                                            </div>
-                                            <div class="sq-expected-container" style="flex: 1; margin: 0; display: <%= (typeof q !== 'string' && q.isKnockout && q.type === 'yes_no') ? 'block' : 'none' %>;">
-                                                <label style="font-size: 0.75rem;">Expected Answer</label>
-                                                <select class="sq-expected form-control" style="font-size: 0.85rem; padding: 6px 10px;">
-                                                    <option value="Yes" <%= (typeof q !== 'string' && q.expectedAnswer === 'Yes') ? 'selected' : '' %>>Yes</option>
-                                                    <option value="No" <%= (typeof q !== 'string' && q.expectedAnswer === 'No') ? 'selected' : '' %>>No</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                <% }) %>
-                            <% } else { %>
-                                <div id="no-screening-msg" style="color: var(--text-muted); font-size: 0.85rem; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px dashed var(--border); text-align: center; margin-bottom: 10px;">
-                                    No custom questions added yet. These will appear on the application form.
-                                </div>
-                            <% } %>
-                        </div>
-
-                        <!-- Weight Customization -->
-                        <div class="sub-section-header">Assessment Weights</div>
-                        <div class="weight-config-grid">
-                            <div class="weight-slider-card">
-                                <div class="weight-slider-header">
-                                    <span class="weight-label">Technical Skills</span>
-                                    <span id="tech-weight-value" class="weight-pct">
-                                        <%= job.assessmentId ? Math.round(job.assessmentId.technicalWeight * 100) : 50 %>%
-                                    </span>
-                                </div>
-                                <input type="range" id="tech-weight" min="0" max="100"
-                                    value="<%= job.assessmentId ? Math.round(job.assessmentId.technicalWeight * 100) : 50 %>">
-                            </div>
-
-                            <div class="weight-slider-card">
-                                <div class="weight-slider-header">
-                                    <span class="weight-label">Soft Skills</span>
-                                    <span id="soft-weight-value" class="weight-pct">
-                                        <%= job.assessmentId ? Math.round(job.assessmentId.softSkillWeight * 100) : 50 %>%
-                                    </span>
-                                </div>
-                                <input type="range" id="soft-weight" min="0" max="100"
-                                    value="<%= job.assessmentId ? Math.round(job.assessmentId.softSkillWeight * 100) : 50 %>">
-                            </div>
-                        </div>
-
-                        <div class="sub-section-header">Notification Channels</div>
-                        <div class="info-grid mb-24"
-                            style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
-                            <div class="info-item">
-                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
-                                    <input type="checkbox" id="send-in-app" <%=job.notificationSettings?.sendInApp
-                                        !==false ? 'checked' : '' %>
-                                    style="width: 20px; height: 20px; margin-top: 2px;">
-                                    <div>
-                                        <div style="color: var(--text-main); font-weight: 700; font-size: 0.95rem;">
-                                            In-App Notifications</div>
-                                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">Show
-                                            alerts in the HR dashboard for new activity.</p>
-                                    </div>
-                                </label>
-                            </div>
-                            <div class="info-item">
-                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
-                                    <input type="checkbox" id="send-email" <%=job.notificationSettings?.sendEmail
-                                        ? 'checked' : '' %>
-                                    style="width: 20px; height: 20px; margin-top: 2px;">
-                                    <div>
-                                        <div style="color: var(--text-main); font-weight: 700; font-size: 0.95rem;">
-                                            Email Alerts</div>
-                                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">Send
-                                            summary emails for applications and results.</p>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="sub-section-header">Assessment Configuration</div>
-                        <div class="info-grid mb-20" style="align-items: flex-end;">
-                            <div class="info-item">
-                                <span class="info-label" style="margin-bottom: 10px;">Default Questions Per Skill</span>
-                                <input type="number" id="questions-per-skill"
-                                    value="<%= job.assessmentConfig?.questionsPerSkill || 2 %>" min="1" max="10"
-                                    class="form-control" style="width: 120px;">
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label" style="margin-bottom: 10px;">AI Question Generation</span>
-                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                                    <input type="checkbox" id="allow-ai-gen" <%=job.assessmentConfig?.allowAIGeneration
-                                        ? 'checked' : '' %>
-                                    style="width: 18px; height: 18px;">
-                                    <span style="color: var(--text-main); font-size: 0.9rem; font-weight: 500;">Enable
-                                        automated
-                                        generation</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 24px;">
-                            <div class="info-label" style="margin-bottom: 12px;">Questions per specific
-                                skill</div>
-                            <div id="skill-counts-container"
-                                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;">
-                                <% job.assessmentId.technicalSkills.forEach(skill=> {
-                                    const config = job.assessmentConfig?.skillConfigs?.find(sc => sc.skill === skill);
-                                    const count = config ? config.questionCount :
-                                    (job.assessmentConfig?.questionsPerSkill
-                                    || 2);
-                                    %>
-                                    <div
-                                        style="background: #ffffff; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-                                        <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 700;">
-                                            <%= skill %>
-                                        </div>
-                                        <input type="number" class="skill-count-input form-control"
-                                            data-skill="<%= skill %>" value="<%= count %>" min="1" max="10"
-                                            style="padding: 4px 8px; width: 55px; height: 32px; text-align: center;">
-                                    </div>
-                                    <% }); %>
-                            </div>
-                        </div>
-
-                        <div class="sub-section-header">Passing Thresholds</div>
-                        <div class="info-grid mb-24">
-                            <div class="info-item">
-                                <span class="info-label" style="margin-bottom: 8px;">Min Technical Score (%)</span>
-                                <input type="number" id="min-tech-score"
-                                    value="<%= job.assessmentId.minTechnicalScore %>" min="0" max="100"
-                                    class="form-control" style="width: 120px;">
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label" style="margin-bottom: 8px;">Min Soft Skill Score (%)</span>
-                                <input type="number" id="min-soft-score"
-                                    value="<%= job.assessmentId.minSoftSkillScore %>" min="0" max="100"
-                                    class="form-control" style="width: 120px;">
-                            </div>
-                        </div>
-
-                        <div style="display: flex; gap: 10px; margin-top: 1.5rem;">
-                            <button onclick="saveAssessmentConfig()" class="btn">
-                                Save Changes
-                            </button>
-                            <button onclick="openTab(event, 'tab-assessment')" class="btn btn-secondary">
-                                Next: Assessment Builder ➔
-                            </button>
-                        </div>
+                    <!-- Tab Navigation -->
+                    <div class="tabs-nav mb-20">
+                        <button class="tab-link active" onclick="openTab(event, 'tab-definition')">1. Job
+                            Definition</button>
+                        <button class="tab-link" onclick="openTab(event, 'tab-assessment')">2. Assessment
+                            Builder</button>
+                        <button class="tab-link" onclick="openTab(event, 'tab-analytics')">3. Candidates &
+                            Analytics</button>
                     </div>
-                </div> <!-- End Tab Definition -->
 
-                <div id="tab-assessment" class="tab-pane">
+                    <div id="tab-definition" class="tab-pane active" style="display: block;">
+                        <!-- Assessment Configuration -->
+                        <div class="card">
+                            <h2 class="mb-20">AI-Generated Assessment</h2>
 
-                    <!-- Questions Preview & Moderation -->
-                    <div class="card" id="questions-section">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <div class="sub-section-header" style="margin: 0; flex: 1;">Technical Question Pool</div>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <button onclick="saveAllSkillSelections()" class="btn-sm" style="background: var(--primary-color); border: none; color: white; cursor: pointer; font-size: 0.75rem; padding: 0.4rem 1rem;">
-                                    Save All Questions
-                                </button>
-                                <button onclick="toggleManualQuestionForm()" class="btn-sm btn-secondary"
-                                    style="font-size: 0.75rem;">+ Custom Question</button>
-                                <button onclick="regenerateQuestions()" class="btn-sm btn-secondary"
-                                    style="font-size: 0.75rem; padding: 0.4rem 1rem;">
-                                    Update Questions
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <% 
-                            const poolBySkill = {};
-                            const skillCounts = {};
-                            const hasSuggestions = job.assessmentId && job.assessmentId.suggestedQuestions && job.assessmentId.suggestedQuestions.length > 0;
-                            const suggestionsBySkill = {};
-
-                            if (job.assessmentId && job.assessmentId.technicalSkills) {
-                                job.assessmentId.technicalSkills.forEach(skill => {
-                                    const config = job.assessmentConfig?.skillConfigs?.find(sc => sc.skill === skill);
-                                    let baseCount = config ? config.questionCount : (job.assessmentConfig?.questionsPerSkill || 2);
-                                    skillCounts[skill] = Math.max(1, Math.ceil(baseCount));
-                                    poolBySkill[skill] = [];
-                                });
-                            }
-
-                            if (job.assessmentId && job.assessmentId.technicalQuestions) {
-                                job.assessmentId.technicalQuestions.forEach(q => {
-                                    if (!poolBySkill[q.skill]) poolBySkill[q.skill] = [];
-                                    poolBySkill[q.skill].push(q);
-                                });
-                            }
-
-                            if (hasSuggestions) {
-                                job.assessmentId.suggestedQuestions.forEach(q => {
-                                    if (!suggestionsBySkill[q.skill]) suggestionsBySkill[q.skill] = [];
-                                    suggestionsBySkill[q.skill].push(q);
-                                });
-                            }
-                        %>
-
-                        <!-- Strategy Refresh Hint -->
-                        <div id="strategy-hint" class="warning-box" style="display: none; margin-bottom: 20px; background: #fff7ed; border-color: #fbbf24;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <span style="font-size: 1.25rem;">💡</span>
-                                <div style="flex: 1;">
-                                    <div style="font-size: 0.85rem; font-weight: 700; color: #9a3412;">Assessment Strategy Changed!</div>
-                                    <div style="font-size: 0.75rem; color: #c2410c;">Your questions and scenarios are still using the old strategy. Click <b>"Update Questions"</b> or <b>"Regenerate Scenarios"</b> below to apply the new strategy.</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 30px; background: #ffffff; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border); align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
-                             <div>
-                                 <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Current Pool</div>
-                                 <div style="font-size: 1.5rem; font-weight: 800; color: var(--text);"><%= job.assessmentId ? job.assessmentId.technicalQuestions.length : 0 %> <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-muted);">Questions</span></div>
-                             </div>
-                             <div style="border-left: 1px solid var(--border); padding-left: 30px; display: flex; align-items: center; justify-content: space-between;">
-                                 <div>
-                                     <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">AI Suggestions</div>
-                                     <div style="font-size: 1.5rem; font-weight: 800; color: <%= hasSuggestions ? '#f59e0b' : 'var(--text-muted)' %>;"><%= hasSuggestions ? job.assessmentId.suggestedQuestions.length : 0 %> <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-muted);">Pending</span></div>
-                                 </div>
-                                 <% if (hasSuggestions) { %>
-                                     <button onclick="document.getElementById('suggestions-section').scrollIntoView({behavior:'smooth'})" style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-left: 20px;">Review Suggestions</button>
-                                 <% } %>
-                             </div>
-                             <div style="padding-left: 20px;">
-                                 <button id="toggle-pool-btn" onclick="document.getElementById('question-pool-container').style.display='block'; this.style.display='none'" style="background: #ffffff; color: var(--text-main); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">Review List ↓</button>
-                             </div>
-                        </div>
-
-                        <div id="unified-skill-pool">
-                            <!-- Manual Question Form (Hidden by default) -->
-                            <div id="manual-question-form" class="card"
-                                style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; margin-bottom: 20px;">
-                                <h4 class="mb-15">Add Custom Technical Question</h4>
-                                <div class="form-group mb-15">
-                                    <label class="info-label">Question Text</label>
-                                    <div style="display: flex; gap: 8px;">
-                                        <textarea id="mq-text" class="form-control" rows="2"
-                                            placeholder="Enter your question here..."></textarea>
-                                        <button onclick="refineHRContent('mq-text', 'question')"
-                                            class="btn-sm btn-secondary" title="Refine with AI" style="font-size: 0.7rem; font-weight: 600;">Refine</button>
-                                    </div>
-                                </div>
-                                <div class="info-grid mb-15">
+                            <div class="assessment-config">
+                                <div class="sub-section-header">Role & Assessment Strategy</div>
+                                <div class="info-grid mb-20">
                                     <div class="info-item">
-                                        <label class="info-label">Skill</label>
-                                        <select id="mq-skill" class="form-control">
-                                            <% if (job.assessmentId && job.assessmentId.technicalSkills) { %>
-                                                <% job.assessmentId.technicalSkills.forEach(skill=> { %>
-                                                    <option value="<%= skill %>">
-                                                        <%= skill %>
-                                                    </option>
-                                                <% }); %>
-                                            <% } %>
-                                        </select>
+                                        <span class="info-label">Category</span>
+                                        <span class="info-value">
+                                            <%= (job.assessmentId && job.assessmentId.roleCategory) ?
+                                                job.assessmentId.roleCategory : 'N/A' %>
+                                        </span>
+                                        <div class="info-item">
+                                            <span class="info-label">Seniority Target</span>
+                                            <span class="info-value">
+                                                <%= (job.assessmentId && job.assessmentId.seniorityLevel) ?
+                                                    job.assessmentId.seniorityLevel : 'Not Specified' %>
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div class="info-item">
-                                        <label class="info-label">Difficulty</label>
-                                        <select id="mq-diff" class="form-control">
-                                            <option value="Easy">Easy</option>
-                                            <option value="Medium" selected>Medium</option>
-                                            <option value="Hard">Hard</option>
-                                        </select>
+
+                                    <div class="sub-section-header">Extracted Skills</div>
+                                    <div style="margin-bottom: 20px;">
+                                        <div style="display: flex; flex-direction: column; gap: 15px;">
+                                            <div>
+                                                <div class="info-label" style="margin-bottom: 8px;">Technical Skills
+                                                </div>
+                                                <div class="skills-list">
+                                                    <% if (job.assessmentId && job.assessmentId.technicalSkills) { %>
+                                                        <% job.assessmentId.technicalSkills.forEach(skill=> { %>
+                                                            <span class="skill-tag">
+                                                                <%= skill %>
+                                                            </span>
+                                                            <% }); %>
+                                                                <% } else { %>
+                                                                    <span
+                                                                        style="color: var(--text-muted); font-size: 0.85rem;">None
+                                                                        extracted</span>
+                                                                    <% } %>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="info-label" style="margin-bottom: 8px;">Soft Skills</div>
+                                                <div class="skills-list">
+                                                    <% if (job.assessmentId && job.assessmentId.softSkills) { %>
+                                                        <% job.assessmentId.softSkills.forEach(skill=> { %>
+                                                            <span class="skill-tag">
+                                                                <%= skill %>
+                                                            </span>
+                                                            <% }); %>
+                                                                <% } else { %>
+                                                                    <span
+                                                                        style="color: var(--text-muted); font-size: 0.85rem;">None
+                                                                        extracted</span>
+                                                                    <% } %>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" class="mb-15">
-                                    <% [0, 1, 2, 3].forEach(i=> { %>
+                            </div>
+
+                            <div class="sub-section-header"
+                                style="display: flex; justify-content: space-between; align-items: center;">
+                                Custom Screening Questions
+                                <button type="button" onclick="addScreeningQuestion()" class="btn-sm btn-secondary"
+                                    style="font-size: 0.7rem; padding: 4px 10px;">+ Add Question</button>
+                            </div>
+                            <div id="screening-questions-container" style="margin-bottom: 30px;">
+                                <% if (job.screeningQuestions && job.screeningQuestions.length> 0) { %>
+                                    <% job.screeningQuestions.forEach((q, index)=> { %>
+                                        <% const id=`sq-${Date.now()}-${index}`; %>
+                                            <div class="card screening-q-item" id="<%= id %>"
+                                                style="padding: 20px; border: 1px solid var(--border); background: #fff; position: relative; margin-bottom: 15px;">
+                                                <button type="button"
+                                                    onclick="document.getElementById('<%= id %>').remove()"
+                                                    style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px;">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                        stroke-linejoin="round">
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path
+                                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                        </path>
+                                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                    </svg>
+                                                </button>
+                                                <div class="form-group mb-16">
+                                                    <label style="font-size: 0.75rem;">Question Text</label>
+                                                    <input type="text" class="sq-text form-control"
+                                                        value="<%= typeof q === 'string' ? q : q.question %>"
+                                                        placeholder="e.g., Are you willing to relocate?" required
+                                                        style="font-size: 0.9rem; padding: 8px 12px;">
+                                                </div>
+                                                <div style="display: flex; gap: 20px; align-items: center;">
+                                                    <div class="form-group" style="flex: 1; margin: 0;">
+                                                        <label style="font-size: 0.75rem;">Response Type</label>
+                                                        <select class="sq-type form-control"
+                                                            onchange="toggleKnockoutOptions('<%= id %>')"
+                                                            style="font-size: 0.85rem; padding: 6px 10px;">
+                                                            <option value="yes_no" <%=(typeof q !=='string' &&
+                                                                q.type==='yes_no' ) ? 'selected' : '' %>>Yes / No
+                                                            </option>
+                                                            <option value="text" <%=(typeof q==='string' ||
+                                                                q.type==='text' ) ? 'selected' : '' %>>Short Answer
+                                                            </option>
+                                                        </select>
+                                                    </div>
+                                                    <div
+                                                        style="flex: 1; display: flex; align-items: center; gap: 10px; margin-top: 20px;">
+                                                        <input type="checkbox" class="sq-knockout" id="ko-<%= id %>"
+                                                            <%=(typeof q !=='string' && q.isKnockout) ? 'checked' : ''
+                                                            %> onchange="toggleKnockoutOptions('<%= id %>')">
+                                                            <label for="ko-<%= id %>"
+                                                                style="font-size: 0.85rem; margin: 0; cursor: pointer;">Mark
+                                                                as Knockout</label>
+                                                    </div>
+                                                    <div class="sq-expected-container"
+                                                        style="flex: 1; margin: 0; display: <%= (typeof q !== 'string' && q.isKnockout && q.type === 'yes_no') ? 'block' : 'none' %>;">
+                                                        <label style="font-size: 0.75rem;">Expected Answer</label>
+                                                        <select class="sq-expected form-control"
+                                                            style="font-size: 0.85rem; padding: 6px 10px;">
+                                                            <option value="Yes" <%=(typeof q !=='string' &&
+                                                                q.expectedAnswer==='Yes' ) ? 'selected' : '' %>>Yes
+                                                            </option>
+                                                            <option value="No" <%=(typeof q !=='string' &&
+                                                                q.expectedAnswer==='No' ) ? 'selected' : '' %>>No
+                                                            </option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <% }) %>
+                                                <% } else { %>
+                                                    <div id="no-screening-msg"
+                                                        style="color: var(--text-muted); font-size: 0.85rem; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px dashed var(--border); text-align: center; margin-bottom: 10px;">
+                                                        No custom questions added yet. These will appear on the
+                                                        application form.
+                                                    </div>
+                                                    <% } %>
+                            </div>
+
+                            <!-- Weight Customization -->
+                            <div class="sub-section-header">Assessment Weights</div>
+                            <div class="weight-config-grid">
+                                <div class="weight-slider-card">
+                                    <div class="weight-slider-header">
+                                        <span class="weight-label">Technical Skills</span>
+                                        <span id="tech-weight-value" class="weight-pct">
+                                            <%= job.assessmentId ? Math.round(job.assessmentId.technicalWeight * 100) :
+                                                50 %>%
+                                        </span>
+                                    </div>
+                                    <input type="range" id="tech-weight" min="0" max="100"
+                                        value="<%= job.assessmentId ? Math.round(job.assessmentId.technicalWeight * 100) : 50 %>">
+                                </div>
+
+                                <div class="weight-slider-card">
+                                    <div class="weight-slider-header">
+                                        <span class="weight-label">Soft Skills</span>
+                                        <span id="soft-weight-value" class="weight-pct">
+                                            <%= job.assessmentId ? Math.round(job.assessmentId.softSkillWeight * 100) :
+                                                50 %>%
+                                        </span>
+                                    </div>
+                                    <input type="range" id="soft-weight" min="0" max="100"
+                                        value="<%= job.assessmentId ? Math.round(job.assessmentId.softSkillWeight * 100) : 50 %>">
+                                </div>
+                            </div>
+
+                            <div class="sub-section-header">Notification Channels</div>
+                            <div class="info-grid mb-24"
+                                style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
+                                <div class="info-item">
+                                    <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                                        <input type="checkbox" id="send-in-app" <%=job.notificationSettings?.sendInApp
+                                            !==false ? 'checked' : '' %>
+                                        style="width: 20px; height: 20px; margin-top: 2px;">
                                         <div>
-                                            <label class="info-label">Option <%= i+1 %></label>
-                                            <input type="text" id="mq-opt-<%= i %>" class="form-control"
-                                                placeholder="Option <%= i+1 %>">
+                                            <div style="color: var(--text-main); font-weight: 700; font-size: 0.95rem;">
+                                                In-App Notifications</div>
+                                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">
+                                                Show
+                                                alerts in the HR dashboard for new activity.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="info-item">
+                                    <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                                        <input type="checkbox" id="send-email" <%=job.notificationSettings?.sendEmail
+                                            ? 'checked' : '' %>
+                                        style="width: 20px; height: 20px; margin-top: 2px;">
+                                        <div>
+                                            <div style="color: var(--text-main); font-weight: 700; font-size: 0.95rem;">
+                                                Email Alerts</div>
+                                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">
+                                                Send
+                                                summary emails for applications and results.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="sub-section-header">Assessment Configuration</div>
+                            <div class="info-grid mb-20" style="align-items: flex-end;">
+                                <div class="info-item">
+                                    <span class="info-label" style="margin-bottom: 10px;">Default Questions Per
+                                        Skill</span>
+                                    <input type="number" id="questions-per-skill"
+                                        value="<%= job.assessmentConfig?.questionsPerSkill || 2 %>" min="1" max="10"
+                                        class="form-control" style="width: 120px;">
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label" style="margin-bottom: 10px;">AI Question Generation</span>
+                                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                        <input type="checkbox" id="allow-ai-gen"
+                                            <%=job.assessmentConfig?.allowAIGeneration ? 'checked' : '' %>
+                                        style="width: 18px; height: 18px;">
+                                        <span
+                                            style="color: var(--text-main); font-size: 0.9rem; font-weight: 500;">Enable
+                                            automated
+                                            generation</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom: 24px;">
+                                <div class="info-label" style="margin-bottom: 12px;">Questions per specific
+                                    skill</div>
+                                <div id="skill-counts-container"
+                                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;">
+                                    <% job.assessmentId.technicalSkills.forEach(skill=> {
+                                        const config = job.assessmentConfig?.skillConfigs?.find(sc => sc.skill ===
+                                        skill);
+                                        const count = config ? config.questionCount :
+                                        (job.assessmentConfig?.questionsPerSkill
+                                        || 2);
+                                        %>
+                                        <div
+                                            style="background: #ffffff; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+                                            <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 700;">
+                                                <%= skill %>
+                                            </div>
+                                            <input type="number" class="skill-count-input form-control"
+                                                data-skill="<%= skill %>" value="<%= count %>" min="1" max="10"
+                                                style="padding: 4px 8px; width: 55px; height: 32px; text-align: center;">
                                         </div>
                                         <% }); %>
                                 </div>
+                            </div>
+
+                            <div class="sub-section-header">Passing Thresholds</div>
+                            <div class="info-grid mb-24">
+                                <div class="info-item">
+                                    <span class="info-label" style="margin-bottom: 8px;">Min Technical Score (%)</span>
+                                    <input type="number" id="min-tech-score"
+                                        value="<%= job.assessmentId.minTechnicalScore %>" min="0" max="100"
+                                        class="form-control" style="width: 120px;">
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label" style="margin-bottom: 8px;">Min Soft Skill Score (%)</span>
+                                    <input type="number" id="min-soft-score"
+                                        value="<%= job.assessmentId.minSoftSkillScore %>" min="0" max="100"
+                                        class="form-control" style="width: 120px;">
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; margin-top: 1.5rem;">
+                                <button onclick="saveAssessmentConfig()" class="btn">
+                                    Save Changes
+                                </button>
+                                <button onclick="openTab(event, 'tab-assessment')" class="btn btn-secondary">
+                                    Next: Assessment Builder ➔
+                                </button>
+                            </div>
+                        </div>
+                    </div> <!-- End Tab Definition -->
+
+                    <div id="tab-assessment" class="tab-pane">
+
+                        <!-- Questions Preview & Moderation -->
+                        <div class="card" id="questions-section">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <div class="sub-section-header" style="margin: 0; flex: 1;">Technical Question Pool
+                                </div>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <button onclick="saveAllSkillSelections()" class="btn-sm"
+                                        style="background: var(--primary-color); border: none; color: white; cursor: pointer; font-size: 0.75rem; padding: 0.4rem 1rem;">
+                                        Save All Questions
+                                    </button>
+                                    <button onclick="toggleManualQuestionForm()" class="btn-sm btn-secondary"
+                                        style="font-size: 0.75rem;">+ Custom Question</button>
+                                    <!-- <button onclick="regenerateQuestions()" class="btn-sm btn-secondary"
+                                        style="font-size: 0.75rem; padding: 0.4rem 1rem;">
+                                        Update Questions
+                                    </button> -->
+                                </div>
+                            </div>
+
+                            <% var poolBySkill={}; var skillCounts={}; const hasSuggestions=job.assessmentId &&
+                                job.assessmentId.suggestedQuestions && job.assessmentId.suggestedQuestions.length> 0;
+                                var suggestionsBySkill = {};
+
+                                if (job.assessmentId && job.assessmentId.technicalSkills) {
+                                job.assessmentId.technicalSkills.forEach(skill => {
+                                const config = job.assessmentConfig?.skillConfigs?.find(sc => sc.skill === skill);
+                                let baseCount = config ? config.questionCount : (job.assessmentConfig?.questionsPerSkill
+                                || 2);
+                                skillCounts[skill] = Math.max(1, Math.ceil(baseCount));
+                                poolBySkill[skill] = [];
+                                });
+                                }
+
+                                if (job.assessmentId && job.assessmentId.technicalQuestions) {
+                                job.assessmentId.technicalQuestions.forEach(q => {
+                                if (!poolBySkill[q.skill]) poolBySkill[q.skill] = [];
+                                poolBySkill[q.skill].push(q);
+                                });
+                                }
+
+                                if (hasSuggestions) {
+                                job.assessmentId.suggestedQuestions.forEach(q => {
+                                if (!suggestionsBySkill[q.skill]) suggestionsBySkill[q.skill] = [];
+                                suggestionsBySkill[q.skill].push(q);
+                                });
+                                }
+                                %>
+
+                                <!-- Strategy Refresh Hint -->
+                                <div id="strategy-hint" class="warning-box"
+                                    style="display: none; margin-bottom: 20px; background: #fff7ed; border-color: #fbbf24;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <span style="font-size: 1.25rem;">💡</span>
+                                        <div style="flex: 1;">
+                                            <div style="font-size: 0.85rem; font-weight: 700; color: #9a3412;">
+                                                Assessment Strategy Changed!</div>
+                                            <div style="font-size: 0.75rem; color: #c2410c;">Your questions and
+                                                scenarios are still using the old strategy. Click <b>"Update
+                                                    Questions"</b> or <b>"Regenerate Scenarios"</b> below to apply the
+                                                new strategy.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 30px; background: #ffffff; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border); align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+                                    <div>
+                                        <div
+                                            style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
+                                            Current Pool</div>
+                                        <div style="font-size: 1.5rem; font-weight: 800; color: var(--text);">
+                                            <%= job.assessmentId ? job.assessmentId.technicalQuestions.length : 0 %>
+                                                <span
+                                                    style="font-size: 0.9rem; font-weight: 500; color: var(--text-muted);">Questions</span>
+                                        </div>
+                                    </div>
+                                    <div
+                                        style="border-left: 1px solid var(--border); padding-left: 30px; display: flex; align-items: center; justify-content: space-between;">
+                                        <div>
+                                            <div
+                                                style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
+                                                AI Suggestions</div>
+                                            <div
+                                                style="font-size: 1.5rem; font-weight: 800; color: <%= hasSuggestions ? '#f59e0b' : 'var(--text-muted)' %>;">
+                                                <%= hasSuggestions ? job.assessmentId.suggestedQuestions.length : 0 %>
+                                                    <span
+                                                        style="font-size: 0.9rem; font-weight: 500; color: var(--text-muted);">Pending</span>
+                                            </div>
+                                        </div>
+                                        <% if (hasSuggestions) { %>
+                                            <button
+                                                onclick="document.getElementById('unified-skill-pool').scrollIntoView({behavior:'smooth'})"
+                                                style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-left: 20px;">Review
+                                                Suggestions</button>
+                                            <% } %>
+                                    </div>
+                                    <div style="padding-left: 20px;">
+                                        <button id="toggle-pool-btn"
+                                            onclick="document.getElementById('unified-skill-pool').style.display='block'; this.style.display='none'"
+                                            style="background: #ffffff; color: var(--text-main); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">Review
+                                            List ↓</button>
+                                    </div>
+                                </div>
+
+                                <div id="unified-skill-pool" style="display: none;">
+                                    <!-- Manual Question Form (Hidden by default) -->
+                                    <div id="manual-question-form" class="card"
+                                        style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; margin-bottom: 20px;">
+                                        <h4 class="mb-15">Add Custom Technical Question</h4>
+                                        <div class="form-group mb-15">
+                                            <label class="info-label">Question Text</label>
+                                            <div style="display: flex; gap: 8px;">
+                                                <textarea id="mq-text" class="form-control" rows="2"
+                                                    placeholder="Enter your question here..."></textarea>
+                                                <button onclick="refineHRContent('mq-text', 'question')"
+                                                    class="btn-sm btn-secondary" title="Refine with AI"
+                                                    style="font-size: 0.7rem; font-weight: 600;">Refine</button>
+                                            </div>
+                                        </div>
+                                        <div class="info-grid mb-15">
+                                            <div class="info-item">
+                                                <label class="info-label">Skill</label>
+                                                <select id="mq-skill" class="form-control">
+                                                    <% if (job.assessmentId && job.assessmentId.technicalSkills) { %>
+                                                        <% job.assessmentId.technicalSkills.forEach(skill=> { %>
+                                                            <option value="<%= skill %>">
+                                                                <%= skill %>
+                                                            </option>
+                                                            <% }); %>
+                                                                <% } %>
+                                                </select>
+                                            </div>
+                                            <div class="info-item">
+                                                <label class="info-label">Difficulty</label>
+                                                <select id="mq-diff" class="form-control">
+                                                    <option value="Easy">Easy</option>
+                                                    <option value="Medium" selected>Medium</option>
+                                                    <option value="Hard">Hard</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"
+                                            class="mb-15">
+                                            <% [0, 1, 2, 3].forEach(i=> { %>
+                                                <div>
+                                                    <label class="info-label">Option <%= i+1 %></label>
+                                                    <input type="text" id="mq-opt-<%= i %>" class="form-control"
+                                                        placeholder="Option <%= i+1 %>">
+                                                </div>
+                                                <% }); %>
+                                        </div>
+                                        <div class="form-group mb-15">
+                                            <label class="info-label">Correct Option</label>
+                                            <select id="mq-correct" class="form-control">
+                                                <option value="0">Option 1</option>
+                                                <option value="1">Option 2</option>
+                                                <option value="2">Option 3</option>
+                                                <option value="3">Option 4</option>
+                                            </select>
+                                        </div>
+                                        <div style="display: flex; gap: 10px;">
+                                            <button onclick="saveManualQuestion()" class="btn btn-primary btn-sm"
+                                                style="background: #22c55e;">Save Question</button>
+                                            <button onclick="toggleManualQuestionForm()"
+                                                class="btn btn-secondary btn-sm">Cancel</button>
+                                        </div>
+                                    </div>
+
+
+
+                                    <% Object.keys(skillCounts).forEach(skill=> {
+                                        const activeQs = poolBySkill[skill] || [];
+                                        const pendingSuggestions = suggestionsBySkill[skill] || [];
+                                        const targetCount = skillCounts[skill];
+                                        const hasPending = pendingSuggestions.length > 0;
+                                        %>
+                                        <div
+                                            style="margin-bottom: 25px; padding: 20px; background: <%= hasPending ? '#fffbeb' : '#ffffff' %>; border: 1px solid <%= hasPending ? '#fde68a' : 'var(--border)' %>; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                            <div onclick="toggleSkillAccordion('<%= skill %>')"
+                                                style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; cursor: pointer;">
+                                                <div
+                                                    style="font-weight: 700; color: <%= hasPending ? '#92400e' : 'var(--text-main)' %>; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                                                    <span id="accordion-icon-<%= skill %>"
+                                                        style="font-size: 0.8rem; color: #6b7280; transition: transform 0.2s;">▶</span>
+                                                    <%= skill %>
+                                                        <% if (hasPending) { %>
+                                                            <span
+                                                                style="font-size: 0.75rem; background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">Needs
+                                                                Review</span>
+                                                            <% } %>
+                                                </div>
+                                                <div style="display: flex; align-items: center; gap: 15px;"
+                                                    onclick="event.stopPropagation()">
+                                                    <div
+                                                        style="font-size: 0.85rem; color: <%= hasPending ? '#b45309' : 'var(--text-muted)' %>; font-weight: 600;">
+                                                        Target: <span id="selected-count-<%= skill %>">
+                                                            <%= activeQs.length %>
+                                                        </span> / <%= targetCount %> Selected</div>
+                                                    <button onclick="refreshSkillPool('<%= skill %>')"
+                                                        title="Swap these questions with different ones from the bank"
+                                                        style="font-size: 0.75rem; padding: 4px 10px; background: white; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                                                        <span>↻ Refresh Selection</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div id="skill-content-<%= skill %>"
+                                                style="display: none; border-top: 2px solid <%= hasPending ? '#fde68a' : 'var(--border)' %>; padding-top: 15px; margin-top: 5px;">
+                                                <p
+                                                    style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+                                                    Please select exactly <%= targetCount %> question(s) below.</p>
+
+                                                <!-- Active Pool Questions (Pre-selected) -->
+                                                <% activeQs.forEach(q=> {
+                                                    const questionData = q.questionId || {};
+                                                    const id = questionData._id || q._id;
+                                                    %>
+                                                    <div class="question-preview suggestion-card"
+                                                        style="display: flex; gap: 15px; margin-bottom: 10px; background: white; border-left: 4px solid #16a34a;">
+                                                        <input type="checkbox" class="skill-checkbox"
+                                                            data-skill="<%= skill %>" value="<%= id %>" checked
+                                                            onchange="enforceLimits('<%= skill %>', <%= targetCount %>)"
+                                                            style="width: 20px; height: 20px; margin-top: 5px; cursor: pointer;">
+                                                        <div style="flex: 1;">
+                                                            <div class="question-header"
+                                                                style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
+                                                                <span
+                                                                    class="question-difficulty diff-<%= (q.difficulty || 'Medium').toLowerCase() %>">
+                                                                    <%= q.difficulty || 'Medium' %>
+                                                                </span>
+                                                                <span
+                                                                    class="question-source-tag <%= questionData.source === 'ai_generated' ? 'source-ai' : 'source-manual' %>">
+                                                                    <%= questionData.source==='ai_generated'
+                                                                        ? 'AI Generated' : 'Manual/Bank' %>
+                                                                </span>
+                                                            </div>
+                                                            <div class="question-text" style="font-weight: 500;">
+                                                                <%= questionData.question || 'Loading...' %>
+                                                            </div>
+                                                            <% if (questionData.options && questionData.options.length>
+                                                                0) { %>
+                                                                <div
+                                                                    style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                                                    <% questionData.options.forEach((opt, idx)=> { %>
+                                                                        <div
+                                                                            style="<%= idx === questionData.correctAnswer ? 'color: #16a34a; font-weight: 600;' : '' %>">
+                                                                            <%= idx + 1 %>. <%= opt %>
+                                                                                    <%= idx===questionData.correctAnswer
+                                                                                        ? '✓' : '' %>
+                                                                        </div>
+                                                                        <% }) %>
+                                                                </div>
+                                                                <% } %>
+                                                        </div>
+                                                    </div>
+                                                    <% }) %>
+
+                                                        <!-- Pending Suggestions (Unselected) -->
+                                                        <% pendingSuggestions.forEach(sug=> {
+                                                            const id = sug._id;
+                                                            %>
+                                                            <div class="question-preview suggestion-card"
+                                                                style="display: flex; gap: 15px; margin-bottom: 10px; background: white; border-left: 4px solid #f59e0b;">
+                                                                <input type="checkbox" class="skill-checkbox"
+                                                                    data-skill="<%= skill %>" value="<%= id %>"
+                                                                    onchange="enforceLimits('<%= skill %>', <%= targetCount %>)"
+                                                                    style="width: 20px; height: 20px; margin-top: 5px; cursor: pointer;">
+                                                                <div style="flex: 1;">
+                                                                    <div class="question-header"
+                                                                        style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
+                                                                        <span
+                                                                            class="question-difficulty diff-<%= sug.difficulty.toLowerCase() %>">
+                                                                            <%= sug.difficulty %>
+                                                                        </span>
+                                                                        <span
+                                                                            class="question-source-tag <%= sug.source === 'question_bank' ? 'source-manual' : 'source-ai' %>">
+                                                                            <%= sug.source==='question_bank'
+                                                                                ? 'From Bank' : 'New AI Suggestion' %>
+                                                                        </span>
+                                                                    </div>
+                                                                    <div class="question-text"
+                                                                        style="font-weight: 500;">
+                                                                        <%= sug.question %>
+                                                                    </div>
+                                                                    <div
+                                                                        style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                                                        <% sug.options.forEach((opt, idx)=> { %>
+                                                                            <div
+                                                                                style="<%= idx === sug.correctAnswer ? 'color: #16a34a; font-weight: 600;' : '' %>">
+                                                                                <%= idx + 1 %>. <%= opt %>
+                                                                                        <%= idx===sug.correctAnswer
+                                                                                            ? '✓' : '' %>
+                                                                            </div>
+                                                                            <% }) %>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <% }) %>
+
+                                                                <div
+                                                                    style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
+                                                                    <button
+                                                                        onclick="generateMoreForSkill('<%= skill %>')"
+                                                                        class="btn-sm btn-secondary"
+                                                                        style="font-size: 0.75rem; background: white; border: 1px solid #d1d5db; color: #4b5563;">+
+                                                                        Generate More <%= skill %> (AI)</button>
+                                                                    <button
+                                                                        onclick="saveSelectionForSkill('<%= skill %>')"
+                                                                        style="background: var(--primary-color); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">Save
+                                                                        <%= skill %> Selection
+                                                                    </button>
+                                                                </div>
+                                            </div> <!-- close accordion -->
+                                        </div>
+                                        <% }); %>
+                                </div>
+                        </div><!-- close questions card -->
+
+                        <!-- Scenarios Preview -->
+                        <div class="card">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <div class="sub-section-header" style="margin: 0; flex: 1;">Scenario Templates (<%=
+                                        job.assessmentId ? job.assessmentId.scenarioTemplates.length : 0 %>)</div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button onclick="toggleManualScenarioForm()" class="btn-sm btn-secondary"
+                                        style="font-size: 0.75rem;">+ Add Scenario</button>
+                                    <button onclick="regenerateScenarios()" class="btn-sm"
+                                        style="font-size: 0.75rem; padding: 0.4rem 1rem;">
+                                        Update Scenarios
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Manual Scenario Form -->
+                            <div id="manual-scenario-form" class="card"
+                                style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; margin-bottom: 20px;">
+                                <h4 class="mb-15">Add Custom Behavioral Scenario</h4>
                                 <div class="form-group mb-15">
-                                    <label class="info-label">Correct Option</label>
-                                    <select id="mq-correct" class="form-control">
-                                        <option value="0">Option 1</option>
-                                        <option value="1">Option 2</option>
-                                        <option value="2">Option 3</option>
-                                        <option value="3">Option 4</option>
+                                    <label class="info-label">Target Soft Skill</label>
+                                    <select id="ms-skill" class="form-control">
+                                        <% if (job.assessmentId && job.assessmentId.softSkills) { %>
+                                            <% job.assessmentId.softSkills.forEach(skill=> { %>
+                                                <option value="<%= skill %>">
+                                                    <%= skill %>
+                                                </option>
+                                                <% }); %>
+                                                    <% } %>
                                     </select>
                                 </div>
+                                <div class="form-group mb-15">
+                                    <label class="info-label">Theme / Title</label>
+                                    <input type="text" id="ms-theme" class="form-control"
+                                        placeholder="e.g. Critical Client Meeting">
+                                </div>
+                                <div class="form-group mb-15">
+                                    <label class="info-label">Stakeholder Role</label>
+                                    <input type="text" id="ms-stakeholder" class="form-control"
+                                        placeholder="e.g. Senior Manager, VP of Sales">
+                                </div>
+                                <div class="form-group mb-15">
+                                    <label class="info-label">Situation Prompt</label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <textarea id="ms-prompt" class="form-control" rows="3"
+                                            placeholder="Describe the workplace situation..."></textarea>
+                                        <button onclick="refineHRContent('ms-prompt', 'scenario')"
+                                            class="btn-sm btn-secondary" title="Refine with AI">✨</button>
+                                    </div>
+                                </div>
                                 <div style="display: flex; gap: 10px;">
-                                    <button onclick="saveManualQuestion()" class="btn btn-primary btn-sm"
-                                        style="background: #22c55e;">Save Question</button>
-                                    <button onclick="toggleManualQuestionForm()"
+                                    <button onclick="saveManualScenario()" class="btn btn-primary btn-sm"
+                                        style="background: #22c55e;">Save Scenario</button>
+                                    <button onclick="toggleManualScenarioForm()"
                                         class="btn btn-secondary btn-sm">Cancel</button>
                                 </div>
                             </div>
 
-                            <script>const targetCounts = <%- JSON.stringify(skillCounts) %>;</script>
-
-                            <% Object.keys(skillCounts).forEach(skill => { 
-                                const activeQs = poolBySkill[skill] || [];
-                                const pendingSuggestions = suggestionsBySkill[skill] || [];
-                                const targetCount = skillCounts[skill];
-                                const hasPending = pendingSuggestions.length > 0;
-                            %>
-                                <div style="margin-bottom: 25px; padding: 20px; background: <%= hasPending ? '#fffbeb' : '#ffffff' %>; border: 1px solid <%= hasPending ? '#fde68a' : 'var(--border)' %>; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                                    <div onclick="toggleSkillAccordion('<%= skill %>')" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; cursor: pointer;">
-                                        <div style="font-weight: 700; color: <%= hasPending ? '#92400e' : 'var(--text-main)' %>; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
-                                            <span id="accordion-icon-<%= skill %>" style="font-size: 0.8rem; color: #6b7280; transition: transform 0.2s;">▶</span> <%= skill %> 
-                                            <% if (hasPending) { %>
-                                                <span style="font-size: 0.75rem; background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">Needs Review</span>
-                                            <% } %>
-                                        </div>
-                                        <div style="display: flex; align-items: center; gap: 15px;" onclick="event.stopPropagation()">
-                                            <div style="font-size: 0.85rem; color: <%= hasPending ? '#b45309' : 'var(--text-muted)' %>; font-weight: 600;">Target: <span id="selected-count-<%= skill %>"><%= activeQs.length %></span> / <%= targetCount %> Selected</div>
-                                            <button onclick="refreshSkillPool('<%= skill %>')" title="Swap these questions with different ones from the bank" style="font-size: 0.75rem; padding: 4px 10px; background: white; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                                                <span>↻ Refresh Selection</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div id="skill-content-<%= skill %>" style="display: none; border-top: 2px solid <%= hasPending ? '#fde68a' : 'var(--border)' %>; padding-top: 15px; margin-top: 5px;">
-                                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Please select exactly <%= targetCount %> question(s) below.</p>
-
-                                    <!-- Active Pool Questions (Pre-selected) -->
-                                    <% activeQs.forEach(q => { 
-                                        const questionData = q.questionId || {}; 
-                                        const id = questionData._id || q._id;
-                                    %>
-                                        <div class="question-preview suggestion-card" style="display: flex; gap: 15px; margin-bottom: 10px; background: white; border-left: 4px solid #16a34a;">
-                                            <input type="checkbox" class="skill-checkbox" data-skill="<%= skill %>" value="<%= id %>" checked onchange="enforceLimits('<%= skill %>', <%= targetCount %>)" style="width: 20px; height: 20px; margin-top: 5px; cursor: pointer;">
-                                            <div style="flex: 1;">
-                                                <div class="question-header" style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
-                                                    <span class="question-difficulty diff-<%= (q.difficulty || 'Medium').toLowerCase() %>"><%= q.difficulty || 'Medium' %></span>
-                                                    <span class="question-source-tag <%= questionData.source === 'ai_generated' ? 'source-ai' : 'source-manual' %>">
-                                                        <%= questionData.source === 'ai_generated' ? 'AI Generated' : 'Manual/Bank' %>
-                                                    </span>
-                                                </div>
-                                                <div class="question-text" style="font-weight: 500;">
-                                                    <%= questionData.question || 'Loading...' %>
-                                                </div>
-                                                <% if (questionData.options && questionData.options.length > 0) { %>
-                                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                                                        <% questionData.options.forEach((opt, idx) => { %>
-                                                            <div style="<%= idx === questionData.correctAnswer ? 'color: #16a34a; font-weight: 600;' : '' %>">
-                                                                <%= idx + 1 %>. <%= opt %> <%= idx === questionData.correctAnswer ? '✓' : '' %>
-                                                            </div>
-                                                        <% }) %>
-                                                    </div>
-                                                <% } %>
-                                            </div>
-                                        </div>
-                                    <% }) %>
-
-                                    <!-- Pending Suggestions (Unselected) -->
-                                    <% pendingSuggestions.forEach(sug => { 
-                                        const id = sug._id;
-                                    %>
-                                        <div class="question-preview suggestion-card" style="display: flex; gap: 15px; margin-bottom: 10px; background: white; border-left: 4px solid #f59e0b;">
-                                            <input type="checkbox" class="skill-checkbox" data-skill="<%= skill %>" value="<%= id %>" onchange="enforceLimits('<%= skill %>', <%= targetCount %>)" style="width: 20px; height: 20px; margin-top: 5px; cursor: pointer;">
-                                            <div style="flex: 1;">
-                                                <div class="question-header" style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
-                                                    <span class="question-difficulty diff-<%= sug.difficulty.toLowerCase() %>"><%= sug.difficulty %></span>
-                                                    <span class="question-source-tag <%= sug.source === 'question_bank' ? 'source-manual' : 'source-ai' %>">
-                                                        <%= sug.source === 'question_bank' ? 'From Bank' : 'New AI Suggestion' %>
-                                                    </span>
-                                                </div>
-                                                <div class="question-text" style="font-weight: 500;">
-                                                    <%= sug.question %>
-                                                </div>
-                                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                                                    <% sug.options.forEach((opt, idx) => { %>
-                                                        <div style="<%= idx === sug.correctAnswer ? 'color: #16a34a; font-weight: 600;' : '' %>">
-                                                            <%= idx + 1 %>. <%= opt %> <%= idx === sug.correctAnswer ? '✓' : '' %>
-                                                        </div>
-                                                    <% }) %>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    <% }) %>
-
-                                    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 15px;">
-                                        <button onclick="generateMoreForSkill('<%= skill %>')" class="btn-sm btn-secondary" style="font-size: 0.75rem; background: white; border: 1px solid #d1d5db; color: #4b5563;">+ Generate More <%= skill %> (AI)</button>
-                                        <button onclick="saveSelectionForSkill('<%= skill %>')" style="background: var(--primary-color); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">Save <%= skill %> Selection</button>
-                                    </div>
-                                    </div> <!-- close accordion -->
-                                </div>
-                            <% }); %>
-                        </div>
-                    </div><!-- close questions card -->
-
-                    <!-- Scenarios Preview -->
-                    <div class="card">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <div class="sub-section-header" style="margin: 0; flex: 1;">Scenario Templates (<%= job.assessmentId ? job.assessmentId.scenarioTemplates.length : 0 %>)</div>
-                            <div style="display: flex; gap: 10px;">
-                                <button onclick="toggleManualScenarioForm()" class="btn-sm btn-secondary"
-                                    style="font-size: 0.75rem;">+ Add Scenario</button>
-                                <button onclick="regenerateScenarios()" class="btn-sm"
-                                    style="font-size: 0.75rem; padding: 0.4rem 1rem;">
-                                    Update Scenarios
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Manual Scenario Form -->
-                        <div id="manual-scenario-form" class="card"
-                            style="display: none; background: #f0fdf4; border: 1px dashed #22c55e; margin-bottom: 20px;">
-                            <h4 class="mb-15">Add Custom Behavioral Scenario</h4>
-                            <div class="form-group mb-15">
-                                <label class="info-label">Target Soft Skill</label>
-                                <select id="ms-skill" class="form-control">
-                                    <% if (job.assessmentId && job.assessmentId.softSkills) { %>
-                                        <% job.assessmentId.softSkills.forEach(skill=> { %>
-                                            <option value="<%= skill %>">
-                                                <%= skill %>
-                                            </option>
-                                        <% }); %>
-                                    <% } %>
-                                </select>
-                            </div>
-                            <div class="form-group mb-15">
-                                <label class="info-label">Theme / Title</label>
-                                <input type="text" id="ms-theme" class="form-control"
-                                    placeholder="e.g. Critical Client Meeting">
-                            </div>
-                            <div class="form-group mb-15">
-                                <label class="info-label">Stakeholder Role</label>
-                                <input type="text" id="ms-stakeholder" class="form-control"
-                                    placeholder="e.g. Senior Manager, VP of Sales">
-                            </div>
-                            <div class="form-group mb-15">
-                                <label class="info-label">Situation Prompt</label>
-                                <div style="display: flex; gap: 8px;">
-                                    <textarea id="ms-prompt" class="form-control" rows="3"
-                                        placeholder="Describe the workplace situation..."></textarea>
-                                    <button onclick="refineHRContent('ms-prompt', 'scenario')"
-                                        class="btn-sm btn-secondary" title="Refine with AI">✨</button>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button onclick="saveManualScenario()" class="btn btn-primary btn-sm"
-                                    style="background: #22c55e;">Save Scenario</button>
-                                <button onclick="toggleManualScenarioForm()"
-                                    class="btn btn-secondary btn-sm">Cancel</button>
-                            </div>
-                        </div>
-
-                        <% if (job.assessmentId && job.assessmentId.simulationConfig &&
-                            job.assessmentId.simulationConfig.metrics &&
-                            job.assessmentId.simulationConfig.metrics.length > 0) { %>
-                            <div
-                                style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                                <span
-                                    style="font-size: 0.75rem; font-weight: 700; color: #0369a1; text-transform: uppercase; letter-spacing: 0.05em;">Simulation
-                                    Metrics:</span>
-                                <% job.assessmentId.simulationConfig.metrics.forEach(function(metric) { %>
+                            <% if (job.assessmentId && job.assessmentId.simulationConfig &&
+                                job.assessmentId.simulationConfig.metrics &&
+                                job.assessmentId.simulationConfig.metrics.length> 0) { %>
+                                <div
+                                    style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                                     <span
-                                        style="background: white; border: 1px solid #7dd3fc; color: #0369a1; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
-                                        <%= metric %>
-                                    </span>
-                                    <% }); %>
-                            </div>
-                            <% } %>
+                                        style="font-size: 0.75rem; font-weight: 700; color: #0369a1; text-transform: uppercase; letter-spacing: 0.05em;">Simulation
+                                        Metrics:</span>
+                                    <% job.assessmentId.simulationConfig.metrics.forEach(function(metric) { %>
+                                        <span
+                                            style="background: white; border: 1px solid #7dd3fc; color: #0369a1; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                                            <%= metric %>
+                                        </span>
+                                        <% }); %>
+                                </div>
+                                <% } %>
 
-                                <% if (job.assessmentId && job.assessmentId.scenarioTemplates) { %>
-                                <% job.assessmentId.scenarioTemplates.forEach(function(scenario) { %>
-                                    <div class="question-preview">
-                                        <div class="question-header"
-                                            style="align-items: flex-start; flex-direction: column; gap: 4px;">
-                                            <div
-                                                style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                                                <span class="question-skill"
-                                                    style="font-size: 1rem; color: var(--text-main);">
-                                                    <%= scenario.softSkill ? scenario.theme : 'Behavioral Scenario' %>
-                                                </span>
-                                                <div style="display: flex; gap: 8px; align-items: center;">
-                                                    <% if (scenario.isManual) { %>
-                                                        <span
-                                                            style="font-size: 0.65rem; background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 700;">MANUAL</span>
-                                                        <% } %>
-                                                            <button
-                                                                onclick="regenerateSingleScenario('<%= scenario._id %>')"
-                                                                class="btn-sm btn-secondary"
-                                                                style="padding: 2px 6px; font-size: 0.75rem;"
-                                                                title="Regenerate this scenario">🔄</button>
-                                                            <button onclick="deleteScenario('<%= scenario._id %>')"
-                                                                class="btn-sm btn-secondary"
-                                                                style="padding: 2px 6px; font-size: 0.75rem; color: #dc2626;"
-                                                                title="Delete scenario">🗑️</button>
-                                                </div>
-                                            </div>
-                                            <span
-                                                style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">
-                                                Tests: <%= scenario.softSkill %>
-                                                <% if (scenario.otherSkills && scenario.otherSkills.length > 0) { %>
-                                                    + <%= scenario.otherSkills.join(', ') %>
+                                    <% if (job.assessmentId && job.assessmentId.scenarioTemplates) { %>
+                                        <% job.assessmentId.scenarioTemplates.forEach(function(scenario) { %>
+                                            <div class="question-preview">
+                                                <div class="question-header"
+                                                    style="align-items: flex-start; flex-direction: column; gap: 4px;">
+                                                    <div
+                                                        style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                                        <span class="question-skill"
+                                                            style="font-size: 1rem; color: var(--text-main);">
+                                                            <%= scenario.softSkill ? scenario.theme
+                                                                : 'Behavioral Scenario' %>
+                                                        </span>
+                                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                                            <% if (scenario.isManual) { %>
+                                                                <span
+                                                                    style="font-size: 0.65rem; background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 700;">MANUAL</span>
+                                                                <% } %>
+                                                                    <button
+                                                                        onclick="regenerateSingleScenario('<%= scenario._id %>')"
+                                                                        class="btn-sm btn-secondary"
+                                                                        style="padding: 2px 6px; font-size: 0.75rem;"
+                                                                        title="Regenerate this scenario">🔄</button>
+                                                                    <button
+                                                                        onclick="deleteScenario('<%= scenario._id %>')"
+                                                                        class="btn-sm btn-secondary"
+                                                                        style="padding: 2px 6px; font-size: 0.75rem; color: #dc2626;"
+                                                                        title="Delete scenario">🗑️</button>
+                                                        </div>
+                                                    </div>
+                                                    <span
+                                                        style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">
+                                                        Tests: <%= scenario.softSkill %>
+                                                            <% if (scenario.otherSkills && scenario.otherSkills.length>
+                                                                0) { %>
+                                                                + <%= scenario.otherSkills.join(', ') %>
                                                 <% } %>
                                             </span>
                                         </div>
                                         <div style="color: var(--text-muted); font-size: 0.875rem; margin-top: 6px;">
-                                            <%= scenario.prompt || 'No description.' %>
-                                        </div>
-                                    </div>
-                                    <% }); %>
-                                <% } %>
+                                            <%= scenario.prompt || ' No description.' %>
+                                                </div>
+                                            </div>
+                                            <% }); %>
+                                                <% } %>
+                        </div>
+                    </div> <!-- End Tab Assessment -->
+
+                    <div id="tab-analytics" class="tab-pane">
+                        <!-- Placeholder: In the future, move candidates/leaderboard here -->
+                        <div class="card" style="text-align: center; padding: 50px;">
+                            <h3>Candidate Analytics & Leaderboard</h3>
+                            <p>View detailed pool performance and the candidate leaderboard.</p>
+                            <a href="/api/jobs/<%= job._id %>/candidates" class="btn"
+                                style="display: inline-block; margin-top: 15px;">View Candidates Pool</a>
+                        </div>
                     </div>
-                </div> <!-- End Tab Assessment -->
 
-                <div id="tab-analytics" class="tab-pane">
-                    <!-- Placeholder: In the future, move candidates/leaderboard here -->
-                    <div class="card" style="text-align: center; padding: 50px;">
-                        <h3>Candidate Analytics & Leaderboard</h3>
-                        <p>View detailed pool performance and the candidate leaderboard.</p>
-                        <a href="/api/jobs/<%= job._id %>/candidates" class="btn" style="display: inline-block; margin-top: 15px;">View Candidates Pool</a>
-                    </div>
-                </div>
+                    <% } else { %>
+                        <!-- No Assessment -->
+                        <div class="card">
+                            <h2>Assessment</h2>
+                            <p style="color: var(--text-muted);">No assessment generated yet.</p>
+                            <button onclick="generateAssessment()" class="btn" style="margin-top: 1rem;">
+                                Generate Assessment
+                            </button>
+                        </div>
+                        <% } %>
 
-                            <% } else { %>
-                                <!-- No Assessment -->
-                                <div class="card">
-                                    <h2>Assessment</h2>
-                                    <p style="color: var(--text-muted);">No assessment generated yet.</p>
-                                    <button onclick="generateAssessment()" class="btn" style="margin-top: 1rem;">
-                                        Generate Assessment
-                                    </button>
-                                </div>
-                                <% } %>
-
-                                    <div class="action-buttons"
-                                        style="display: flex; gap: 12px; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 24px;">
-                                        <a href="/api/jobs/dashboard" class="btn btn-secondary">Back to Dashboard</a>
-                                        <% if (job.status.trim()===' draft' && job.assessmentId) { %>
-                                            <button onclick="publishJob()" class="btn">Publish Job</button>
+                            <div class="action-buttons"
+                                style="display: flex; gap: 12px; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 24px;">
+                                <a href="/api/jobs/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+                                <% if (job.status.trim()===' draft' && job.assessmentId) { %>
+                                    <button onclick="publishJob()" class="btn">Publish Job</button>
+                                    <% } %>
+                                        <% if (job.status.trim()==='active' ) { %>
+                                            <button onclick="closeJob()" class="btn btn-secondary">Close
+                                                Job</button>
                                             <% } %>
-                                                <% if (job.status.trim()==='active' ) { %>
-                                                    <button onclick="closeJob()" class="btn btn-secondary">Close
-                                                        Job</button>
-                                                    <% } %>
-                                    </div>
+                            </div>
             </div>
         </div>
 
         <script>
             const jobId = '<%= job._id %>';
+            const targetCounts = <%- JSON.stringify(typeof skillCounts !== 'undefined' ? skillCounts : {}) %>;
 
             // Weight sliders
             const techWeight = document.getElementById('tech-weight');
@@ -823,64 +968,68 @@
                 }
             }
 
-            async function moderateQuestion(questionId, action) {
-                try {
-                    const response = await fetch(`/api/jobs/${jobId}/questions/${questionId}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: action })
-                    });
+            /* 
+           // REDUNDANT: These functions were used in the older individual-moderation UI.
+           // The new UI uses the unified "Save Selection" model.
+           
+           async function moderateQuestion(questionId, action) {
+               try {
+                   const response = await fetch(`/api/jobs/${jobId}/questions/${questionId}`, {
+                       method: 'PUT',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ action: action })
+                   });
 
-                    const result = await response.json();
-                    if (result.success) {
-                        renderTechnicalAssessment(result.data);
-                        showToast(`Question ${action}d successfully`);
-                    } else {
-                        alert('Error: ' + result.error);
-                    }
-                } catch (error) {
-                    alert('Error moderating question');
-                }
-            }
+                   const result = await response.json();
+                   if (result.success) {
+                       renderTechnicalAssessment(result.data);
+                       showToast(`Question ${action}d successfully`);
+                   } else {
+                       alert('Error: ' + result.error);
+                   }
+               } catch (error) {
+                   alert('Error moderating question');
+               }
+           }
 
-            async function removeQuestion(questionId) {
-                if (!confirm('Remove this question from the assessment? (It stays in the question bank)')) return;
-                try {
-                    const response = await fetch(`/api/jobs/${jobId}/questions/${questionId}/remove`, {
-                        method: 'DELETE'
-                    });
-                    const result = await response.json();
-                    if (result.success) {
-                        renderTechnicalAssessment(result.data);
-                        showToast('Question removed from the pool');
-                    }
-                    else alert('Error: ' + result.error);
-                } catch(e) {
-                    alert('Error removing question');
-                }
-            }
+           async function removeQuestion(questionId) {
+               if (!confirm('Remove this question from the assessment? (It stays in the question bank)')) return;
+               try {
+                   const response = await fetch(`/api/jobs/${jobId}/questions/${questionId}/remove`, {
+                       method: 'DELETE'
+                   });
+                   const result = await response.json();
+                   if (result.success) {
+                       renderTechnicalAssessment(result.data);
+                       showToast('Question removed from the pool');
+                   }
+                   else alert('Error: ' + result.error);
+               } catch (e) {
+                   alert('Error removing question');
+               }
+           }
 
-            async function regenerateQuestions() {
-                if (!confirm('This will update your technical questions based on the latest configuration. Continue?')) return;
-                showLoading('AI is generating new technical questions...');
-                try {
-                    const response = await fetch(`/api/jobs/${jobId}/regenerate-questions`, {
-                        method: 'POST'
-                    });
-                    const result = await response.json();
-                    if (result.success) {
-                        renderTechnicalAssessment(result.data);
-                        showToast('Questions updated successfully!');
-                    } else {
-                        alert('Error: ' + result.error);
-                    }
-                } catch (error) {
-                    alert('Error regenerating questions');
-                } finally {
-                    hideLoading();
-                }
-            }
-
+           async function regenerateQuestions() {
+               if (!confirm('This will update your technical questions based on the latest configuration. Continue?')) return;
+               showLoading('AI is generating new technical questions...');
+               try {
+                   const response = await fetch(`/api/jobs/${jobId}/regenerate-questions`, {
+                       method: 'POST'
+                   });
+                   const result = await response.json();
+                   if (result.success) {
+                       renderTechnicalAssessment(result.data);
+                       showToast('Questions updated successfully!');
+                   } else {
+                       alert('Error: ' + result.error);
+                   }
+               } catch (error) {
+                   alert('Error regenerating questions');
+               } finally {
+                   hideLoading();
+               }
+           }
+           */
             function toggleSkillAccordion(skill) {
                 const el = document.getElementById(`skill-content-${skill}`);
                 const icon = document.getElementById(`accordion-icon-${skill}`);
@@ -932,7 +1081,7 @@
                 // Use data attributes to prevent errors on strings with periods like Node.js
                 const checkboxes = document.querySelectorAll(`.skill-checkbox[data-skill="${skill}"]`);
                 const selectedCount = document.querySelectorAll(`.skill-checkbox[data-skill="${skill}"]:checked`).length;
-                
+
                 const counterSpan = document.getElementById(`selected-count-${skill}`);
                 if (counterSpan) {
                     counterSpan.textContent = selectedCount;
@@ -942,7 +1091,7 @@
                 if (selectedCount > targetCount) {
                     // Checkboxes shouldn't let them go over, but realistically just cap it visually by disabling unchecked ones
                 }
-                
+
                 if (selectedCount >= targetCount) {
                     checkboxes.forEach(cb => {
                         if (!cb.checked) cb.disabled = true;
@@ -986,18 +1135,20 @@
                 try {
                     const res = await fetch(`/api/jobs/${jobId}/pool/refresh-skill`, {
                         method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ skill })
                     });
                     const result = await res.json();
-                    if(result.success) {
+                    if (result.success) {
                         renderTechnicalAssessment(result.data);
                         showToast(`Refreshed questions for ${skill}`);
                     } else alert('Error: ' + (result.error || result.message));
-                } catch(e) { console.error(e); alert('Failed to refresh pool'); }
+                } catch (e) { console.error(e); alert('Failed to refresh pool'); }
             }
 
 
+            /*
+            // UNUSED: approveAllQuestions has been superseded by "Save All Questions"
             async function approveAllQuestions() {
                 if (!confirm('Approve all AI-generated questions and add them to the global question bank?')) return;
 
@@ -1017,6 +1168,7 @@
                     alert('Error approving questions');
                 }
             }
+            */
 
 
             async function saveAllSkillSelections() {
@@ -1038,7 +1190,7 @@
                         });
                         const result = await resp.json();
                         if (!result.success) errors.push(skill);
-                    } catch(e) {
+                    } catch (e) {
                         errors.push(skill);
                     }
                 }
@@ -1118,6 +1270,8 @@
                 }
             }
 
+            /*
+            // DUPLICATE/UNUSED
             async function approveAllQuestions() {
                 if (!confirm('Approve all AI-generated questions and add them to the global question bank?')) return;
 
@@ -1137,6 +1291,7 @@
                     alert('Error approving questions');
                 }
             }
+            */
 
             async function generateAssessment() {
                 if (!confirm('Generate assessment for this job?')) return;
@@ -1190,7 +1345,7 @@
                 const container = document.getElementById('screening-questions-container');
                 const noMsg = document.getElementById('no-screening-msg');
                 if (noMsg) noMsg.remove();
-                
+
                 const id = `sq-${Date.now()}`;
                 const div = document.createElement('div');
                 div.className = 'card screening-q-item';
@@ -1380,7 +1535,7 @@
                 document.getElementById(tabName).style.display = "block";
                 document.getElementById(tabName).classList.add("active");
                 evt.currentTarget.classList.add("active");
-                
+
                 // Keep track of active tab in URL for refresh
                 const url = new URL(window.location);
                 url.searchParams.set('tab', tabName);
@@ -1395,9 +1550,8 @@
                 if (tabBtn) tabBtn.click();
             }
 
-            // Auto-expand sections if requested
             if (params.get('expand') === 'pool') {
-                const poolContainer = document.getElementById('question-pool-container');
+                const poolContainer = document.getElementById('unified-skill-pool');
                 const toggleBtn = document.getElementById('toggle-pool-btn');
                 if (poolContainer) poolContainer.style.display = 'block';
                 if (toggleBtn) toggleBtn.style.display = 'none';
@@ -1422,7 +1576,7 @@
             }
 
             function renderTechnicalAssessment(assessment) {
-                const poolContainer = document.getElementById('question-pool-container');
+                const poolContainer = document.getElementById('unified-skill-pool');
                 // We are moving to a full page reload or complete re-render strategy for the new unified UI.
                 // A partial DOM replacement is too complex with the EJS unified skill layout.
                 // For a seamless experience, we just reload the page and use URL params to keep the section open.

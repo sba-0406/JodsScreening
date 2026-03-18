@@ -8,7 +8,7 @@ const { logAction } = require('../utils/auditLogger');
  */
 exports.renderAdminDashboard = async (req, res) => {
     try {
-        const hrUsers = await User.find({ role: 'hr' }).sort({ createdAt: -1 });
+        const hrUsers = await User.find({ role: 'hr', status: 'active' }).sort({ createdAt: -1 });
         res.render('admin-dashboard', {
             user: req.user,
             hrUsers,
@@ -86,16 +86,19 @@ exports.deleteHR = async (req, res) => {
             return res.status(400).json({ success: false, error: 'Cannot delete non-HR accounts via this endpoint' });
         }
 
-        // Audit Log: deletion
+        // Audit Log: suspension (Soft Delete)
         await logAction({
             entityType: 'user',
             entityId: hr._id,
-            action: 'delete',
+            action: 'status_change',
+            previousState: hr.status,
+            newState: 'suspended',
             req,
-            metadata: { name: hr.name, email: hr.email, role: 'hr' }
+            metadata: { name: hr.name, email: hr.email, role: 'hr', deleteTriggered: true }
         });
 
-        await hr.deleteOne();
+        hr.status = 'suspended';
+        await hr.save();
 
         res.json({ success: true, message: 'HR account deleted successfully' });
     } catch (error) {

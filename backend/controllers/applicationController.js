@@ -21,22 +21,18 @@ const Assessment = require('../models/Assessment');
 const calculateMatchScore = (application, job) => {
     // Standardize weights with robust fallbacks per key
     const jobWeights = job.rankingWeights || {};
-    const weights = { 
-        technicalWeight: jobWeights.technicalWeight ?? 0.40, 
-        softSkillWeight: jobWeights.softSkillWeight ?? 0.35, 
-        experienceWeight: jobWeights.experienceWeight ?? 0.15,
-        skillMatchWeight: jobWeights.skillMatchWeight ?? 0.10
+    const weights = {
+        assessmentWeight: jobWeights.assessmentWeight ?? 0.70,
+        skillMatchWeight: jobWeights.skillMatchWeight ?? 0.20,
+        experienceWeight: jobWeights.experienceWeight ?? 0.10
     };
-    
+
     const assessmentDone = application.assessmentStatus === 'completed';
 
-    // 1. Technical Score (0-100) — only if assessment completed
-    const techScore = assessmentDone ? (application.assessmentResults?.technicalScore || 0) : 0;
+    // 1. Assessment Score (0-100) — uses pre-calculated weighted average of tech/soft
+    const assessmentScore = assessmentDone ? (application.assessmentResults?.weightedScore || 0) : 0;
 
-    // 2. Soft Skill Score (0-100) — only if assessment completed
-    const softScore = assessmentDone ? (application.assessmentResults?.softSkillScore || 0) : 0;
-
-    // 3. Experience Score — uses job's min/max range
+    // 2. Experience Score — uses job's min/max range
     const rawExp = Math.max(0, parseInt(application.yearsExperience) || 0);
     const minExp = job.experienceMin || 0;
     const maxExp = job.experienceMax || 10;
@@ -52,18 +48,13 @@ const calculateMatchScore = (application, job) => {
         expScore = 0;
     }
 
-    // 4. Resume Skill Match Score (0-100)
-    // This comes from our new AI parsing logic
+    // 3. Resume Skill Match Score (0-100)
     const skillMatchScore = application.skillsMatch?.score || 0;
 
-    // 5. Final Weighted Calculation
-    // We calculate two scores: 
-    // - resumeScore: For the "Initial Pool" (Resume leaderboard)
-    // - combinedScore: For the "Qualified Pool" (Simulation leaderboard)
-
-    // Normalize weights if assessment is not done (only resume + experience + skill match)
-    const resumeWeightsTotal = (weights.experienceWeight || 0) + (weights.skillMatchWeight || 0);
-    const resumeScore = resumeWeightsTotal > 0 
+    // 4. Final Weighted Calculation
+    // Normalize weights if assessment is not done (only resume + experience match)
+    const resumeWeightsTotal = weights.experienceWeight + weights.skillMatchWeight;
+    const resumeScore = resumeWeightsTotal > 0
         ? Math.round(((expScore * weights.experienceWeight) + (skillMatchScore * weights.skillMatchWeight)) / resumeWeightsTotal)
         : 0;
 
@@ -71,36 +62,20 @@ const calculateMatchScore = (application, job) => {
     if (!assessmentDone) {
         finalScore = resumeScore;
     } else {
-        // WEIGHT NORMALIZATION FOR COMPLETED ASSESSMENTS
-        // Check which assessment sections were actually enabled
-        const hasTech = application.assessmentConfig?.includeTechnical !== false;
-        const hasSoft = application.assessmentConfig?.includeScenario !== false;
-
-        let activeWeights = { ...weights };
-        let totalActiveWeight = weights.experienceWeight + weights.skillMatchWeight;
-
-        if (hasTech) totalActiveWeight += weights.technicalWeight;
-        else activeWeights.technicalWeight = 0;
-
-        if (hasSoft) totalActiveWeight += weights.softSkillWeight;
-        else activeWeights.softSkillWeight = 0;
-
-        // Redistribute weights if any section was skipped
+        const totalWeight = weights.assessmentWeight + weights.skillMatchWeight + weights.experienceWeight;
         finalScore = Math.round(
             (
-                (techScore * (activeWeights.technicalWeight || 0)) +
-                (softScore * (activeWeights.softSkillWeight || 0)) +
-                (expScore * weights.experienceWeight) +
-                (skillMatchScore * weights.skillMatchWeight)
-            ) / totalActiveWeight
+                (assessmentScore * weights.assessmentWeight) +
+                (skillMatchScore * weights.skillMatchWeight) +
+                (expScore * weights.experienceWeight)
+            ) / totalWeight
         );
     }
 
     return {
         score: finalScore,
         resumeScore: resumeScore,
-        techScore: techScore,
-        softScore: softScore,
+        assessmentScore: assessmentScore,
         skillScore: skillMatchScore,
         isPartial: !assessmentDone,
         isOverQualified: rawExp > maxExp,
@@ -253,7 +228,7 @@ exports.submitApplication = async (req, res) => {
 
         // Support for indexed keys (e.g., screeningAnswer[0]) and single strings
         if (!Array.isArray(screeningQuestions)) screeningQuestions = [screeningQuestions];
-        
+
         // If screeningAnswers[] is empty but indexed keys exist (radio buttons)
         if (!Array.isArray(screeningAnswers) || screeningAnswers.length === 0) {
             if (typeof screeningAnswers === 'string' && screeningAnswers !== '') {
@@ -276,12 +251,12 @@ exports.submitApplication = async (req, res) => {
         const finalAnswers = [];
         let knockoutFailed = false;
         let knockoutReason = '';
-        
+
         screeningQuestions.forEach((q, i) => {
             const answer = screeningAnswers[i];
             if (q && answer) {
                 finalAnswers.push({ question: q, answer: answer });
-                
+
                 // Check if this is a knockout question
                 const jobQ = job.screeningQuestions.find(sq => {
                     const questionText = typeof sq === 'string' ? sq : sq.question;
@@ -316,30 +291,30 @@ exports.submitApplication = async (req, res) => {
 
         // 4. Async Skill Extraction & Matching
         const triggerExtraction = req.file || (useExistingResume === 'true' && !preExtractedSkills);
-        
+
         if (triggerExtraction || (useExistingResume === 'true' && preExtractedSkills)) {
             setImmediate(async () => {
                 try {
                     let skills = preExtractedSkills;
-                    
+
                     if (!skills && resumeUrl) {
                         console.log(`[PROCESS] Extracting skills for App: ${application._id}`);
                         const text = await resumeAssistant.extractText(resumeUrl);
                         skills = await resumeAssistant.extractSkills(text);
-                        
+
                         // Update User Cache
                         await User.findByIdAndUpdate(req.user._id, {
                             'parsedResumeData.skills': skills,
                             'parsedResumeData.lastParsed': new Date()
                         });
                     }
-                    
+
                     // Get skills from job's assessment config
                     const jobWithSkillDesc = await Job.findById(jobId).populate('assessmentId');
                     const jobSkills = jobWithSkillDesc.assessmentId?.technicalSkills || [];
-                    
+
                     const matchResults = await skillService.matchSkills(skills, jobSkills);
-                    
+
                     await Application.findByIdAndUpdate(application._id, {
                         extractedSkills: skills,
                         skillsMatch: matchResults
@@ -562,10 +537,15 @@ exports.renderApplicationDetail = async (req, res) => {
         const isHR = ['hr', 'admin'].includes(req.user.role);
         if (!isOwner && !isHR) return res.status(403).send('Unauthorized');
 
+        // .lean() strips virtuals - manually inject resumeUrl proxy for HR views
+        if (application.resume) {
+            application.resumeUrl = `/api/resumes/view/${application._id}`;
+        }
+
         const matchMeta = calculateMatchScore(application, application.job);
-        res.render('application-detail.ejs', { 
-            title: 'Application Details', 
-            application, 
+        res.render('application-detail.ejs', {
+            title: 'Application Details',
+            application,
             user: req.user,
             matchScore: matchMeta.score,
             matchMeta: matchMeta
@@ -617,7 +597,7 @@ exports.updateApplicationStatus = async (req, res) => {
             if (parsedDate.getFullYear() < 2020) {
                 parsedDate.setFullYear(currentYear);
             }
-            
+
             application.interviewDate = parsedDate;
         }
 
@@ -728,7 +708,7 @@ exports.sendAssessmentInvite = async (req, res) => {
 
         application.assessmentStatus = 'invited';
         application.status = 'invited_for_assessment';
-        
+
         // Store assessment configuration for this specific candidate session
         if (req.body.config) {
             application.assessmentConfig = {

@@ -49,6 +49,11 @@ exports.login = async (req, res) => {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
+        // Check if user is active (Soft Delete/Suspension Check)
+        if (user.status !== 'active') {
+            return res.status(403).json({ success: false, error: 'Account suspended. Please contact the administrator.' });
+        }
+
         sendTokenResponse(user, 200, res);
     } catch (err) {
         console.error('[AUTH ERROR] Login:', err);

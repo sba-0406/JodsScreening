@@ -47,8 +47,9 @@ exports.createJob = async (req, res) => {
 };
 
 /**
- * @desc    Delete a job and its linked assessment (e.g., rollback on failed generation)
+ * @desc    Delete a job and its linked assessment
  * @route   DELETE /api/jobs/:id
+ * @access  Private (HR/Admin)
  */
 exports.deleteJob = async (req, res) => {
     try {
@@ -60,12 +61,7 @@ exports.deleteJob = async (req, res) => {
             return res.status(403).json({ success: false, error: 'Unauthorized' });
         }
 
-        // Delete linked assessment if exists
-        if (job.assessmentId) {
-            await Assessment.findByIdAndDelete(job.assessmentId);
-        }
-
-        // Audit Log: deletion
+        // 1. Audit Log: deletion
         await logAction({
             entityType: 'job',
             entityId: job._id,
@@ -74,6 +70,12 @@ exports.deleteJob = async (req, res) => {
             metadata: { jobTitle: job.title }
         });
 
+        // 2. Delete linked assessment if exists
+        if (job.assessmentId) {
+            await Assessment.findByIdAndDelete(job.assessmentId);
+        }
+
+        // 3. Delete the job itself
         await Job.findByIdAndDelete(req.params.id);
 
         res.json({ success: true, message: 'Job deleted successfully' });
@@ -145,19 +147,19 @@ exports.updateAssessment = async (req, res) => {
             if (body.questionsPerSkill) job.assessmentConfig.questionsPerSkill = parseInt(body.questionsPerSkill);
             if (body.allowAIGeneration !== undefined) job.assessmentConfig.allowAIGeneration = !!body.allowAIGeneration;
             // Handle structured screening questions
-        if (body.screeningQuestions && Array.isArray(body.screeningQuestions)) {
-            job.screeningQuestions = body.screeningQuestions.map(q => {
-                if (typeof q === 'string') {
-                    return { question: q, type: 'text', isKnockout: false };
-                }
-                return {
-                    question: q.question,
-                    type: q.type || 'text',
-                    isKnockout: q.isKnockout === true || q.isKnockout === 'true',
-                    expectedAnswer: q.expectedAnswer || null
-                };
-            });
-        }
+            if (body.screeningQuestions && Array.isArray(body.screeningQuestions)) {
+                job.screeningQuestions = body.screeningQuestions.map(q => {
+                    if (typeof q === 'string') {
+                        return { question: q, type: 'text', isKnockout: false };
+                    }
+                    return {
+                        question: q.question,
+                        type: q.type || 'text',
+                        isKnockout: q.isKnockout === true || q.isKnockout === 'true',
+                        expectedAnswer: q.expectedAnswer || null
+                    };
+                });
+            }
 
             if (body.notificationSettings) {
                 job.notificationSettings = {
@@ -417,18 +419,18 @@ exports.approveSuggestions = async (req, res) => {
         const { questionIds, skillTargetCounts } = req.body;
         const job = await Job.findById(req.params.id);
         if (!job || !job.assessmentId) return res.status(404).json({ success: false, error: 'Job/Assessment not found' });
-        
+
         const Assessment = require('../models/Assessment');
         const Question = require('../models/Question');
         const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
-        
+
         const selectedSuggestions = assessment.suggestedQuestions.filter(q => questionIds.includes(q._id.toString()));
         const bySkill = {};
         for (const sug of selectedSuggestions) {
             if (!bySkill[sug.skill]) bySkill[sug.skill] = [];
             bySkill[sug.skill].push(sug);
         }
-        
+
         let addedToAssessment = 0;
         let addedToQB = 0;
 
@@ -470,7 +472,7 @@ exports.approveSuggestions = async (req, res) => {
 
         assessment.questionCounts.technical = assessment.technicalQuestions.length;
         if (assessment.suggestedQuestions.length === 0 && assessment.technicalQuestions.length > 0) {
-            assessment.status = 'active'; 
+            assessment.status = 'active';
         }
         await assessment.save();
 
@@ -493,13 +495,13 @@ exports.dismissSuggestions = async (req, res) => {
         const Assessment = require('../models/Assessment');
         const job = await Job.findById(req.params.id);
         const assessment = await Assessment.findById(job.assessmentId);
-        
+
         assessment.suggestedQuestions = assessment.suggestedQuestions.filter(q => !questionIds.includes(q._id.toString()));
         if (assessment.suggestedQuestions.length === 0 && assessment.technicalQuestions.length > 0) {
             assessment.status = 'active';
         }
         await assessment.save();
-        
+
         // Return fully populated assessment for AJAX re-rendering
         const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
 
@@ -567,7 +569,7 @@ exports.refreshSkillPool = async (req, res) => {
         if (countNeeded === 0) return res.json({ success: true, message: 'No auto-generated questions to refresh' });
 
         const excludeIds = assessment.technicalQuestions.map(q => q.questionId?._id || q.questionId);
-        
+
         const questions = await Question.find({
             skill,
             status: 'active',
@@ -579,14 +581,14 @@ exports.refreshSkillPool = async (req, res) => {
         }
 
         assessment.technicalQuestions = assessment.technicalQuestions.filter(q => !(q.skill === skill && !q.isManual));
-        
+
         assessment.technicalQuestions.push(...questions.map(q => ({
             questionId: q._id,
             skill: q.skill,
             difficulty: q.difficulty,
             isManual: false
         })));
-        
+
         assessment.markModified('technicalQuestions');
         await assessment.save();
 
@@ -619,7 +621,7 @@ exports.saveSkillSelection = async (req, res) => {
         for (const id of selectedIds) {
             // Check if it's already an active bank question
             const bankQ = await Question.findById(id);
-            
+
             if (bankQ) {
                 // It's a DB question (was either active overflow or existing)
                 assessment.technicalQuestions.push({
@@ -644,20 +646,20 @@ exports.saveSkillSelection = async (req, res) => {
                         source: 'ai_generated',
                         createdBy: req.user?._id || null
                     });
-                    
+
                     assessment.technicalQuestions.push({
                         questionId: newQ._id,
                         skill: newQ.skill,
                         difficulty: newQ.difficulty,
                         isManual: false
                     });
-                    
+
                     // Remove from suggestions
                     assessment.suggestedQuestions = assessment.suggestedQuestions.filter(s => s._id.toString() !== id);
                 }
             }
         }
-        
+
         // Clean up remaining suggestions for this skill if they weren't selected
         // (Optional: can keep them as 'dismissed' or just remove them. We'll remove them)
         assessment.suggestedQuestions = assessment.suggestedQuestions.filter(s => s.skill !== skill);
@@ -666,7 +668,7 @@ exports.saveSkillSelection = async (req, res) => {
         if (assessment.suggestedQuestions.length === 0 && assessment.technicalQuestions.length > 0) {
             assessment.status = 'active';
         }
-        
+
         await assessment.save();
 
         const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
@@ -831,42 +833,6 @@ exports.updateJob = async (req, res) => {
     }
 };
 
-// @desc    Delete job
-// @route   DELETE /api/jobs/:id
-// @access  Private (HR/Admin)
-exports.deleteJob = async (req, res) => {
-    try {
-        const job = await Job.findById(req.params.id);
-
-        if (!job) {
-            return res.status(404).json({
-                success: false,
-                error: 'Job not found'
-            });
-        }
-
-        // Check ownership
-        if (job.postedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                error: 'Not authorized to delete this job'
-            });
-        }
-
-        await job.deleteOne();
-
-        res.json({
-            success: true,
-            data: {}
-        });
-    } catch (error) {
-        console.error('Error deleting job:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to delete job'
-        });
-    }
-};
 
 /**
  * @desc    Get data for the analytics dashboard (JSON or HTML)
@@ -994,11 +960,17 @@ exports.getJobCandidates = async (req, res) => {
         if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
 
         // Fetch all candidates and compute match scores
+        // NOTE: .lean() strips Mongoose virtuals, so we manually inject resumeUrl
         const rawCandidates = await Application.find(query).lean();
         const candidates = rawCandidates
             .map(c => {
                 const rank = calculateMatchScore(c, job);
-                return { ...c, matchScore: rank.score, matchMeta: rank };
+                return {
+                    ...c,
+                    matchScore: rank.score,
+                    matchMeta: rank,
+                    resumeUrl: c.resume ? `/api/resumes/view/${c._id}` : null
+                };
             })
             .sort((a, b) => b.matchScore - a.matchScore); // Rank by score by default
 

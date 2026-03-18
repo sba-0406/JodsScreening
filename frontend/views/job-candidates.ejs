@@ -263,27 +263,36 @@
 
                 <!-- Results Section -->
                 <div class="tabs-container">
-                    <% 
-                        // Qualified Pool = Assessment Completed OR Finalized (Rejected/Hired)
-                        const qualifiedPool = candidates.filter(c => c.assessmentStatus === 'completed' || ['rejected', 'hired'].includes(c.status));
+                    <% // Qualified Pool=Assessment Completed OR Finalized (Rejected/Hired) const
+                        qualifiedPool=candidates.filter(c=> c.assessmentStatus === 'completed' || ['rejected',
+                        'hired'].includes(c.status));
                         // Initial Pool = Active candidates who haven't finished assessment
-                        const initialPool = candidates.filter(c => c.assessmentStatus !== 'completed' && !['rejected', 'hired'].includes(c.status));
-                    %>
-                    <button class="tab-btn active" onclick="showTab('qualified-tab')">
-                        Qualified Pool (Simulation)
-                        <span class="count-badge"><%= qualifiedPool.length %></span>
-                    </button>
-                    <button class="tab-btn" onclick="showTab('initial-tab')">
-                        Initial Pool (Resume Match)
-                        <span class="count-badge"><%= initialPool.length %></span>
-                    </button>
+                        const initialPool = candidates.filter(c => c.assessmentStatus !== 'completed' && !['rejected',
+                        'hired'].includes(c.status));
+                        %>
+                        <button class="tab-btn active" onclick="showTab('qualified-tab')">
+                            Qualified Pool (Simulation)
+                            <span class="count-badge">
+                                <%= qualifiedPool.length %>
+                            </span>
+                        </button>
+                        <button class="tab-btn" onclick="showTab('initial-tab')">
+                            Initial Pool (Resume Match)
+                            <span class="count-badge">
+                                <%= initialPool.length %>
+                            </span>
+                        </button>
                 </div>
 
                 <!-- Tab 1: Qualified Pool -->
                 <div id="qualified-tab" class="tab-content active">
-                    <div class="filter-bar" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; background: #f8fafc; padding: 12px 20px; border-radius: 8px; border: 1px solid var(--border);">
-                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Filter by Status:</label>
-                        <select id="status-filter" onchange="filterCandidates(this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.9rem; font-weight: 600; color: var(--text-main); cursor: pointer; outline: none;">
+                    <div class="filter-bar"
+                        style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; background: #f8fafc; padding: 12px 20px; border-radius: 8px; border: 1px solid var(--border);">
+                        <label
+                            style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Filter
+                            by Status:</label>
+                        <select id="status-filter" onchange="filterCandidates(this.value)"
+                            style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.9rem; font-weight: 600; color: var(--text-main); cursor: pointer; outline: none;">
                             <option value="all">All Qualified</option>
                             <option value="waiting">Waiting for Action</option>
                             <option value="shortlisted">Shortlisted</option>
@@ -291,7 +300,9 @@
                             <option value="hired">Hired</option>
                             <option value="rejected">Rejected</option>
                         </select>
-                        <span id="filter-count" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Showing <%= qualifiedPool.length %> candidates</span>
+                        <span id="filter-count"
+                            style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Showing <%=
+                                qualifiedPool.length %> candidates</span>
                     </div>
 
                     <div class="card" style="padding: 0; overflow: hidden;">
@@ -308,80 +319,98 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <% if (qualifiedPool.length === 0) { %>
+                                <% if (qualifiedPool.length===0) { %>
                                     <tr>
-                                        <td colspan="7" class="empty-state">No candidates have completed the simulation yet.</td>
+                                        <td colspan="7" class="empty-state">No candidates have completed the simulation
+                                            yet.</td>
                                     </tr>
-                                <% } else { %>
-                                    <% qualifiedPool.forEach((candidate, index) => { %>
-                                        <tr class="candidate-row" data-status="<%= candidate.status || 'applied' %>">
-                                            <td style="text-align: center;">
-                                                <% if (candidate.assessmentStatus === 'completed') { %>
-                                                    <div class="rank-circle <%= index < 3 ? 'rank-top' : '' %>">
-                                                        <%= index + 1 %>
+                                    <% } else { %>
+                                        <% qualifiedPool.forEach((candidate, index)=> { %>
+                                            <tr class="candidate-row"
+                                                data-status="<%= candidate.status || 'applied' %>">
+                                                <td style="text-align: center;">
+                                                    <% if (candidate.assessmentStatus==='completed' ) { %>
+                                                        <div class="rank-circle <%= index < 3 ? 'rank-top' : '' %>">
+                                                            <%= index + 1 %>
+                                                        </div>
+                                                        <% } else { %>
+                                                            <div class="rank-circle">—</div>
+                                                            <% } %>
+                                                </td>
+                                                <td>
+                                                    <div style="font-weight: 700; color: var(--text-main);">
+                                                        <%= candidate.candidateName %>
                                                     </div>
-                                                <% } else { %>
-                                                    <div class="rank-circle">—</div>
+                                                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                                        <%= candidate.candidateEmail %>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <% if (candidate.assessmentStatus==='completed' ) { %>
+                                                        <div style="font-size: 0.85rem; font-weight: 600;">
+                                                            TECH: <%= candidate.assessmentResults?.technicalScore || 0
+                                                                %>%
+                                                        </div>
+                                                        <div
+                                                            style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">
+                                                            SOFT: <%= candidate.assessmentResults?.softSkillScore || 0
+                                                                %>%
+                                                        </div>
+                                                        <% } else { %>
+                                                            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                                                No Simulation</div>
+                                                            <% } %>
+                                                </td>
+                                                <td>
+                                                    <% let badgeClass='badge-info' ; if
+                                                        (candidate.status==='shortlisted' ) badgeClass='badge-success' ;
+                                                        if (candidate.status==='interview_scheduled' )
+                                                        badgeClass='badge-primary' ; if (candidate.status==='hired' )
+                                                        badgeClass='badge-success' ; if (candidate.status==='rejected' )
+                                                        badgeClass='badge-danger' ; %>
+                                                        <span class="badge <%= badgeClass %>">
+                                                            <%= (candidate.status || 'applied'
+                                                                ).toUpperCase().replace(/_/g, ' ' ) %>
+                                                        </span>
+                                                        <% if (candidate.assessmentStatus==='completed' ) { %>
+                                                            <div
+                                                                style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; font-weight: 700; text-transform: uppercase;">
+                                                                <%= candidate.assessmentResults?.overallFit || 'N/A' %>
+                                                            </div>
+                                                            <% } %>
+                                                </td>
+                                                <td style="text-align: center;">
+                                                    <div style="font-weight: 800; color: var(--text-main);">
+                                                        <%= candidate.matchMeta?.skillScore || 0 %>%
+                                                    </div>
+                                                    <div
+                                                        style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">
+                                                        Resume Index</div>
+                                                </td>
+                                                <td>
+                                                    <div class="match-score-pill">
+                                                        <span>
+                                                            <%= candidate.matchScore || 0 %>%
+                                                        </span>
+                                                        <div class="score-bar-mini">
+                                                            <% const colorClass=(candidate.matchScore || 0)>= 70 ?
+                                                                'score-high' : ((candidate.matchScore || 0) >= 50 ?
+                                                                'score-mid' : 'score-low'); %>
+                                                                <div class="score-fill <%= colorClass %>"
+                                                                    style="width: <%= candidate.matchScore || 0 %>%">
+                                                                </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="action-btns">
+                                                        <a href="/api/applications/application/<%= candidate._id %>/view"
+                                                            class="btn btn-sm btn-secondary">Report</a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <% }); %>
                                                 <% } %>
-                                            </td>
-                                            <td>
-                                                <div style="font-weight: 700; color: var(--text-main);">
-                                                    <%= candidate.candidateName %>
-                                                </div>
-                                                <div style="font-size: 0.8rem; color: var(--text-muted);">
-                                                    <%= candidate.candidateEmail %>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <% if (candidate.assessmentStatus === 'completed') { %>
-                                                    <div style="font-size: 0.85rem; font-weight: 600;">
-                                                        TECH: <%= candidate.assessmentResults?.technicalScore || 0 %>%
-                                                    </div>
-                                                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">
-                                                        SOFT: <%= candidate.assessmentResults?.softSkillScore || 0 %>%
-                                                    </div>
-                                                <% } else { %>
-                                                    <div style="font-size: 0.85rem; color: var(--text-muted);">No Simulation</div>
-                                                <% } %>
-                                            </td>
-                                            <td>
-                                                <% 
-                                                    let badgeClass = 'badge-info';
-                                                    if (candidate.status === 'shortlisted') badgeClass = 'badge-success';
-                                                    if (candidate.status === 'interview_scheduled') badgeClass = 'badge-primary';
-                                                    if (candidate.status === 'hired') badgeClass = 'badge-success';
-                                                    if (candidate.status === 'rejected') badgeClass = 'badge-danger';
-                                                %>
-                                                <span class="badge <%= badgeClass %>">
-                                                    <%= (candidate.status || 'applied').toUpperCase().replace(/_/g, ' ') %>
-                                                </span>
-                                                <% if (candidate.assessmentStatus === 'completed') { %>
-                                                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; font-weight: 700; text-transform: uppercase;">
-                                                        <%= candidate.assessmentResults?.overallFit || 'N/A' %>
-                                                    </div>
-                                                <% } %>
-                                            </td>
-                                            <td style="text-align: center;">
-                                                <div style="font-weight: 800; color: var(--text-main);"><%= candidate.matchMeta?.skillScore || 0 %>%</div>
-                                                <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Resume Index</div>
-                                            </td>
-                                            <td>
-                                                <div class="match-score-pill">
-                                                    <span><%= candidate.matchScore || 0 %>%</span>
-                                                    <div class="score-bar-mini">
-                                                        <% const colorClass = (candidate.matchScore || 0) >= 70 ? 'score-high' : ((candidate.matchScore || 0) >= 50 ? 'score-mid' : 'score-low'); %>
-                                                        <div class="score-fill <%= colorClass %>" style="width: <%= candidate.matchScore || 0 %>%"></div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="action-btns">
-                                                    <a href="/api/applications/application/<%= candidate._id %>/view" class="btn btn-sm btn-secondary">Report</a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <% }); %>
-                                <% } %>
                             </tbody>
                         </table>
                     </div>
@@ -402,57 +431,71 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <% if (initialPool.length === 0) { %>
+                                <% if (initialPool.length===0) { %>
                                     <tr>
-                                        <td colspan="6" class="empty-state">All candidates have moved to the Qualified Pool.</td>
+                                        <td colspan="6" class="empty-state">All candidates have moved to the Qualified
+                                            Pool.</td>
                                     </tr>
-                                <% } else { %>
-                                    <% 
-                                        initialPool.sort((a,b) => (b.matchMeta?.resumeScore || 0) - (a.matchMeta?.resumeScore || 0));
-                                        initialPool.forEach((candidate, index) => { 
-                                    %>
-                                        <tr>
-                                            <td style="text-align: center;">
-                                                <div class="rank-circle <%= index < 3 ? 'rank-top' : '' %>">
-                                                    <%= index + 1 %>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div style="font-weight: 700; color: var(--text-main);">
-                                                    <%= candidate.candidateName %>
-                                                </div>
-                                                <% if (candidate.matchMeta?.recommendInvite) { %>
-                                                    <div class="invite-suggest" style="margin-top: 4px;">✨ Recommended</div>
+                                    <% } else { %>
+                                        <% initialPool.sort((a,b)=> (b.matchMeta?.resumeScore || 0) -
+                                            (a.matchMeta?.resumeScore || 0));
+                                            initialPool.forEach((candidate, index) => {
+                                            %>
+                                            <tr>
+                                                <td style="text-align: center;">
+                                                    <div class="rank-circle <%= index < 3 ? 'rank-top' : '' %>">
+                                                        <%= index + 1 %>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div style="font-weight: 700; color: var(--text-main);">
+                                                        <%= candidate.candidateName %>
+                                                    </div>
+                                                    <% if (candidate.matchMeta?.recommendInvite) { %>
+                                                        <div class="invite-suggest" style="margin-top: 4px;">✨
+                                                            Recommended</div>
+                                                        <% } %>
+                                                </td>
+                                                <td>
+                                                    <div style="font-weight: 600;">
+                                                        <%= candidate.yearsExperience %> Years
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                                        <% if (candidate.assessmentStatus==='invited' ) { %>
+                                                            <span class="badge badge-info"
+                                                                style="font-size: 0.65rem;">INVITED</span>
+                                                            <% } else if (candidate.assessmentStatus==='in_progress' ) {
+                                                                %>
+                                                                <span class="badge badge-warning"
+                                                                    style="font-size: 0.65rem;">IN PROGRESS</span>
+                                                                <% } else { %>
+                                                                    <span class="badge badge-secondary"
+                                                                        style="font-size: 0.65rem;">NEW</span>
+                                                                    <% } %>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div style="font-weight: 800; font-size: 1rem;">
+                                                        <%= candidate.matchMeta?.resumeScore || 0 %>%
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="action-btns">
+                                                        <a href="/api/applications/application/<%= candidate._id %>/view"
+                                                            class="btn btn-sm btn-secondary">Review</a>
+                                                        <% if (candidate.assessmentStatus==='pending' &&
+                                                            candidate.status !=='rejected' ) { %>
+                                                            <button
+                                                                onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>', '<%= candidate._id %>')"
+                                                                class="btn btn-sm">Invite</button>
+                                                            <% } %>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <% }); %>
                                                 <% } %>
-                                            </td>
-                                            <td>
-                                                <div style="font-weight: 600;"><%= candidate.yearsExperience %> Years</div>
-                                            </td>
-                                            <td>
-                                                <div style="font-size: 0.8rem; color: var(--text-muted);">
-                                                    <% if (candidate.assessmentStatus === 'invited') { %>
-                                                        <span class="badge badge-info" style="font-size: 0.65rem;">INVITED</span>
-                                                    <% } else if (candidate.assessmentStatus === 'in_progress') { %>
-                                                        <span class="badge badge-warning" style="font-size: 0.65rem;">IN PROGRESS</span>
-                                                    <% } else { %>
-                                                        <span class="badge badge-secondary" style="font-size: 0.65rem;">NEW</span>
-                                                    <% } %>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div style="font-weight: 800; font-size: 1rem;"><%= candidate.matchMeta?.resumeScore || 0 %>%</div>
-                                            </td>
-                                            <td>
-                                                <div class="action-btns">
-                                                    <a href="/api/applications/application/<%= candidate._id %>/view" class="btn btn-sm btn-secondary">Review</a>
-                                                    <% if (candidate.assessmentStatus === 'pending' && candidate.status !== 'rejected') { %>
-                                                        <button onclick="openInviteModal('<%= candidate.candidate %>', '<%= candidate.candidateName %>', '<%= candidate._id %>')" class="btn btn-sm">Invite</button>
-                                                    <% } %>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <% }); %>
-                                <% } %>
                             </tbody>
                         </table>
                     </div>
@@ -497,7 +540,7 @@
                     btn.classList.remove('active');
                     if (btn.getAttribute('onclick').includes(tabId)) btn.classList.add('active');
                 });
-                
+
                 // Update content
                 document.querySelectorAll('.tab-content').forEach(content => {
                     content.classList.remove('active');
@@ -508,18 +551,18 @@
             function filterCandidates(status) {
                 const rows = document.querySelectorAll('.candidate-row');
                 let count = 0;
-                
+
                 rows.forEach(row => {
                     const rowStatus = row.getAttribute('data-status');
                     let show = false;
-                    
+
                     if (status === 'all') show = true;
                     else if (status === 'waiting' && (rowStatus === 'applied' || rowStatus === 'invited_for_assessment')) show = true;
                     else if (status === 'shortlisted' && rowStatus === 'shortlisted') show = true;
                     else if (status === 'interview' && rowStatus === 'interview_scheduled') show = true;
                     else if (status === 'hired' && rowStatus === 'hired') show = true;
                     else if (status === 'rejected' && rowStatus === 'rejected') show = true;
-                    
+
                     if (show) {
                         row.style.display = '';
                         count++;
@@ -527,7 +570,7 @@
                         row.style.display = 'none';
                     }
                 });
-                
+
                 document.getElementById('filter-count').textContent = `Showing ${count} candidates`;
             }
 

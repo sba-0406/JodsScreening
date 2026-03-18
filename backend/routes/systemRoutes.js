@@ -11,6 +11,6 @@ router.get('/monitor', authorizeAdmin, systemController.renderSystemMonitor);
 
 // API Endpoints
 router.get('/health', authorizeAdmin, systemController.getAIHealth);
-router.get('/audit', authorize('hr', 'admin'), systemController.getAuditLogs);
+router.get('/audit', authorizeAdmin, systemController.getAuditLogs);
 
 module.exports = router;

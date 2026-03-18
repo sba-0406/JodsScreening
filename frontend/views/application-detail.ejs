@@ -18,310 +18,419 @@
                 <% if (!application.job) { %>
                     <div class="card" style="text-align: center; padding: 60px;">
                         <h2 style="color: var(--danger); margin-bottom: 20px;">⚠️ Job Data Not Found</h2>
-                        <p style="color: var(--text-muted); margin-bottom: 30px;">The job associated with this application has been removed or is inaccessible.</p>
-                        <a href="<%= user.role === 'candidate' ? '/api/applications/my-dashboard' : '/api/jobs/dashboard' %>" class="btn">Back to Dashboard</a>
+                        <p style="color: var(--text-muted); margin-bottom: 30px;">The job associated with this
+                            application has been removed or is inaccessible.</p>
+                        <a href="<%= user.role === 'candidate' ? '/api/applications/my-dashboard' : '/api/jobs/dashboard' %>"
+                            class="btn">Back to Dashboard</a>
                     </div>
-                <% } else { %>
-                <!-- Breadcrumb -->
-                <div class="breadcrumb mb-20">
-                    <a href="<%= user.role === 'candidate' ? '/api/applications/my-dashboard' : '/api/jobs/' + application.job._id + '/candidates' %>"
-                        style="text-decoration: none; color: var(--primary-color); font-weight: 600;">
-                        <%= user.role==='candidate' ? 'My Applications' : 'Candidates' %>
-                    </a>
-                    <span style="color: var(--text-muted); margin: 0 8px;">/</span>
-                    <span style="color: var(--text-muted);">Application Details</span>
-                </div>
+                    <% } else { %>
+                        <!-- Breadcrumb -->
+                        <div class="breadcrumb mb-20">
+                            <a href="<%= user.role === 'candidate' ? '/api/applications/my-dashboard' : '/api/jobs/' + application.job._id + '/candidates' %>"
+                                style="text-decoration: none; color: var(--primary-color); font-weight: 600;">
+                                <%= user.role==='candidate' ? 'My Applications' : 'Candidates' %>
+                            </a>
+                            <span style="color: var(--text-muted); margin: 0 8px;">/</span>
+                            <span style="color: var(--text-muted);">Application Details</span>
+                        </div>
 
-                <!-- Recruiter Actions (HR/Admin only) -->
-                <% if ((user.role==='hr' || user.role==='admin' ) && application.status !=='rejected' &&
-                    application.status !=='hired' ) { %>
-                    <div class="details-header-card" style="background: var(--text-main); color: #fff; border: none;">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
-                            <div>
-                                <h2 style="color: #fff; margin-bottom: 4px; font-size: 1.25rem;">Recruiter Actions</h2>
-                                <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.9rem;">Update this
-                                    candidate's application status.</p>
-                            </div>
-                            <div style="display: flex; gap: 10px;">
-                                <% if (application.assessmentStatus==='pending' && application.job.requireAssessment) {
-                                    %>
-                                    <button class="btn btn-secondary" onclick="openInviteModal()">Invite to
-                                        Assessment</button>
-                                    <% } %>
-
-                                        <% if (application.status==='applied' || application.status==='invited_for_assessment' ||
-                                            application.status==='assessment_completed' ) { %>
-                                            <button onclick="updateStatus('shortlisted')" class="btn">Shortlist</button>
+                        <!-- Recruiter Actions (HR/Admin only) -->
+                        <% if ((user.role==='hr' || user.role==='admin' ) && application.status !=='rejected' &&
+                            application.status !=='hired' ) { %>
+                            <div class="details-header-card"
+                                style="background: var(--text-main); color: #fff; border: none;">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+                                    <div>
+                                        <h2 style="color: #fff; margin-bottom: 4px; font-size: 1.25rem;">Recruiter
+                                            Actions</h2>
+                                        <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.9rem;">Update
+                                            this
+                                            candidate's application status.</p>
+                                    </div>
+                                    <div style="display: flex; gap: 10px;">
+                                        <% if (application.assessmentStatus==='pending' &&
+                                            application.job.requireAssessment) { %>
+                                            <button class="btn btn-secondary" onclick="openInviteModal()">Invite to
+                                                Assessment</button>
                                             <% } %>
 
-                                                <% if (application.status==='applied' || application.status==='invited_for_assessment' ||
-                                                    application.status==='shortlisted' ) { %>
-                                                    <button onclick="scheduleInterview()" class="btn btn-secondary"
-                                                        style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff;">
-                                                        Schedule Interview
-                                                    </button>
+                                                <% if (application.status==='applied' ||
+                                                    application.status==='invited_for_assessment' ||
+                                                    application.status==='assessment_completed' ) { %>
+                                                    <button onclick="updateStatus('shortlisted')"
+                                                        class="btn">Shortlist</button>
                                                     <% } %>
 
-                                                        <% if (application.status==='interview_scheduled' ) { %>
-                                                            <button onclick="updateStatus('hired')" class="btn"
-                                                                style="background: #22c55e; border-color: #16a34a;">
-                                                                Hire Candidate
+                                                        <% if (application.status==='applied' ||
+                                                            application.status==='invited_for_assessment' ||
+                                                            application.status==='shortlisted' ) { %>
+                                                            <button onclick="scheduleInterview()"
+                                                                class="btn btn-secondary"
+                                                                style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff;">
+                                                                Schedule Interview
                                                             </button>
                                                             <% } %>
 
-                                                                <button onclick="updateStatus('rejected')"
-                                                                    class="btn btn-danger">Reject</button>
-                            </div>
-                        </div>
-                    </div>
-                    <% } %>
+                                                                <% if (application.status==='interview_scheduled' ) { %>
+                                                                    <button onclick="updateStatus('hired')" class="btn"
+                                                                        style="background: #22c55e; border-color: #16a34a;">
+                                                                        Hire Candidate
+                                                                    </button>
+                                                                    <% } %>
 
-                        <!-- Main Application Card -->
-                        <div class="details-section-card" style="padding: 0; overflow: hidden;">
-                            <!-- Header Banner -->
-                            <div style="background: var(--primary-color); padding: 32px; color: #fff;">
-                                <div
-                                    style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
-                                    <div>
-                                        <h1
-                                            style="color: #fff; font-size: 1.75rem; font-weight: 800; margin-bottom: 8px;">
-                                            <%= application.job.title %>
-                                        </h1>
-                                        <div style="color: rgba(255,255,255,0.8); font-size: 1rem;">
-                                            <%= application.job.companyName %> &bull; Applied on
-                                                <%= (application.appliedAt || application.createdAt) ? new
-                                                    Date(application.appliedAt ||
-                                                    application.createdAt).toLocaleDateString() : 'Recent' %>
-                                        </div>
+                                                                        <button onclick="updateStatus('rejected')"
+                                                                            class="btn btn-danger">Reject</button>
                                     </div>
-                                    <span class="badge"
-                                        style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 0.85rem;">
-                                        <%= application.status.toUpperCase().replace(/_/g, ' ' ) %>
-                                    </span>
                                 </div>
                             </div>
+                            <% } %>
 
-                            <!-- Candidate Quick Summary (HR only) -->
-                            <% if (user.role==='hr' || user.role==='admin' ) { %>
-                                <div class="candidate-bar"
-                                    style="background: #f8fafc; padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 15px;">
-                                    
-                                    <div style="display: flex; align-items: center; gap: 40px; width: 100%;">
-                                        <div class="cbar-item">
-                                            <span class="cbar-label">Candidate</span>
-                                            <span class="cbar-value" style="font-size: 1.1rem; font-weight: 700;">
-                                                <%= application.candidateName %>
-                                            </span>
-                                        </div>
-                                        <div class="cbar-item">
-                                            <span class="cbar-label">Experience</span>
-                                            <span
-                                                class="cbar-value <%= (application.job.experienceMin !== undefined && application.yearsExperience < application.job.experienceMin) ? 'text-danger' : '' %>">
-                                                <%= application.yearsExperience || 0 %> Years
-                                            </span>
-                                        </div>
-                                        <div style="margin-left: auto;">
-                                            <% if (application.resume) { %>
-                                                <a href="<%= application.resume %>" target="_blank"
-                                                    class="btn-sm btn-secondary">
-                                                    📄 View Resume
-                                                </a>
-                                                <% } %>
-                                        </div>
-                                    </div>
-
-                                    <!-- Skill Match Section -->
-                                    <% if (application.skillsMatch) { %>
-                                    <div style="background: #fff; padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
-                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                            <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Resume Skill Match Index</span>
-                                            <% 
-                                                let matchColor = '#64748b';
-                                                if (application.skillsMatch.score > 70) matchColor = '#22c55e';
-                                                else if (application.skillsMatch.score > 40) matchColor = '#f59e0b';
-                                            %>
-                                            <span class="badge" style="background: <%= matchColor %>; color: #fff;">
-                                                <%= application.skillsMatch.score %>% Match
-                                            </span>
-                                        </div>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                            <% application.skillsMatch.exact.forEach(skill => { %>
-                                                <span class="badge" style="background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; font-size: 0.75rem;">✓ <%= skill %></span>
-                                            <% }) %>
-                                            <% application.skillsMatch.similar.forEach(skill => { %>
-                                                <span class="badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem;">≈ <%= skill %></span>
-                                            <% }) %>
-                                            <% application.skillsMatch.missing.forEach(skill => { %>
-                                                <span class="badge" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-size: 0.75rem; opacity: 0.7;">? <%= skill %></span>
-                                            <% }) %>
-                                        </div>
-                                    </div>
-                                    <% } %>
-                                    <% if (application.screeningAnswers && application.screeningAnswers.length > 0) { %>
-                                    <div style="background: #fff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-top: 15px;">
-                                        <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.5px;">Role-Specific Answers</div>
-                                        <div style="display: flex; flex-direction: column; gap: 12px;">
-                                            <% application.screeningAnswers.forEach(item => { %>
-                                                <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border-left: 4px solid var(--primary-color);">
-                                                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;"><%= item.question %></div>
-                                                    <div style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4;"><%= item.answer %></div>
-                                                </div>
-                                            <% }) %>
-                                        </div>
-                                    </div>
-                                    <% } %>
-                                </div>
-                                <% } %>
-
-                                    <!-- Progress Steps Section -->
-                                    <div style="padding: 40px 32px;">
-                                        <!-- Performance Benchmarking (Candidate Only) -->
-                                        <% if (user.role==='candidate' && application.assessmentStatus==='completed' ) {
-                                            %>
-                                            <div id="benchmark-panel"
-                                                style="margin-bottom: 40px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 16px; padding: 32px; display: none;">
-                                                <div
-                                                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
-                                                    <div>
-                                                        <h3
-                                                            style="color: #0369a1; margin: 0 0 8px; font-size: 1.25rem;">
-                                                            🚀 Performance Insight</h3>
-                                                        <p style="color: #0c4a6e; margin: 0; font-size: 0.95rem;">See
-                                                            how you rank against the applicant pool for this role.</p>
-                                                    </div>
-                                                    <span
-                                                        style="background: #0ea5e9; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Real-time
-                                                        Data</span>
-                                                </div>
-
-                                                <div class="grid-adaptive"
-                                                    style="grid-template-columns: 1fr 1.5fr; gap: 32px; align-items: center;">
-                                                    <div
-                                                        style="text-align: center; border-right: 1px solid #bae6fd; padding-right: 32px;">
-                                                        <div style="font-size: 3rem; font-weight: 900; color: #0284c7; line-height: 1;"
-                                                            id="bench-percentile">—</div>
-                                                        <div
-                                                            style="font-size: 0.75rem; font-weight: 700; color: #0369a1; text-transform: uppercase; margin-top: 8px;">
-                                                            Percentile Rank</div>
-                                                    </div>
-                                                    <div>
-                                                        <p
-                                                            style="color: #0c4a6e; font-size: 0.95rem; line-height: 1.6; margin: 0;">
-                                                            You performed better than <strong
-                                                                id="bench-percent-text">—</strong> of candidates who
-                                                            completed this assessment.
-                                                            Your score of <strong>
-                                                                <%= application.assessmentResults?.weightedScore??0 %>%
-                                                            </strong> is
-                                                            <span id="bench-vs-avg">—</span> the pool average (<span
-                                                                id="bench-avg-score">—</span>%).
-                                                        </p>
-                                                    </div>
+                                <!-- Main Application Card -->
+                                <div class="details-section-card" style="padding: 0; overflow: hidden;">
+                                    <!-- Header Banner -->
+                                    <div style="background: var(--primary-color); padding: 32px; color: #fff;">
+                                        <div
+                                            style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+                                            <div>
+                                                <h1
+                                                    style="color: #fff; font-size: 1.75rem; font-weight: 800; margin-bottom: 8px;">
+                                                    <%= application.job.title %>
+                                                </h1>
+                                                <div style="color: rgba(255,255,255,0.8); font-size: 1rem;">
+                                                    <%= application.job.companyName %> &bull; Applied on
+                                                        <%= (application.appliedAt || application.createdAt) ? new
+                                                            Date(application.appliedAt ||
+                                                            application.createdAt).toLocaleDateString() : 'Recent' %>
                                                 </div>
                                             </div>
-                                            <% } %>
+                                            <span class="badge"
+                                                style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; font-size: 0.85rem;">
+                                                <%= application.status.toUpperCase().replace(/_/g, ' ' ) %>
+                                            </span>
+                                        </div>
+                                    </div>
 
-                                                <h2 class="details-section-title" style="margin-bottom: 32px;">
-                                                    Application
-                                                    Progress</h2>
+                                    <!-- Candidate Quick Summary (HR only) -->
+                                    <% if (user.role==='hr' || user.role==='admin' ) { %>
+                                        <div class="candidate-bar"
+                                            style="background: #f8fafc; padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 15px;">
 
-                                                <div class="steps-vertical">
-                                                    <!-- Step 1: Application Submitted -->
-                                                    <div class="step-v-item completed">
-                                                        <div class="step-v-icon">✓</div>
-                                                        <div class="step-v-content">
-                                                            <h4>Application Submitted</h4>
-                                                            <p>We've received your application and resume. Our team has
-                                                                been
-                                                                notified.</p>
+                                            <div style="display: flex; align-items: center; gap: 40px; width: 100%;">
+                                                <div class="cbar-item">
+                                                    <span class="cbar-label">Candidate</span>
+                                                    <span class="cbar-value"
+                                                        style="font-size: 1.1rem; font-weight: 700;">
+                                                        <%= application.candidateName %>
+                                                    </span>
+                                                </div>
+                                                <div class="cbar-item">
+                                                    <span class="cbar-label">Experience</span>
+                                                    <span
+                                                        class="cbar-value <%= (application.job.experienceMin !== undefined && application.yearsExperience < application.job.experienceMin) ? 'text-danger' : '' %>">
+                                                        <%= application.yearsExperience || 0 %> Years
+                                                    </span>
+                                                </div>
+                                                <div style="margin-left: auto;">
+                                                    <% if (application.resumeUrl) { %>
+                                                        <a href="<%= application.resumeUrl %>" target="_blank"
+                                                            class="btn-sm btn-secondary">
+                                                            📄 View Resume
+                                                        </a>
+                                                        <% } %>
+                                                </div>
+                                            </div>
+
+                                            <!-- Skill Match Section -->
+                                            <% if (application.skillsMatch) { %>
+                                                <div
+                                                    style="background: #fff; padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
+                                                    <div
+                                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                                        <span
+                                                            style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Resume
+                                                            Skill Match Index</span>
+                                                        <% let matchColor='#64748b' ; if (application.skillsMatch.score>
+                                                            70) matchColor = '#22c55e';
+                                                            else if (application.skillsMatch.score > 40) matchColor =
+                                                            '#f59e0b';
+                                                            %>
+                                                            <span class="badge"
+                                                                style="background: <%= matchColor %>; color: #fff;">
+                                                                <%= application.skillsMatch.score %>% Match
+                                                            </span>
+                                                    </div>
+                                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                                        <% application.skillsMatch.exact.forEach(skill=> { %>
+                                                            <span class="badge"
+                                                                style="background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; font-size: 0.75rem;">✓
+                                                                <%= skill %></span>
+                                                            <% }) %>
+                                                                <% application.skillsMatch.similar.forEach(skill=> { %>
+                                                                    <span class="badge"
+                                                                        style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem;">≈
+                                                                        <%= skill %></span>
+                                                                    <% }) %>
+                                                                        <%
+                                                                            application.skillsMatch.missing.forEach(skill=>
+                                                                            { %>
+                                                                            <span class="badge"
+                                                                                style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-size: 0.75rem; opacity: 0.7;">?
+                                                                                <%= skill %></span>
+                                                                            <% }) %>
+                                                    </div>
+                                                </div>
+                                                <% } %>
+                                                    <% if (application.screeningAnswers &&
+                                                        application.screeningAnswers.length> 0) { %>
+                                                        <div
+                                                            style="background: #fff; padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-top: 15px;">
+                                                            <div
+                                                                style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.5px;">
+                                                                Role-Specific Answers</div>
+                                                            <div
+                                                                style="display: flex; flex-direction: column; gap: 12px;">
+                                                                <% application.screeningAnswers.forEach(item=> { %>
+                                                                    <div
+                                                                        style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border-left: 4px solid var(--primary-color);">
+                                                                        <div
+                                                                            style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
+                                                                            <%= item.question %>
+                                                                        </div>
+                                                                        <div
+                                                                            style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4;">
+                                                                            <%= item.answer %>
+                                                                        </div>
+                                                                    </div>
+                                                                    <% }) %>
+                                                            </div>
+                                                        </div>
+                                                        <% } %>
+                                        </div>
+                                        <% } %>
+
+                                            <!-- Progress Steps Section -->
+                                            <div style="padding: 40px 32px;">
+                                                <!-- Performance Benchmarking (Candidate Only) -->
+                                                <% if (user.role==='candidate' &&
+                                                    application.assessmentStatus==='completed' ) { %>
+                                                    <div id="benchmark-panel"
+                                                        style="margin-bottom: 40px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 16px; padding: 32px; display: none;">
+                                                        <div
+                                                            style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                                                            <div>
+                                                                <h3
+                                                                    style="color: #0369a1; margin: 0 0 8px; font-size: 1.25rem;">
+                                                                    🚀 Performance Insight</h3>
+                                                                <p
+                                                                    style="color: #0c4a6e; margin: 0; font-size: 0.95rem;">
+                                                                    See
+                                                                    how you rank against the applicant pool for this
+                                                                    role.</p>
+                                                            </div>
+                                                            <span
+                                                                style="background: #0ea5e9; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Real-time
+                                                                Data</span>
+                                                        </div>
+
+                                                        <div class="grid-adaptive"
+                                                            style="grid-template-columns: 1fr 1.5fr; gap: 32px; align-items: center;">
+                                                            <div
+                                                                style="text-align: center; border-right: 1px solid #bae6fd; padding-right: 32px;">
+                                                                <div style="font-size: 3rem; font-weight: 900; color: #0284c7; line-height: 1;"
+                                                                    id="bench-percentile">—</div>
+                                                                <div
+                                                                    style="font-size: 0.75rem; font-weight: 700; color: #0369a1; text-transform: uppercase; margin-top: 8px;">
+                                                                    Percentile Rank</div>
+                                                            </div>
+                                                            <div>
+                                                                <p
+                                                                    style="color: #0c4a6e; font-size: 0.95rem; line-height: 1.6; margin: 0;">
+                                                                    You performed better than <strong
+                                                                        id="bench-percent-text">—</strong> of candidates
+                                                                    who
+                                                                    completed this assessment.
+                                                                    Your score of <strong>
+                                                                        <%= application.assessmentResults?.weightedScore??0
+                                                                            %>%
+                                                                    </strong> is
+                                                                    <span id="bench-vs-avg">—</span> the pool average
+                                                                    (<span id="bench-avg-score">—</span>%).
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                                                              <!-- Step 2: Assessment -->
-                                                    <% 
-                                                        let assessClass = ''; 
-                                                        let assessIcon = '2';
-                                                        if (application.assessmentStatus === 'completed') {
-                                                            assessClass = 'completed';
-                                                            assessIcon = '✓';
-                                                        } else if (application.assessmentStatus === 'in_progress' || application.assessmentStatus === 'invited' || (application.assessmentStatus === 'pending' && user.role === 'candidate')) {
-                                                            assessClass = 'active';
-                                                        }
-                                                    %>
-                                                    <div class="step-v-item <%= assessClass %>">
-                                                        <div class="step-v-icon"><%= assessIcon %></div>
-                                                        <div class="step-v-content">
-                                                            <h4>Scenario Assessment</h4>
-                                                            
-                                                            <% if (application.assessmentStatus === 'pending' || application.assessmentStatus === 'in_progress' || application.assessmentStatus === 'invited') { %>
-                                                                <div style="margin-top: 15px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px;">
-                                                                    <h5 style="color: var(--primary-color); margin: 0 0 10px; font-size: 1.1rem;">Assessment Ready</h5>
-                                                                    <p style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted);">This simulation will take approximately 30-45 minutes. You can resume if you get interrupted.</p>
-                
-                                                                    <% if (application.assessmentStatus === 'pending') { %>
-                                                                        <div style="background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 15px; border-radius: 8px; font-size: 0.9rem;">
-                                                                            🔒 <strong>Under Review:</strong> HR is currently reviewing your application. You will be notified once invited to take the assessment.
-                                                                        </div>
-                                                                    <% } else { %>
-                                                                        <a href="/api/assessment/assessment/<%= application._id %>" class="btn">
-                                                                            <%= application.assessmentStatus === 'in_progress' ? 'Resume Assessment' : 'Start Assessment' %>
-                                                                        </a>
-                                                                    <% } %>
+                                                    <% } %>
+
+                                                        <h2 class="details-section-title" style="margin-bottom: 32px;">
+                                                            Application
+                                                            Progress</h2>
+
+                                                        <div class="steps-vertical">
+                                                            <!-- Step 1: Application Submitted -->
+                                                            <div class="step-v-item completed">
+                                                                <div class="step-v-icon">✓</div>
+                                                                <div class="step-v-content">
+                                                                    <h4>Application Submitted</h4>
+                                                                    <p>We've received your application and resume. Our
+                                                                        team has
+                                                                        been
+                                                                        notified.</p>
                                                                 </div>
-                                                            <% } else if (application.assessmentStatus === 'completed') { %>
-                                                                <div class="details-section-card" style="margin-top: 24px; background: #f8fafc; padding: 24px;">
-                                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                                                                        <h5 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">Assessment Scorecard</h5>
-                                                                        <div style="text-align: right;">
-                                                                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Overall Fit</div>
-                                                                            <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary-color);">
-                                                                                <%= application.assessmentResults?.overallFit??'N/A' %>
-                                                                            </div>
-                                                                        </div>
+                                                            </div>
+                                                            <!-- Step 2: Assessment -->
+                                                            <% let assessClass='' ; let assessIcon='2' ; if
+                                                                (application.assessmentStatus==='completed' ) {
+                                                                assessClass='completed' ; assessIcon='✓' ; } else if
+                                                                (application.assessmentStatus==='in_progress' ||
+                                                                application.assessmentStatus==='invited' ||
+                                                                (application.assessmentStatus==='pending' &&
+                                                                user.role==='candidate' )) { assessClass='active' ; } %>
+                                                                <div class="step-v-item <%= assessClass %>">
+                                                                    <div class="step-v-icon">
+                                                                        <%= assessIcon %>
                                                                     </div>
-                
-                                                                    <div class="grid-adaptive" style="grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 24px;">
-                                                                        <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-                                                                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">TECHNICAL</div>
-                                                                            <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
-                                                                                <%= application.assessmentResults?.technicalScore??0 %>%
+                                                                    <div class="step-v-content">
+                                                                        <h4>Scenario Assessment</h4>
+
+                                                                        <% if (application.assessmentStatus==='pending'
+                                                                            ||
+                                                                            application.assessmentStatus==='in_progress'
+                                                                            || application.assessmentStatus==='invited'
+                                                                            ) { %>
+                                                                            <div
+                                                                                style="margin-top: 15px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px;">
+                                                                                <h5
+                                                                                    style="color: var(--primary-color); margin: 0 0 10px; font-size: 1.1rem;">
+                                                                                    Assessment Ready</h5>
+                                                                                <p
+                                                                                    style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted);">
+                                                                                    This simulation will take
+                                                                                    approximately 30-45 minutes. You can
+                                                                                    resume if you get interrupted.</p>
+
+                                                                                <% if
+                                                                                    (application.assessmentStatus==='pending'
+                                                                                    ) { %>
+                                                                                    <div
+                                                                                        style="background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 15px; border-radius: 8px; font-size: 0.9rem;">
+                                                                                        🔒 <strong>Under
+                                                                                            Review:</strong> HR is
+                                                                                        currently reviewing your
+                                                                                        application. You will be
+                                                                                        notified once invited to take
+                                                                                        the assessment.
+                                                                                    </div>
+                                                                                    <% } else { %>
+                                                                                        <a href="/api/assessment/assessment/<%= application._id %>"
+                                                                                            class="btn">
+                                                                                            <%= application.assessmentStatus==='in_progress'
+                                                                                                ? 'Resume Assessment'
+                                                                                                : 'Start Assessment' %>
+                                                                                        </a>
+                                                                                        <% } %>
                                                                             </div>
-                                                                        </div>
-                                                                        <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-                                                                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">SOFT SKILLS</div>
-                                                                            <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
-                                                                                <%= application.assessmentResults?.softSkillScore??0 %>%
-                                                                            </div>
-                                                                        </div>
-                                                                        <div style="background: #eff6ff; padding: 15px; border-radius: 8px; border: 2px solid var(--primary-color); text-align: center;">
-                                                                            <div style="font-size: 0.7rem; color: var(--primary-color); font-weight: 800; margin-bottom: 4px;">WEIGHTED MATCH</div>
-                                                                            <div style="font-size: 1.5rem; font-weight: 900; color: var(--primary-color);">
-                                                                                <%= matchScore %>%
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                
-                                                                    <% if (user.role === 'hr' || user.role === 'admin') { %>
-                                                                        <div style="border-top: 1px solid var(--border); padding-top: 20px;">
-                                                                            <div id="ai-summary-container" style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px;">
-                                                                                <% if (application.reviewNotes) { %>
-                                                                                    <p style="color: #78350f; font-size: 0.88rem; line-height: 1.6; margin: 0;">
-                                                                                        <strong>AI Performance Insight:</strong> <%= application.reviewNotes %>
-                                                                                    </p>
-                                                                                <% } else { %>
-                                                                                    <p style="color: var(--text-muted); font-style: italic; font-size: 0.88rem; margin: 0;">Click below to generate a detailed AI performance summary.</p>
+                                                                            <% } else if
+                                                                                (application.assessmentStatus==='completed'
+                                                                                ) { %>
+                                                                                <div class="details-section-card"
+                                                                                    style="margin-top: 24px; background: #f8fafc; padding: 24px;">
+                                                                                    <div
+                                                                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                                                                                        <h5
+                                                                                            style="margin: 0; font-size: 1.1rem; color: var(--text-main);">
+                                                                                            Assessment Scorecard</h5>
+                                                                                        <div style="text-align: right;">
+                                                                                            <div
+                                                                                                style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
+                                                                                                Overall Fit</div>
+                                                                                            <div
+                                                                                                style="font-size: 1.25rem; font-weight: 800; color: var(--primary-color);">
+                                                                                                <%= application.assessmentResults?.overallFit??'N/A'
+                                                                                                    %>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+
+                                                                                    <div class="grid-adaptive"
+                                                                                        style="grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                                                                                        <div
+                                                                                            style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                                                                                            <div
+                                                                                                style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">
+                                                                                                TECHNICAL</div>
+                                                                                            <div
+                                                                                                style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
+                                                                                                <%= application.assessmentResults?.technicalScore??0
+                                                                                                    %>%
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div
+                                                                                            style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                                                                                            <div
+                                                                                                style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">
+                                                                                                SOFT SKILLS</div>
+                                                                                            <div
+                                                                                                style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">
+                                                                                                <%= application.assessmentResults?.softSkillScore??0
+                                                                                                    %>%
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div
+                                                                                            style="background: #eff6ff; padding: 15px; border-radius: 8px; border: 2px solid var(--primary-color); text-align: center;">
+                                                                                            <div
+                                                                                                style="font-size: 0.7rem; color: var(--primary-color); font-weight: 800; margin-bottom: 4px;">
+                                                                                                WEIGHTED MATCH</div>
+                                                                                            <div
+                                                                                                style="font-size: 1.5rem; font-weight: 900; color: var(--primary-color);">
+                                                                                                <%= matchScore %>%
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+
+                                                                                    <% if (user.role==='hr' ||
+                                                                                        user.role==='admin' ) { %>
+                                                                                        <div
+                                                                                            style="border-top: 1px solid var(--border); padding-top: 20px;">
+                                                                                            <div id="ai-summary-container"
+                                                                                                style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px;">
+                                                                                                <% if
+                                                                                                    (application.reviewNotes)
+                                                                                                    { %>
+                                                                                                    <p
+                                                                                                        style="color: #78350f; font-size: 0.88rem; line-height: 1.6; margin: 0;">
+                                                                                                        <strong>AI
+                                                                                                            Performance
+                                                                                                            Insight:</strong>
+                                                                                                        <%= application.reviewNotes
+                                                                                                            %>
+                                                                                                    </p>
+                                                                                                    <% } else { %>
+                                                                                                        <p
+                                                                                                            style="color: var(--text-muted); font-style: italic; font-size: 0.88rem; margin: 0;">
+                                                                                                            Click below
+                                                                                                            to generate
+                                                                                                            a detailed
+                                                                                                            AI
+                                                                                                            performance
+                                                                                                            summary.</p>
+                                                                                                        <% } %>
+                                                                                            </div>
+                                                                                            <button
+                                                                                                onclick="generateAISummary()"
+                                                                                                class="btn-sm btn-secondary"
+                                                                                                id="btn-ai-summary"
+                                                                                                style="margin-top: 12px; width: 100%;">
+                                                                                                ✨ Generate AI
+                                                                                                Performance Summary
+                                                                                            </button>
+                                                                                        </div>
+                                                                                        <% } %>
+                                                                                </div>
                                                                                 <% } %>
-                                                                            </div>
-                                                                            <button onclick="generateAISummary()" class="btn-sm btn-secondary" id="btn-ai-summary" style="margin-top: 12px; width: 100%;">
-                                                                                ✨ Generate AI Performance Summary
-                                                                            </button>
-                                                                        </div>
-                                                                    <% } %>
+                                                                    </div>
                                                                 </div>
-                                                            <% } %>
-                                                        </div>
-                                                    </div>
-              
+
 
                                                                 <!-- Step 3: Interview -->
                                                                 <% let interviewClass='' ; let interviewIcon='3' ; if
@@ -393,31 +502,31 @@
                                                                                             <% } %>
                                                                             </div>
                                                                         </div>
-                                                </div>
+                                                        </div>
+                                            </div>
+
+                                </div>
+
+                                <!-- Back link -->
+                                <% if (user.role==='candidate' ) { %>
+                                    <div style="text-align: center; margin-top: 20px;">
+                                        <a href="/api/applications/my-dashboard" class="btn-sm btn-secondary">
+                                            ← Back to My Dashboard
+                                        </a>
                                     </div>
-
-                        </div>
-
-                        <!-- Back link -->
-                        <% if (user.role==='candidate' ) { %>
-                            <div style="text-align: center; margin-top: 20px;">
-                                <a href="/api/applications/my-dashboard" class="btn-sm btn-secondary">
-                                    ← Back to My Dashboard
-                                </a>
-                            </div>
-                            <% } %>
+                                    <% } %>
             </div>
         </div>
-                <% } %>
+        <% } %>
 
-        <script>
-            async function scheduleInterview() {
-                // Create a temporary modal for date selection
-                const modal = document.createElement('div');
-                modal.className = 'modal-overlay';
-                modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
-                
-                modal.innerHTML = `
+            <script>
+                async function scheduleInterview() {
+                    // Create a temporary modal for date selection
+                    const modal = document.createElement('div');
+                    modal.className = 'modal-overlay';
+                    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+
+                    modal.innerHTML = `
                     <div style="background: white; padding: 25px; border-radius: 12px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
                         <h3 style="margin-top: 0; margin-bottom: 20px; color: #1e293b;">Schedule Interview</h3>
                         <div style="margin-bottom: 20px;">
@@ -430,86 +539,86 @@
                         </div>
                     </div>
                 `;
-                
-                document.body.appendChild(modal);
-                
-                // Pre-fill with tomorrow
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                tomorrow.setHours(10, 0, 0, 0);
-                document.getElementById('interview-datetime').value = tomorrow.toISOString().slice(0, 16);
 
-                return new Promise((resolve) => {
-                    document.getElementById('cancel-schedule').onclick = () => {
-                        document.body.removeChild(modal);
-                    };
+                    document.body.appendChild(modal);
 
-                    document.getElementById('submit-schedule').onclick = async () => {
-                        const interviewDate = document.getElementById('interview-datetime').value;
-                        if (!interviewDate) return alert('Please select a date');
-                        
-                        document.body.removeChild(modal);
-                        
-                        try {
-                            const response = await fetch(`/api/applications/application/<%= application._id %>/status`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                    status: 'interview_scheduled', 
-                                    interviewDate, 
-                                    notes: `Interview scheduled via Dashboard` 
-                                })
-                            });
-                            const data = await response.json();
-                            if (data.success) { alert('Interview scheduled!'); location.reload(); }
-                            else alert('Failed: ' + data.error);
-                        } catch (e) { alert('Error scheduling interview.'); }
-                    };
-                });
-            }
+                    // Pre-fill with tomorrow
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    tomorrow.setHours(10, 0, 0, 0);
+                    document.getElementById('interview-datetime').value = tomorrow.toISOString().slice(0, 16);
 
-            async function updateStatus(newStatus) {
-                let msg = 'Update application status?';
-                if (newStatus === 'shortlisted') msg = 'Shortlist this candidate?';
-                if (newStatus === 'rejected') msg = 'Reject this application?';
-                if (newStatus === 'hired') msg = 'Mark this candidate as HIRED? (This will extend an offer)';
-                if (!confirm(msg)) return;
-                try {
-                    const response = await fetch(`/api/applications/application/<%= application._id %>/status`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: newStatus })
+                    return new Promise((resolve) => {
+                        document.getElementById('cancel-schedule').onclick = () => {
+                            document.body.removeChild(modal);
+                        };
+
+                        document.getElementById('submit-schedule').onclick = async () => {
+                            const interviewDate = document.getElementById('interview-datetime').value;
+                            if (!interviewDate) return alert('Please select a date');
+
+                            document.body.removeChild(modal);
+
+                            try {
+                                const response = await fetch(`/api/applications/application/<%= application._id %>/status`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        status: 'interview_scheduled',
+                                        interviewDate,
+                                        notes: `Interview scheduled via Dashboard`
+                                    })
+                                });
+                                const data = await response.json();
+                                if (data.success) { alert('Interview scheduled!'); location.reload(); }
+                                else alert('Failed: ' + data.error);
+                            } catch (e) { alert('Error scheduling interview.'); }
+                        };
                     });
-                    const data = await response.json();
-                    if (data.success) { alert(`Candidate ${newStatus}!`); location.reload(); }
-                    else alert('Error: ' + data.error);
-                } catch (e) { alert('Failed to update status.'); }
-            }
+                }
 
-            async function generateAISummary() {
-                const btn = document.getElementById('btn-ai-summary');
-                const container = document.getElementById('ai-summary-container');
-                btn.disabled = true; btn.innerText = '✨ Analyzing...'; container.style.opacity = '0.5';
-                try {
-                    const response = await fetch(`/api/applications/application/<%= application._id %>/ai-summary`, { method: 'POST' });
-                    const data = await response.json();
-                    if (data.success) {
-                        container.innerHTML = `<p class="ai-summary-text">${data.summary}</p>`;
-                        btn.innerText = '✨ Regenerate Summary';
-                    } else alert('Error: ' + data.error);
-                } catch (e) { alert('Failed to generate AI summary.'); }
-                finally { btn.disabled = false; container.style.opacity = '1'; }
-            }
+                async function updateStatus(newStatus) {
+                    let msg = 'Update application status?';
+                    if (newStatus === 'shortlisted') msg = 'Shortlist this candidate?';
+                    if (newStatus === 'rejected') msg = 'Reject this application?';
+                    if (newStatus === 'hired') msg = 'Mark this candidate as HIRED? (This will extend an offer)';
+                    if (!confirm(msg)) return;
+                    try {
+                        const response = await fetch(`/api/applications/application/<%= application._id %>/status`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: newStatus })
+                        });
+                        const data = await response.json();
+                        if (data.success) { alert(`Candidate ${newStatus}!`); location.reload(); }
+                        else alert('Error: ' + data.error);
+                    } catch (e) { alert('Failed to update status.'); }
+                }
 
-            // --- INVITATION MODAL LOGIC ---
-            function openInviteModal() {
-                // Create modal if it doesn't exist
-                let modal = document.getElementById('invite-modal');
-                if (!modal) {
-                    modal = document.createElement('div');
-                    modal.id = 'invite-modal';
-                    modal.className = 'modal-overlay';
-                    modal.innerHTML = `
+                async function generateAISummary() {
+                    const btn = document.getElementById('btn-ai-summary');
+                    const container = document.getElementById('ai-summary-container');
+                    btn.disabled = true; btn.innerText = '✨ Analyzing...'; container.style.opacity = '0.5';
+                    try {
+                        const response = await fetch(`/api/applications/application/<%= application._id %>/ai-summary`, { method: 'POST' });
+                        const data = await response.json();
+                        if (data.success) {
+                            container.innerHTML = `<p class="ai-summary-text">${data.summary}</p>`;
+                            btn.innerText = '✨ Regenerate Summary';
+                        } else alert('Error: ' + data.error);
+                    } catch (e) { alert('Failed to generate AI summary.'); }
+                    finally { btn.disabled = false; container.style.opacity = '1'; }
+                }
+
+                // --- INVITATION MODAL LOGIC ---
+                function openInviteModal() {
+                    // Create modal if it doesn't exist
+                    let modal = document.getElementById('invite-modal');
+                    if (!modal) {
+                        modal = document.createElement('div');
+                        modal.id = 'invite-modal';
+                        modal.className = 'modal-overlay';
+                        modal.innerHTML = `
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h2>Send Assessment Invite: <%= application.candidateName %></h2>
@@ -531,88 +640,88 @@
                                 <button class="btn" id="send-invite-btn" onclick="sendInvite()">Send Invitation</button>
                             </div>
                         </div>`;
-                    document.body.appendChild(modal);
-                }
-                modal.style.display = 'flex';
-                loadInvitePreview();
-            }
-
-            function closeInviteModal() {
-                document.getElementById('invite-modal').style.display = 'none';
-            }
-
-            async function loadInvitePreview() {
-                const previewDiv = document.getElementById('invite-preview');
-                try {
-                    const res = await fetch('/api/notifications/templates');
-                    const data = await res.json();
-                    if (data.success) {
-                        const template = data.data.find(t => t.name === 'assessment_invite');
-                        if (template) {
-                            let body = template.body;
-                            body = body.replace(/{{candidateName}}/g, "<%= application.candidateName %>");
-                            body = body.replace(/{{jobTitle}}/g, "<%= application.job.title %>");
-                            previewDiv.textContent = body;
-                        }
+                        document.body.appendChild(modal);
                     }
-                } catch (e) { previewDiv.textContent = "Error loading preview."; }
-            }
+                    modal.style.display = 'flex';
+                    loadInvitePreview();
+                }
 
-            async function sendInvite() {
-                const btn = document.getElementById('send-invite-btn');
-                btn.disabled = true; btn.innerText = 'Sending...';
-                
-                const config = {
-                    strategy: 'balanced',
-                    difficulty: 'Match Job',
-                    duration: 30,
-                    includeTechnical: true,
-                    includeScenarios: true
-                };
+                function closeInviteModal() {
+                    document.getElementById('invite-modal').style.display = 'none';
+                }
 
-                try {
-                    const res = await fetch(`/api/applications/application/<%= application._id %>/invite`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ config })
-                    });
-                    const data = await res.json();
-                    if (data.success) { alert('Invitation sent!'); closeInviteModal(); location.reload(); }
-                    else alert('Error: ' + data.error);
-                } catch (e) { alert('Failed to send.'); }
-                finally { btn.disabled = false; btn.innerText = 'Send Invitation'; }
-            }
-
-            // --- BENCHMARKING LOGIC ---
-            if ("<%= user.role %>" === 'candidate' && "<%= application.assessmentStatus %>" === 'completed') {
-                (async function loadBenchmark() {
+                async function loadInvitePreview() {
+                    const previewDiv = document.getElementById('invite-preview');
                     try {
-                        const res = await fetch(`/api/applications/application/<%= application._id %>/benchmark`);
+                        const res = await fetch('/api/notifications/templates');
                         const data = await res.json();
                         if (data.success) {
-                            const { percentile, avgScore, myScore } = data.data;
-                            document.getElementById('bench-percentile').textContent = `${percentile}th`;
-                            document.getElementById('bench-percent-text').textContent = `${percentile}%`;
-                            document.getElementById('bench-avg-score').textContent = avgScore;
-
-                            const panel = document.getElementById('benchmark-panel');
-                            const vsAvg = document.getElementById('bench-vs-avg');
-
-                            if (myScore > avgScore) {
-                                vsAvg.innerHTML = `<span style="color: #16a34a; font-weight: 700;">${myScore - avgScore}% above</span>`;
-                            } else if (myScore < avgScore) {
-                                vsAvg.innerHTML = `<span style="color: #dc2626; font-weight: 700;">${avgScore - myScore}% below</span>`;
-                            } else {
-                                vsAvg.innerHTML = `<span style="color: var(--text-muted); font-weight: 700;">equal to</span>`;
+                            const template = data.data.find(t => t.name === 'assessment_invite');
+                            if (template) {
+                                let body = template.body;
+                                body = body.replace(/{{candidateName}}/g, "<%= application.candidateName %>");
+                                body = body.replace(/{{jobTitle}}/g, "<%= application.job.title %>");
+                                previewDiv.textContent = body;
                             }
-
-                            panel.style.display = 'block';
                         }
-                    } catch (e) { console.error('Benchmark failed to load:', e); }
-                })();
-            }
+                    } catch (e) { previewDiv.textContent = "Error loading preview."; }
+                }
 
-        </script>
+                async function sendInvite() {
+                    const btn = document.getElementById('send-invite-btn');
+                    btn.disabled = true; btn.innerText = 'Sending...';
+
+                    const config = {
+                        strategy: 'balanced',
+                        difficulty: 'Match Job',
+                        duration: 30,
+                        includeTechnical: true,
+                        includeScenarios: true
+                    };
+
+                    try {
+                        const res = await fetch(`/api/applications/application/<%= application._id %>/invite`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ config })
+                        });
+                        const data = await res.json();
+                        if (data.success) { alert('Invitation sent!'); closeInviteModal(); location.reload(); }
+                        else alert('Error: ' + data.error);
+                    } catch (e) { alert('Failed to send.'); }
+                    finally { btn.disabled = false; btn.innerText = 'Send Invitation'; }
+                }
+
+                // --- BENCHMARKING LOGIC ---
+                if ("<%= user.role %>" === 'candidate' && "<%= application.assessmentStatus %>" === 'completed') {
+                    (async function loadBenchmark() {
+                        try {
+                            const res = await fetch(`/api/applications/application/<%= application._id %>/benchmark`);
+                            const data = await res.json();
+                            if (data.success) {
+                                const { percentile, avgScore, myScore } = data.data;
+                                document.getElementById('bench-percentile').textContent = `${percentile}th`;
+                                document.getElementById('bench-percent-text').textContent = `${percentile}%`;
+                                document.getElementById('bench-avg-score').textContent = avgScore;
+
+                                const panel = document.getElementById('benchmark-panel');
+                                const vsAvg = document.getElementById('bench-vs-avg');
+
+                                if (myScore > avgScore) {
+                                    vsAvg.innerHTML = `<span style="color: #16a34a; font-weight: 700;">${myScore - avgScore}% above</span>`;
+                                } else if (myScore < avgScore) {
+                                    vsAvg.innerHTML = `<span style="color: #dc2626; font-weight: 700;">${avgScore - myScore}% below</span>`;
+                                } else {
+                                    vsAvg.innerHTML = `<span style="color: var(--text-muted); font-weight: 700;">equal to</span>`;
+                                }
+
+                                panel.style.display = 'block';
+                            }
+                        } catch (e) { console.error('Benchmark failed to load:', e); }
+                    })();
+                }
+
+            </script>
 </body>
 
 </html>

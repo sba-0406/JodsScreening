@@ -40,10 +40,10 @@ const UserSchema = new mongoose.Schema({
   parsedResumeData: {
     skills: [String],
     profile: {
-        name: String,
-        email: String,
-        phone: String,
-        years: Number
+      name: String,
+      email: String,
+      phone: String,
+      years: Number
     },
     lastParsed: Date
   },

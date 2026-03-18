@@ -38,7 +38,6 @@ app.use(cors());
 
 // Set static folder for public assets
 app.use(express.static(path.join(__dirname, '../frontend/public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Set View Engine
 app.set('view engine', 'ejs');
@@ -62,6 +61,7 @@ app.use((req, res, next) => {
 });
 
 const notificationRoutes = require('./routes/notificationRoutes');
+const resumeRoutes = require('./routes/resumeRoutes');
 
 // Mount routers
 app.use('/api/auth', authRoutes);
@@ -69,6 +69,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/resumes', resumeRoutes);
 app.use('/api/notifications', notificationRoutes);
 // Redirect legacy dojo routes to the new assessment paths
 app.get('/dojo/assessment/:id', (req, res) => res.redirect(`/api/assessment/assessment/${req.params.id}`));

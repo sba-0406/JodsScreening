@@ -8,6 +8,7 @@ backend/scripts/
 
 # Documentation
 documentation/
+docs/
 
 # Uploads & Sensitive Data
 backend/uploads/resumes/*

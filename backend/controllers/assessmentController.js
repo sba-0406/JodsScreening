@@ -32,15 +32,19 @@ exports.startAssessment = async (req, res) => {
             return res.status(403).send('Unauthorized');
         }
 
+
+        if (application.assessmentStatus === 'completed') {
+            return res.redirect(`/api/applications/application/${application._id}/view`);
+        }
+
+
         // --- NEW GUARD: INVITE ONLY ---
         const allowedStatuses = ['invited', 'in_progress'];
         if (!allowedStatuses.includes(application.assessmentStatus)) {
             return res.status(403).send('<h2>Access Denied</h2><p>You must be invited by HR to take this assessment.</p><a href="/api/applications/my-dashboard">Back to Dashboard</a>');
         }
 
-        if (application.assessmentStatus === 'completed') {
-            return res.redirect(`/api/applications/application/${application._id}/view`);
-        }
+
 
         // Check if a chat session already exists for this assessment
         let session = await ChatSession.findOne({
@@ -64,7 +68,7 @@ exports.startAssessment = async (req, res) => {
 
             // Initialize Phase 1: MCQ (Only if enabled)
             const includeTechnical = application.assessmentConfig?.includeTechnical !== false;
-            
+
             session = await ChatSession.create({
                 user: req.user._id,
                 application: application._id,
@@ -193,7 +197,7 @@ exports.getAssessmentSession = async (req, res) => {
                 // Transition to Scenario Phase ONLY if scenarios exist
                 const hasScenarios = session.scenarioProgress?.scenarios?.length > 0;
                 console.log(`[ASSESSMENT] MCQ Phase complete. Scenarios exist: ${hasScenarios}`);
-                
+
                 if (hasScenarios) {
                     session.assessmentPhase = 'SCENARIO';
                     // Initialize first scenario persona if not set
@@ -216,7 +220,7 @@ exports.getAssessmentSession = async (req, res) => {
                         const metrics = (config && config.metrics && config.metrics.length > 0)
                             ? config.metrics
                             : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
-                        
+
                         const initialState = {};
                         metrics.forEach(m => initialState[m] = 50);
                         session.worldState = initialState;
@@ -318,7 +322,7 @@ exports.submitMCQAnswer = async (req, res) => {
 
         // Atomic Update to prevent race conditions during rapid clicking
         const skillKey = sanitizeSkill(question.skill);
-        
+
         // Get current score safely (handle Map vs Object)
         let currentScore = 0;
         if (session.skillScores) {
@@ -328,7 +332,7 @@ exports.submitMCQAnswer = async (req, res) => {
                 currentScore = session.skillScores[skillKey] || 0;
             }
         }
-        
+
         const updatedSession = await ChatSession.findByIdAndUpdate(
             sessionId,
             {
@@ -358,7 +362,7 @@ exports.submitMCQAnswer = async (req, res) => {
 
             if (includeScenarios && hasScenarios) {
                 updatedSession.assessmentPhase = 'SCENARIO';
-                
+
                 // Initialize first scenario persona
                 const firstScenario = updatedSession.scenarioProgress.scenarios[0];
                 updatedSession.persona = {
@@ -378,7 +382,7 @@ exports.submitMCQAnswer = async (req, res) => {
                     const metrics = (config && config.metrics && config.metrics.length > 0)
                         ? config.metrics
                         : ['Stakeholder Trust', 'Execution Quality', 'Relationship Risk'];
-                    
+
                     metrics.forEach(m => {
                         updatedSession.worldState.set(m, 50);
                     });
@@ -386,7 +390,7 @@ exports.submitMCQAnswer = async (req, res) => {
             } else {
                 updatedSession.assessmentPhase = 'COMPLETED';
             }
-            
+
             await updatedSession.save();
         }
 
@@ -446,11 +450,11 @@ exports.respondToScenario = async (req, res) => {
                 session.worldState.set(metric, Math.max(0, Math.min(100, currentVal + Number(delta))));
 
                 // Track skill scores - we use the scenario theme/stakeholder as the skill proxy
-                if (delta > 0) {
-                    const approach = 'Behavioral'; // Generic label for free-text
-                    const currentSkillScore = session.skillScores.get(approach) || 0;
-                    session.skillScores.set(approach, currentSkillScore + delta);
-                }
+                // if (delta > 0) {
+                //     const approach = 'Behavioral'; // Generic label for free-text
+                //     const currentSkillScore = session.skillScores.get(approach) || 0;
+                //     session.skillScores.set(approach, currentSkillScore + delta);
+                // }
             }
         }
 
@@ -477,15 +481,15 @@ exports.respondToScenario = async (req, res) => {
         );
 
         // Map modified metrics back to session for UI logic
-        if (evaluation.deltas) {
-            for (const [metric, delta] of Object.entries(evaluation.deltas)) {
-                if (delta > 0) {
-                    const approach = 'Behavioral';
-                    updatedSession.skillScores.set(approach, (updatedSession.skillScores.get(approach) || 0) + delta);
-                }
-            }
-            await updatedSession.save(); // Save the skillScore update
-        }
+        // if (evaluation.deltas) {
+        //     for (const [metric, delta] of Object.entries(evaluation.deltas)) {
+        //         if (delta > 0) {
+        //             const approach = 'Behavioral';
+        //             updatedSession.skillScores.set(approach, (updatedSession.skillScores.get(approach) || 0) + delta);
+        //         }
+        //     }
+        //     await updatedSession.save(); // Save the skillScore update
+        // }
 
         // Turn limit per scenario in assessment
         const MAX_TURNS = 3;

@@ -541,7 +541,7 @@ class ResilientAIService {
         Return ONLY valid JSON:
         {
           "deltas": {
-            "MetricName1": number (-15 to +15),
+            "MetricName1": number (-10 to +10),
             "MetricName2": number,
             "MetricName3": number
           },
@@ -550,9 +550,10 @@ class ResilientAIService {
         }
         
         SCORING RULES:
-        - Be critical. Only give +10 or higher for exceptional responses.
+        - Be critical. Only give +8 or higher for exceptional responses.
         - Give negative scores for unprofessional, evasive, or risky behaviors.
-        - Ensure all 3 metrics are listed in deltas.`;
+        - Ensure all 3 metrics are listed in deltas.
+        - Also take the polarity into consideration and accordingly decide if positive or negative score is best (high polarity:+10 is best score,low polarity:-10 is best score).`;
 
         try {
             const res = await this.generateContent(p, true);

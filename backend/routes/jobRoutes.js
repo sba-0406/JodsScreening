@@ -24,15 +24,15 @@ router.delete('/:id', jobController.deleteJob);
 // Assessment generation
 router.post('/:id/generate-assessment', jobController.generateAssessment);
 router.put('/:id/assessment', jobController.updateAssessment);
-router.post('/:id/regenerate-questions', jobController.regenerateTechnicalAssessment);
+//router.post('/:id/regenerate-questions', jobController.regenerateTechnicalAssessment);
 router.post('/:id/regenerate-scenarios', jobController.regenerateScenarios);
-router.post('/:id/approve-all', jobController.approveAllQuestions);
-router.put('/:id/questions/:questionId', jobController.moderateQuestion);
-router.delete('/:id/questions/:questionId/remove', jobController.removeQuestionFromAssessment);
+//router.post('/:id/approve-all', jobController.approveAllQuestions);
+// router.put('/:id/questions/:questionId', jobController.moderateQuestion);
+// router.delete('/:id/questions/:questionId/remove', jobController.removeQuestionFromAssessment);
 
 // AI Question Suggestions
-router.post('/:id/suggestions/approve', jobController.approveSuggestions);
-router.post('/:id/suggestions/dismiss', jobController.dismissSuggestions);
+//router.post('/:id/suggestions/approve', jobController.approveSuggestions);
+//router.post('/:id/suggestions/dismiss', jobController.dismissSuggestions);
 router.post('/:id/suggestions/generate-more', jobController.generateMoreSuggestions);
 
 // Technical Pool

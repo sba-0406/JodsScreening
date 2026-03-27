@@ -1332,8 +1332,22 @@
 
             // New Manual Entry Handlers
             function toggleManualQuestionForm() {
+                const pool = document.getElementById('unified-skill-pool');
+                const toggleBtn = document.getElementById('toggle-pool-btn');
                 const form = document.getElementById('manual-question-form');
-                form.style.display = form.style.display === 'none' ? 'block' : 'none';
+
+                // 1. Ensure the pool is visible
+                if (pool && pool.style.display === 'none') {
+                    pool.style.display = 'block';
+                    if (toggleBtn) toggleBtn.style.display = 'none';
+                }
+
+                // 2. Toggle the form
+                if (form) {
+                    const isOpening = form.style.display === 'none';
+                    form.style.display = isOpening ? 'block' : 'none';
+                    if (isOpening) form.scrollIntoView({ behavior: 'smooth' });
+                }
             }
 
             function toggleManualScenarioForm() {

@@ -281,235 +281,8 @@ exports.getJobById = async (req, res) => {
     }
 };
 
-// @desc    Approve/Reject AI generated question
-// @route   PUT /api/jobs/:id/questions/:questionId
-// @access  Private (HR/Admin)
-exports.moderateQuestion = async (req, res) => {
-    try {
-        const { id, questionId } = req.params;
-        const { action } = req.body; // 'approve' or 'reject'
 
-        console.log(`[MODERATION] action=${action} questionId=${questionId} jobId=${id}`);
 
-        const job = await Job.findById(id);
-        if (!job || !job.assessmentId) {
-            return res.status(404).json({ success: false, error: 'Job or assessment not found' });
-        }
-
-        // Load assessment directly with populated questions for comparison
-        const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
-        if (!assessment) {
-            return res.status(404).json({ success: false, error: 'Assessment not found' });
-        }
-
-        console.log(`[MODERATION] Assessment has ${assessment.technicalQuestions.length} questions`);
-
-        // Robust comparison: handle both populated & unpopulated questionId refs
-        const qIndex = assessment.technicalQuestions.findIndex(q => {
-            const qId = q.questionId;
-            if (!qId) return false;
-            // If populated (object with _id), compare _id; if unpopulated (ObjectId), compare directly
-            const idStr = qId._id ? qId._id.toString() : qId.toString();
-            return idStr === questionId;
-        });
-
-        console.log(`[MODERATION] findIndex result: ${qIndex}`);
-
-        if (qIndex === -1) {
-            console.error(`[MODERATION ERROR] questionId ${questionId} not found. IDs in assessment:`,
-                assessment.technicalQuestions.map(q => {
-                    const qId = q.questionId;
-                    if (!qId) return 'null';
-                    return qId._id ? qId._id.toString() : qId.toString();
-                })
-            );
-            return res.status(404).json({ success: false, error: 'Question not found in assessment' });
-        }
-
-        const Question = require('../models/Question');
-        const questionPoolItem = await Question.findById(questionId);
-
-        if (action === 'approve') {
-            if (questionPoolItem) {
-                questionPoolItem.status = 'active';
-                questionPoolItem.isVerified = true; // Add to verified bank
-                await questionPoolItem.save();
-                console.log(`[MODERATION] Question ${questionId} approved and added to active bank.`);
-            } else {
-                console.warn(`[MODERATION] Question ${questionId} not in Question collection. Marking assessment entry only.`);
-            }
-        } else if (action === 'reject') {
-            // Remove from assessment
-            assessment.technicalQuestions.splice(qIndex, 1);
-            assessment.markModified('technicalQuestions');
-            await assessment.save();
-
-            // Retire from pool
-            if (questionPoolItem) {
-                questionPoolItem.status = 'retired';
-                await questionPoolItem.save();
-                console.log(`[MODERATION] Question ${questionId} rejected and retired.`);
-            }
-        }
-
-        // Re-calculate assessment status: only blocked if questions still need approval
-        const updatedAssessment = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
-        const hasPending = updatedAssessment.technicalQuestions.some(q => q.questionId?.status === 'pending_review');
-
-        updatedAssessment.status = hasPending ? 'pending_review' : 'active';
-        await updatedAssessment.save();
-
-        // Return fully populated assessment for AJAX re-rendering
-        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
-
-        res.json({
-            success: true,
-            message: `Question ${action}d successfully`,
-            data: fullyPopulated
-        });
-    } catch (error) {
-        console.error('Error moderating question:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-};
-
-// @desc    Remove a question from an assessment (does NOT delete from global bank)
-// @route   DELETE /api/jobs/:id/questions/:questionId/remove
-// @access  Private (HR/Admin)
-exports.removeQuestionFromAssessment = async (req, res) => {
-    try {
-        const { id, questionId } = req.params;
-        const job = await Job.findById(id);
-        if (!job || !job.assessmentId) {
-            return res.status(404).json({ success: false, error: 'Job or assessment not found' });
-        }
-
-        const assessment = await Assessment.findById(job.assessmentId);
-        if (!assessment) return res.status(404).json({ success: false, error: 'Assessment not found' });
-
-        const before = assessment.technicalQuestions.length;
-        assessment.technicalQuestions = assessment.technicalQuestions.filter(q => {
-            const qId = q.questionId?._id ? q.questionId._id.toString() : q.questionId?.toString();
-            return qId !== questionId;
-        });
-
-        if (assessment.technicalQuestions.length === before) {
-            return res.status(404).json({ success: false, error: 'Question not found in this assessment' });
-        }
-
-        assessment.questionCounts.technical = assessment.technicalQuestions.length;
-        assessment.markModified('technicalQuestions');
-        await assessment.save();
-
-        // Return fully populated assessment for AJAX re-rendering
-        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
-
-        res.json({ success: true, message: 'Question removed from assessment', data: fullyPopulated });
-    } catch (error) {
-        console.error('Error removing question from assessment:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-};
-
-// @desc    Approve AI suggestions
-// @route   POST /api/jobs/:id/suggestions/approve
-// @access  Private (HR/Admin)
-exports.approveSuggestions = async (req, res) => {
-    try {
-        const { questionIds, skillTargetCounts } = req.body;
-        const job = await Job.findById(req.params.id);
-        if (!job || !job.assessmentId) return res.status(404).json({ success: false, error: 'Job/Assessment not found' });
-
-        const Assessment = require('../models/Assessment');
-        const Question = require('../models/Question');
-        const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
-
-        const selectedSuggestions = assessment.suggestedQuestions.filter(q => questionIds.includes(q._id.toString()));
-        const bySkill = {};
-        for (const sug of selectedSuggestions) {
-            if (!bySkill[sug.skill]) bySkill[sug.skill] = [];
-            bySkill[sug.skill].push(sug);
-        }
-
-        let addedToAssessment = 0;
-        let addedToQB = 0;
-
-        for (const skill of Object.keys(bySkill)) {
-            const suggestionsForSkill = bySkill[skill];
-            const maxForSkill = skillTargetCounts[skill] || 2;
-            const currentInAssessment = assessment.technicalQuestions.filter(q => q.skill === skill).length;
-            let slotsLeft = Math.max(0, maxForSkill - currentInAssessment);
-
-            for (const sug of suggestionsForSkill) {
-                const newQ = await Question.create({
-                    skill: sug.skill,
-                    difficulty: sug.difficulty,
-                    question: sug.question,
-                    options: sug.options,
-                    correctAnswer: sug.correctAnswer,
-                    explanation: sug.explanation,
-                    status: 'active',
-                    isVerified: true,
-                    source: sug.source || 'ai_generated',
-                    createdBy: req.user?._id || null
-                });
-                addedToQB++;
-
-                if (slotsLeft > 0) {
-                    assessment.technicalQuestions.push({
-                        questionId: newQ._id,
-                        skill: newQ.skill,
-                        difficulty: newQ.difficulty,
-                        isManual: false
-                    });
-                    slotsLeft--;
-                    addedToAssessment++;
-                }
-
-                assessment.suggestedQuestions = assessment.suggestedQuestions.filter(q => q._id.toString() !== sug._id.toString());
-            }
-        }
-
-        assessment.questionCounts.technical = assessment.technicalQuestions.length;
-        if (assessment.suggestedQuestions.length === 0 && assessment.technicalQuestions.length > 0) {
-            assessment.status = 'active';
-        }
-        await assessment.save();
-
-        // Return fully populated assessment for AJAX re-rendering
-        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
-
-        res.json({ success: true, addedToAssessment, addedToQB, data: fullyPopulated });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, error: err.message });
-    }
-};
-
-// @desc    Dismiss AI suggestions
-// @route   POST /api/jobs/:id/suggestions/dismiss
-// @access  Private (HR/Admin)
-exports.dismissSuggestions = async (req, res) => {
-    try {
-        const { questionIds } = req.body;
-        const Assessment = require('../models/Assessment');
-        const job = await Job.findById(req.params.id);
-        const assessment = await Assessment.findById(job.assessmentId);
-
-        assessment.suggestedQuestions = assessment.suggestedQuestions.filter(q => !questionIds.includes(q._id.toString()));
-        if (assessment.suggestedQuestions.length === 0 && assessment.technicalQuestions.length > 0) {
-            assessment.status = 'active';
-        }
-        await assessment.save();
-
-        // Return fully populated assessment for AJAX re-rendering
-        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
-
-        res.json({ success: true, message: 'Dismissed', data: fullyPopulated });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-};
 
 // @desc    Generate more AI suggestions for a skill
 // @route   POST /api/jobs/:id/suggestions/generate-more
@@ -683,79 +456,80 @@ exports.saveSkillSelection = async (req, res) => {
 // @desc    Approve all pending questions in an assessment
 // @route   POST /api/jobs/:id/approve-all
 // @access  Private (HR/Admin)
-exports.approveAllQuestions = async (req, res) => {
-    try {
-        const job = await Job.findById(req.params.id);
-        if (!job || !job.assessmentId) {
-            return res.status(404).json({ success: false, error: 'Job or assessment not found' });
-        }
+// exports.approveAllQuestions = async (req, res) => {
+//     try {
+//         const job = await Job.findById(req.params.id);
+//         if (!job || !job.assessmentId) {
+//             return res.status(404).json({ success: false, error: 'Job or assessment not found' });
+//         }
 
-        const Assessment = require('../models/Assessment');
-        const Question = require('../models/Question');
-        const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
+//         const Assessment = require('../models/Assessment');
+//         const Question = require('../models/Question');
+//         const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
 
-        for (const qEntry of assessment.technicalQuestions) {
-            if (qEntry.questionId) {
-                if (qEntry.questionId.status === 'pending_review') {
-                    qEntry.questionId.status = 'active';
-                    qEntry.questionId.isVerified = true;
-                    await qEntry.questionId.save();
-                } else if (qEntry.questionId.status === 'active' && !qEntry.questionId.isVerified) {
-                    // Sync verified status for previously approved questions
-                    qEntry.questionId.isVerified = true;
-                    await qEntry.questionId.save();
-                }
-            }
-        }
+//         for (const qEntry of assessment.technicalQuestions) {
+//             if (qEntry.questionId) {
+//                 if (qEntry.questionId.status === 'pending_review') {
+//                     qEntry.questionId.status = 'active';
+//                     qEntry.questionId.isVerified = true;
+//                     await qEntry.questionId.save();
+//                 } else if (qEntry.questionId.status === 'active' && !qEntry.questionId.isVerified) {
+//                     // Sync verified status for previously approved questions
+//                     qEntry.questionId.isVerified = true;
+//                     await qEntry.questionId.save();
+//                 }
+//             }
+//         }
 
-        // Assessment is now active as long as no questions are still pending review
-        assessment.status = assessment.technicalQuestions.some(
-            q => q.questionId?.status === 'pending_review'
-        ) ? 'pending_review' : 'active';
-        await assessment.save();
+//         // Assessment is now active as long as no questions are still pending review
+//         assessment.status = assessment.technicalQuestions.some(
+//             q => q.questionId?.status === 'pending_review'
+//         ) ? 'pending_review' : 'active';
+//         await assessment.save();
 
-        // Return fully populated assessment for AJAX re-rendering
-        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+//         // Return fully populated assessment for AJAX re-rendering
+//         const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
 
-        res.json({
-            success: true,
-            message: 'All pending questions approved and added to global bank',
-            data: fullyPopulated
-        });
-    } catch (error) {
-        console.error('Error approving all questions:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-};
+//         res.json({
+//             success: true,
+//             message: 'All pending questions approved and added to global bank',
+//             data: fullyPopulated
+//         });
+//     } catch (error) {
+//         console.error('Error approving all questions:', error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// };
+
 
 // @desc    Regenerate technical questions for an assessment
 // @route   POST /api/jobs/:id/regenerate-questions
 // @access  Private (HR/Admin)
-exports.regenerateTechnicalAssessment = async (req, res) => {
-    try {
-        const job = await Job.findById(req.params.id);
+// exports.regenerateTechnicalAssessment = async (req, res) => {
+//     try {
+//         const job = await Job.findById(req.params.id);
 
-        if (!job || !job.assessmentId) {
-            return res.status(404).json({ success: false, error: 'Job or assessment not found' });
-        }
+//         if (!job || !job.assessmentId) {
+//             return res.status(404).json({ success: false, error: 'Job or assessment not found' });
+//         }
 
-        const { regenerateTechnicalQuestions } = require('../services/assessmentGeneratorService');
+//         const { regenerateTechnicalQuestions } = require('../services/assessmentGeneratorService');
 
-        // Pass current config
-        const assessment = await regenerateTechnicalQuestions(job.assessmentId, job.assessmentConfig);
+//         // Pass current config
+//         const assessment = await regenerateTechnicalQuestions(job.assessmentId, job.assessmentConfig);
 
-        // Return fully populated assessment for AJAX re-rendering
-        const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+//         // Return fully populated assessment for AJAX re-rendering
+//         const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
 
-        res.json({
-            success: true,
-            data: fullyPopulated
-        });
-    } catch (error) {
-        console.error('Error regenerating technical questions:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-};
+//         res.json({
+//             success: true,
+//             data: fullyPopulated
+//         });
+//     } catch (error) {
+//         console.error('Error regenerating technical questions:', error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// };
 
 // @desc    Regenerate scenario templates
 // @route   POST /api/jobs/:id/regenerate-scenarios
@@ -1182,3 +956,264 @@ exports.renderJobDetail = async (req, res) => {
         res.render('job-detail', { user: req.user, job, title: job.title });
     } catch (e) { res.status(500).send('Error'); }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// @desc    Approve/Reject AI generated question
+// @route   PUT /api/jobs/:id/questions/:questionId
+// @access  Private (HR/Admin)
+//deadCode
+// exports.moderateQuestion = async (req, res) => {
+//     try {
+//         const { id, questionId } = req.params;
+//         const { action } = req.body; // 'approve' or 'reject'
+
+//         console.log(`[MODERATION] action=${action} questionId=${questionId} jobId=${id}`);
+
+//         const job = await Job.findById(id);
+//         if (!job || !job.assessmentId) {
+//             return res.status(404).json({ success: false, error: 'Job or assessment not found' });
+//         }
+
+//         // Load assessment directly with populated questions for comparison
+//         const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
+//         if (!assessment) {
+//             return res.status(404).json({ success: false, error: 'Assessment not found' });
+//         }
+
+//         console.log(`[MODERATION] Assessment has ${assessment.technicalQuestions.length} questions`);
+
+//         // Robust comparison: handle both populated & unpopulated questionId refs
+//         const qIndex = assessment.technicalQuestions.findIndex(q => {
+//             const qId = q.questionId;
+//             if (!qId) return false;
+//             // If populated (object with _id), compare _id; if unpopulated (ObjectId), compare directly
+//             const idStr = qId._id ? qId._id.toString() : qId.toString();
+//             return idStr === questionId;
+//         });
+
+//         console.log(`[MODERATION] findIndex result: ${qIndex}`);
+
+//         if (qIndex === -1) {
+//             console.error(`[MODERATION ERROR] questionId ${questionId} not found. IDs in assessment:`,
+//                 assessment.technicalQuestions.map(q => {
+//                     const qId = q.questionId;
+//                     if (!qId) return 'null';
+//                     return qId._id ? qId._id.toString() : qId.toString();
+//                 })
+//             );
+//             return res.status(404).json({ success: false, error: 'Question not found in assessment' });
+//         }
+
+//         const Question = require('../models/Question');
+//         const questionPoolItem = await Question.findById(questionId);
+
+//         if (action === 'approve') {
+//             if (questionPoolItem) {
+//                 questionPoolItem.status = 'active';
+//                 questionPoolItem.isVerified = true; // Add to verified bank
+//                 await questionPoolItem.save();
+//                 console.log(`[MODERATION] Question ${questionId} approved and added to active bank.`);
+//             } else {
+//                 console.warn(`[MODERATION] Question ${questionId} not in Question collection. Marking assessment entry only.`);
+//             }
+//         } else if (action === 'reject') {
+//             // Remove from assessment
+//             assessment.technicalQuestions.splice(qIndex, 1);
+//             assessment.markModified('technicalQuestions');
+//             await assessment.save();
+
+//             // Retire from pool
+//             if (questionPoolItem) {
+//                 questionPoolItem.status = 'retired';
+//                 await questionPoolItem.save();
+//                 console.log(`[MODERATION] Question ${questionId} rejected and retired.`);
+//             }
+//         }
+
+//         // Re-calculate assessment status: only blocked if questions still need approval
+//         const updatedAssessment = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+//         const hasPending = updatedAssessment.technicalQuestions.some(q => q.questionId?.status === 'pending_review');
+
+//         updatedAssessment.status = hasPending ? 'pending_review' : 'active';
+//         await updatedAssessment.save();
+
+//         // Return fully populated assessment for AJAX re-rendering
+//         const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
+//         res.json({
+//             success: true,
+//             message: `Question ${action}d successfully`,
+//             data: fullyPopulated
+//         });
+//     } catch (error) {
+//         console.error('Error moderating question:', error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// };
+
+// @desc    Remove a question from an assessment (does NOT delete from global bank)
+// @route   DELETE /api/jobs/:id/questions/:questionId/remove
+// @access  Private (HR/Admin)
+// exports.removeQuestionFromAssessment = async (req, res) => {
+//     try {
+//         const { id, questionId } = req.params;
+//         const job = await Job.findById(id);
+//         if (!job || !job.assessmentId) {
+//             return res.status(404).json({ success: false, error: 'Job or assessment not found' });
+//         }
+
+//         const assessment = await Assessment.findById(job.assessmentId);
+//         if (!assessment) return res.status(404).json({ success: false, error: 'Assessment not found' });
+
+//         const before = assessment.technicalQuestions.length;
+//         assessment.technicalQuestions = assessment.technicalQuestions.filter(q => {
+//             const qId = q.questionId?._id ? q.questionId._id.toString() : q.questionId?.toString();
+//             return qId !== questionId;
+//         });
+
+//         if (assessment.technicalQuestions.length === before) {
+//             return res.status(404).json({ success: false, error: 'Question not found in this assessment' });
+//         }
+
+//         assessment.questionCounts.technical = assessment.technicalQuestions.length;
+//         assessment.markModified('technicalQuestions');
+//         await assessment.save();
+
+//         // Return fully populated assessment for AJAX re-rendering
+//         const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
+//         res.json({ success: true, message: 'Question removed from assessment', data: fullyPopulated });
+//     } catch (error) {
+//         console.error('Error removing question from assessment:', error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// };
+
+
+
+
+
+
+// @desc    Approve AI suggestions
+// @route   POST /api/jobs/:id/suggestions/approve
+// @access  Private (HR/Admin)
+// exports.approveSuggestions = async (req, res) => {
+//     try {
+//         const { questionIds, skillTargetCounts } = req.body;
+//         const job = await Job.findById(req.params.id);
+//         if (!job || !job.assessmentId) return res.status(404).json({ success: false, error: 'Job/Assessment not found' });
+
+//         const Assessment = require('../models/Assessment');
+//         const Question = require('../models/Question');
+//         const assessment = await Assessment.findById(job.assessmentId).populate('technicalQuestions.questionId');
+
+//         const selectedSuggestions = assessment.suggestedQuestions.filter(q => questionIds.includes(q._id.toString()));
+//         const bySkill = {};
+//         for (const sug of selectedSuggestions) {
+//             if (!bySkill[sug.skill]) bySkill[sug.skill] = [];
+//             bySkill[sug.skill].push(sug);
+//         }
+
+//         let addedToAssessment = 0;
+//         let addedToQB = 0;
+
+//         for (const skill of Object.keys(bySkill)) {
+//             const suggestionsForSkill = bySkill[skill];
+//             const maxForSkill = skillTargetCounts[skill] || 2;
+//             const currentInAssessment = assessment.technicalQuestions.filter(q => q.skill === skill).length;
+//             let slotsLeft = Math.max(0, maxForSkill - currentInAssessment);
+
+//             for (const sug of suggestionsForSkill) {
+//                 const newQ = await Question.create({
+//                     skill: sug.skill,
+//                     difficulty: sug.difficulty,
+//                     question: sug.question,
+//                     options: sug.options,
+//                     correctAnswer: sug.correctAnswer,
+//                     explanation: sug.explanation,
+//                     status: 'active',
+//                     isVerified: true,
+//                     source: sug.source || 'ai_generated',
+//                     createdBy: req.user?._id || null
+//                 });
+//                 addedToQB++;
+
+//                 if (slotsLeft > 0) {
+//                     assessment.technicalQuestions.push({
+//                         questionId: newQ._id,
+//                         skill: newQ.skill,
+//                         difficulty: newQ.difficulty,
+//                         isManual: false
+//                     });
+//                     slotsLeft--;
+//                     addedToAssessment++;
+//                 }
+
+//                 assessment.suggestedQuestions = assessment.suggestedQuestions.filter(q => q._id.toString() !== sug._id.toString());
+//             }
+//         }
+
+//         assessment.questionCounts.technical = assessment.technicalQuestions.length;
+//         if (assessment.suggestedQuestions.length === 0 && assessment.technicalQuestions.length > 0) {
+//             assessment.status = 'active';
+//         }
+//         await assessment.save();
+
+//         // Return fully populated assessment for AJAX re-rendering
+//         const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
+//         res.json({ success: true, addedToAssessment, addedToQB, data: fullyPopulated });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ success: false, error: err.message });
+//     }
+// };
+
+// // @desc    Dismiss AI suggestions
+// // @route   POST /api/jobs/:id/suggestions/dismiss
+// // @access  Private (HR/Admin)
+// exports.dismissSuggestions = async (req, res) => {
+//     try {
+//         const { questionIds } = req.body;
+//         const Assessment = require('../models/Assessment');
+//         const job = await Job.findById(req.params.id);
+//         const assessment = await Assessment.findById(job.assessmentId);
+
+//         assessment.suggestedQuestions = assessment.suggestedQuestions.filter(q => !questionIds.includes(q._id.toString()));
+//         if (assessment.suggestedQuestions.length === 0 && assessment.technicalQuestions.length > 0) {
+//             assessment.status = 'active';
+//         }
+//         await assessment.save();
+
+//         // Return fully populated assessment for AJAX re-rendering
+//         const fullyPopulated = await Assessment.findById(assessment._id).populate('technicalQuestions.questionId');
+
+//         res.json({ success: true, message: 'Dismissed', data: fullyPopulated });
+//     } catch (err) {
+//         res.status(500).json({ success: false, error: err.message });
+//     }
+// };
+

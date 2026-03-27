@@ -228,6 +228,7 @@ async function regenerateSingleScenario(assessmentId, scenarioId) {
  * @param {Object} updates - Fields to update
  * @returns {Promise<Object>} - Updated assessment
  */
+//dead Code
 async function updateAssessmentConfig(assessmentId, updates) {
     const assessment = await Assessment.findById(assessmentId);
     if (!assessment) {

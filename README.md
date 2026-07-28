@@ -10,6 +10,14 @@
 
 ---
 
+## 💼 Business Value (Globalco Assessment)
+This platform delivers immediate **business value** by:
+1. **Automating Candidate Screening:** Using AI to dynamically assess candidates via chat-based simulation rather than standard forms.
+2. **Providing Deep Competency Insights:** Generating detailed reports on user skills based on real-world scenario responses.
+3. **Streamlining Hiring Workflows:** Acting as a modern jobs board where applicants are evaluated fairly and efficiently.
+
+---
+
 ## 🌟 Key Features
 
 ### 🤖 AI-Agentic Assessments
@@ -42,6 +50,11 @@
 
 ### Security Architecture (S3 Proxy)
 Unlike standard implementations, ScenarioSim does not expose direct S3 links. All document requests pass through a backend authorization layer that validates the user session before fetching and streaming the file, ensuring zero unauthorized access.
+
+---
+
+## 🚀 CI/CD and Deployment (Vercel)
+This project uses **GitHub Actions** as its CI/CD pipeline. Every push to the `main` branch automatically triggers the `.github/workflows/deploy.yml` action, which handles building the project and deploying it to **Vercel** serverless functions.
 
 ---
 
